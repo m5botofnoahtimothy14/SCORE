@@ -169,8 +169,12 @@ function LoginForm() {
         </div>
 
         {/* NO public registration link — by design */}
-        <p className="text-center text-xs text-slate-600 mt-6">
-          TeachCross Platform v1.0 · Secure Admin Access
+        <p className="text-center text-xs text-slate-500 mt-6">
+          Signed by <span className="font-medium text-slate-300">Noah Timothy Keba Joseph</span>{' '}
+          <span className="font-mono text-slate-600">@2026</span>
+        </p>
+        <p className="text-center text-[11px] text-slate-600 mt-1">
+          TeachCross™ — Proprietary License · © 2026 Noah Timothy Keba Joseph. All rights reserved.
         </p>
       </div>
     </div>
