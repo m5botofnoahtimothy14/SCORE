@@ -58,5 +58,23 @@ npm run dev   # http://localhost:3000/auth/login
    acknowledge → DMS shows the ack.
 5. DMS → Students → deactivate S1001 → app loses access (session check).
 
-Teacher OTP needs MSG91/Twilio keys even for demo; until then, link a
-demo teacher directly in SQL (documented demo-only step, audited).
+## Ready-to-run demo (pre-prod project `pdnrloftybrhuwefmrhp`)
+
+Anonymous sign-in is enabled on the project; without it every login
+fails before it starts (`Anonymous sign-ins are disabled`).
+
+- **Student** — App → Demo Public School → Student → ID `S1001`,
+  code `B0280BC8` (single-use, 7-day). Also `S1002`/`S1003` issued via
+  `node scripts/issue-code.mjs <ID>`.
+- **Teacher** — App → Demo Public School → Teacher → Staff ID `T001`,
+  phone `+911234567890`, code `123456`. (Demo mode: `DEMO_OTP=123456`
+  is set on `send-otp`, so SMS is skipped. **Unset before production:**
+  `supabase secrets unset DEMO_OTP`.) T002 is a leadership account
+  (`+911234567891`) → signs in as head_teacher.
+- **Admin DMS** — http://localhost:3000/auth/login, `npm run dev` in
+  `apps/admin` (`.env.local` already set). Login
+  `noahtimothykeba@gmail.com` / `teachcrossnoahdev1` (rotate).
+
+Helper scripts: `scripts/demo-test.mjs` (end-to-end flow check),
+`scripts/reset-teacher-demo.mjs` (clear a teacher's OTP + rate limit so
+the demo can be re-run).
