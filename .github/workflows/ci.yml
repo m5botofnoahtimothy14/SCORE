@@ -1,0 +1,31 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test-and-typecheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: apps/admin/package-lock.json
+      - name: Unit + security-mirror tests
+        run: npm test
+      - name: Install admin deps
+        run: npm --prefix apps/admin ci
+      - name: Typecheck admin DMS
+        run: npm --prefix apps/admin run typecheck
+      - name: Typecheck contracts
+        run: npm run typecheck:contracts
+      - name: Lint admin DMS
+        run: npm --prefix apps/admin run lint
+      - name: Secret scan (gitleaks)
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

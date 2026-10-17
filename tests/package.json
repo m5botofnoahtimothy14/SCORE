@@ -1,0 +1,7 @@
+{
+  "name": "@teachcross/tests",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "TeachCross unit + security-mirror tests (dependency-free, node:test)"
+}

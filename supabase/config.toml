@@ -1,0 +1,44 @@
+# TeachCross Supabase project config
+# Apply with: supabase db push / supabase functions deploy
+
+[project]
+name = "teachcross"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "storage", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+major_version = 15
+
+[studio]
+enabled = true
+port = 54323
+
+[storage]
+enabled = true
+# Private buckets are created in migration 00007_storage.sql.
+# File-size limits are enforced in edge code + school_settings.max_file_size_mb.
+
+[auth]
+enabled = true
+site_url = "http://localhost:3000"
+enable_signup = true
+# Mobile student flow uses anonymous sign-in then activation; teachers use
+# email/phone OTP via edge functions. Admins use email+password in the DMS.
+# Enable anonymous sign-ins in Dashboard > Authentication > Providers for
+# the student activation flow.
+[auth.email]
+enable_signup = true
+double_confirm_changes = true
+enable_confirmations = true
+
+[edge_runtime]
+enabled = true
+port = 54324
+
+# Realtime is enabled per-table via migrations (supabase_realtime publication).

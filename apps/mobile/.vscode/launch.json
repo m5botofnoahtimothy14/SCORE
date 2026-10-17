@@ -1,0 +1,42 @@
+{
+  // Run via Antigravity: Run > Start Debugging (F5), or `flutter run`
+  // from the apps/mobile folder. The IDE uses D:\dev\flutter via the
+  // user setting "dart.flutterSdkPath".
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "TeachCross (no backend — UI + error states)",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "toolArgs": [
+        "--dart-define=SUPABASE_URL=https://placeholder.supabase.co",
+        "--dart-define=SUPABASE_ANON_KEY=placeholder"
+      ]
+    },
+    {
+      "name": "TeachCross (real backend)",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "toolArgs": [
+        "--dart-define=SUPABASE_URL=${input:supabaseUrl}",
+        "--dart-define=SUPABASE_ANON_KEY=${input:supabaseAnonKey}"
+      ]
+    }
+  ],
+  "inputs": [
+    {
+      "id": "supabaseUrl",
+      "type": "promptString",
+      "description": "Supabase project URL (e.g. https://xyz.supabase.co)",
+      "default": "https://placeholder.supabase.co"
+    },
+    {
+      "id": "supabaseAnonKey",
+      "type": "promptString",
+      "description": "Supabase anon (publishable) key",
+      "default": "placeholder"
+    }
+  ]
+}
