@@ -4,6 +4,12 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/widgets/states.dart';
 
+/// Safe single-letter avatar initial (handles null/empty names).
+String _initialOf(dynamic value) {
+  final s = value?.toString().trim() ?? '';
+  return s.isEmpty ? '?' : s.substring(0, 1).toUpperCase();
+}
+
 /// Directory of teachers the signed-in user is authorized to see.
 /// RLS scopes this automatically: students see only their assigned
 /// teachers, teachers see colleagues, nothing else.
@@ -91,7 +97,7 @@ class _DirectoryScreenState extends State<DirectoryScreen> {
                                     leading: CircleAvatar(
                                       backgroundColor: const Color(0xFFEBF5FF),
                                       child: Text(
-                                        ((t['first_name'] as String?) ?? '?').substring(0, 1),
+                                        _initialOf(t['first_name']),
                                         style: const TextStyle(
                                             color: Color(0xFF1A56DB), fontWeight: FontWeight.bold),
                                       ),

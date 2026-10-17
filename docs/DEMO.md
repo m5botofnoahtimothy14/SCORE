@@ -9,8 +9,8 @@ paths as production, just with demo keys/data.
 1. Create a free project at https://supabase.com → note:
    - Project URL, `anon` key, `service_role` key (Settings → API)
    - Project ref (URL subdomain, e.g. `xyzabc123`).
-2. Hand those four values to your engineer (or paste them into
-   `.env.example`-style notes — never commit them).
+2. Hand those four values to your engineer (or paste them into a local
+   `.env.local` file — never commit secrets).
 
 ## What the engineer runs (Supabase CLI is at `D:\dev\npm-global\supabase.cmd`)
 

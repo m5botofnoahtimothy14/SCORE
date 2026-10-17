@@ -90,8 +90,10 @@ export default function SchoolsPage() {
           email: editing.email || null,
         }).select('id').single()
         if (error) throw error
-        await supabase.from('school_settings').insert({ school_id: (data as { id: string }).id })
-        await logAudit(supabase, user!.id, { schoolId: (data as { id: string }).id, action: 'school.create', targetType: 'school', targetId: (data as { id: string }).id, outcome: 'success' })
+        const newId = (data as { id: string }).id
+        const { error: settingsError } = await supabase.from('school_settings').insert({ school_id: newId })
+        if (settingsError) throw new Error(`School created but its settings row failed: ${settingsError.message}`)
+        await logAudit(supabase, user!.id, { schoolId: newId, action: 'school.create', targetType: 'school', targetId: newId, outcome: 'success' })
         show(true, 'School created.')
       }
       setEditing(null)

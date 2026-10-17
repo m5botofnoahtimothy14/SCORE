@@ -22,14 +22,16 @@ export function decideTextVerdict({ categories, provider, providerError }) {
   return { verdict: 'approved', messageStatus: 'approved', maxScore };
 }
 
-export function decideImageVerdict({ adult, violence, racy, providerConfigured, providerError }) {
+// APILayer Nudity Detection returns a 1–5 score (5 = most likely nude).
+export const IMAGE_REJECT_AT = 4;
+export const IMAGE_HOLD_AT = 3;
+
+export function decideImageVerdict({ score, providerConfigured, providerError }) {
   if (!providerConfigured || providerError) {
     return { verdict: 'quarantined', attachmentStatus: 'quarantined' }; // fail closed
   }
-  if (adult >= 0.8 || violence >= 0.8) return { verdict: 'rejected', attachmentStatus: 'rejected' };
-  if (adult >= 0.5 || violence >= 0.5 || racy >= 0.8) {
-    return { verdict: 'quarantined', attachmentStatus: 'quarantined' };
-  }
+  if (score >= IMAGE_REJECT_AT) return { verdict: 'rejected', attachmentStatus: 'rejected' };
+  if (score >= IMAGE_HOLD_AT) return { verdict: 'quarantined', attachmentStatus: 'quarantined' };
   return { verdict: 'approved', attachmentStatus: 'approved' };
 }
 

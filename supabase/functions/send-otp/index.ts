@@ -1,18 +1,18 @@
 // ============================================================
 // Edge Function: send-otp
 // Sends OTP to teacher's phone for enrollment verification
-// Uses MSG91 (India) or Twilio
+// Uses TextBee (self-hosted Android SMS gateway)
 // ============================================================
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const MSG91_AUTH_KEY = Deno.env.get("MSG91_AUTH_KEY");
-const MSG91_TEMPLATE_ID = Deno.env.get("MSG91_OTP_TEMPLATE_ID");
-const TWILIO_ACCOUNT_SID = Deno.env.get("TWILIO_ACCOUNT_SID");
-const TWILIO_AUTH_TOKEN = Deno.env.get("TWILIO_AUTH_TOKEN");
-const TWILIO_FROM_NUMBER = Deno.env.get("TWILIO_FROM_NUMBER");
+
+// TextBee SMS gateway (https://textbee.dev) — sends through your own Android phone.
+const TEXTBEE_API_KEY = Deno.env.get("TEXTBEE_API_KEY");
+const TEXTBEE_DEVICE_ID = Deno.env.get("TEXTBEE_DEVICE_ID"); // optional; uses default device if unset
+const TEXTBEE_BASE_URL = Deno.env.get("TEXTBEE_BASE_URL") ?? "https://api.textbee.dev/api/v1";
 
 // Demo/pre-prod only: when set, every teacher OTP is this fixed value and
 // SMS delivery is skipped. MUST be unset (or empty) in production.
@@ -144,66 +144,35 @@ async function hashOtp(otp: string): Promise<string> {
 }
 
 async function sendOtp(phone: string, otp: string): Promise<boolean> {
-  // Try MSG91 first (India-optimized)
-  if (MSG91_AUTH_KEY && MSG91_TEMPLATE_ID) {
-    return await sendViaMSG91(phone, otp);
+  if (!TEXTBEE_API_KEY) {
+    console.error("CRITICAL: TEXTBEE_API_KEY not configured. Cannot send OTP.");
+    return false;
   }
-  // Fall back to Twilio
-  if (TWILIO_ACCOUNT_SID && TWILIO_AUTH_TOKEN && TWILIO_FROM_NUMBER) {
-    return await sendViaTwilio(phone, otp);
-  }
-  // No provider configured — cannot send OTP
-  console.error("CRITICAL: No SMS provider configured. Cannot send OTP.");
-  return false;
+  return await sendViaTextbee(phone, otp);
 }
 
-async function sendViaMSG91(phone: string, otp: string): Promise<boolean> {
+async function sendViaTextbee(phone: string, otp: string): Promise<boolean> {
   try {
-    // Remove + prefix for MSG91
-    const mobile = phone.replace("+", "");
-    const response = await fetch("https://control.msg91.com/api/v5/otp", {
+    const message = `Your TeachCross verification code is ${otp}. It expires in ${OTP_EXPIRY_MINUTES} minutes. Do not share it.`;
+    const payload: Record<string, unknown> = { recipients: [phone], message };
+    if (TEXTBEE_DEVICE_ID) payload.deviceId = TEXTBEE_DEVICE_ID;
+
+    const response = await fetch(`${TEXTBEE_BASE_URL}/gateway/send-sms`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "authkey": MSG91_AUTH_KEY!,
+        "x-api-key": TEXTBEE_API_KEY!,
       },
-      body: JSON.stringify({
-        template_id: MSG91_TEMPLATE_ID,
-        mobile,
-        authkey: MSG91_AUTH_KEY,
-        otp,
-      }),
+      body: JSON.stringify(payload),
     });
-    const result = await response.json();
-    return result.type === "success";
-  } catch (err) {
-    console.error("MSG91 error:", err);
-    return false;
-  }
-}
 
-async function sendViaTwilio(phone: string, otp: string): Promise<boolean> {
-  try {
-    const credentials = btoa(`${TWILIO_ACCOUNT_SID}:${TWILIO_AUTH_TOKEN}`);
-    const response = await fetch(
-      `https://api.twilio.com/2010-04-01/Accounts/${TWILIO_ACCOUNT_SID}/Messages.json`,
-      {
-        method: "POST",
-        headers: {
-          "Authorization": `Basic ${credentials}`,
-          "Content-Type": "application/x-www-form-urlencoded",
-        },
-        body: new URLSearchParams({
-          From: TWILIO_FROM_NUMBER!,
-          To: phone,
-          Body: `Your TeachCross verification code is: ${otp}. Valid for ${OTP_EXPIRY_MINUTES} minutes.`,
-        }),
-      }
-    );
-    const result = await response.json();
-    return result.status !== "failed" && result.sid !== undefined;
+    if (!response.ok) {
+      console.error("TextBee error:", response.status, await response.text());
+      return false;
+    }
+    return true; // 200 = accepted by the gateway (queued to the phone)
   } catch (err) {
-    console.error("Twilio error:", err);
+    console.error("TextBee error:", err);
     return false;
   }
 }

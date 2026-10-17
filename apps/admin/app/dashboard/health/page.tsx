@@ -22,6 +22,7 @@ export default function HealthPage() {
   const [error, setError] = useState<string | null>(null)
   const [schoolId, setSchoolId] = useState<string | null>(null)
   const [userId, setUserId] = useState<string | null>(null)
+  const [isOwner, setIsOwner] = useState(false)
   const { show, node } = useToast()
 
   async function load() {
@@ -33,10 +34,14 @@ export default function HealthPage() {
       setHealth(data as Health)
       const supabase = createClient()
       const { data: { user } } = await supabase.auth.getUser()
-      setUserId(user?.id ?? null)
-      const { data: membership } = await supabase.from('school_memberships').select('school_id')
-        .eq('user_id', user!.id).eq('is_active', true).limit(1).maybeSingle()
+      if (!user) throw new Error('Not signed in.')
+      setUserId(user.id)
+      const { data: membership } = await supabase.from('school_memberships').select('school_id, role')
+        .eq('user_id', user.id).eq('is_active', true)
+        .in('role', ['platform_owner', 'school_admin', 'principal'])
+        .order('joined_at', { ascending: true }).limit(1).maybeSingle()
       setSchoolId((membership as { school_id: string } | null)?.school_id ?? null)
+      setIsOwner((membership as { role: string } | null)?.role === 'platform_owner')
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Health check failed.')
     }
@@ -45,14 +50,23 @@ export default function HealthPage() {
   useEffect(() => { load() }, [])
 
   async function retryBackgroundJobs() {
+    if (!isOwner) {
+      show(false, 'Only a Super Admin can re-queue background jobs.')
+      return
+    }
     try {
       const supabase = createClient()
-      const { error } = await supabase.from('background_jobs')
+      const { data: updated, error } = await supabase.from('background_jobs')
         .update({ status: 'queued', attempts: 0, last_error: null })
         .in('status', ['failed', 'retrying'])
+        .select('id')
       if (error) throw error
+      if (!updated?.length) {
+        show(false, 'No failed background jobs to re-queue.')
+        return
+      }
       await logAudit(supabase, userId!, { schoolId, action: 'jobs.retry', targetType: 'background_jobs', outcome: 'success' })
-      show(true, 'Failed jobs re-queued.')
+      show(true, `${updated.length} job(s) re-queued.`)
       load()
     } catch (e) {
       show(false, e instanceof Error ? e.message : 'Retry failed.')
@@ -103,7 +117,7 @@ export default function HealthPage() {
               <div className="flex justify-between"><span>Pending moderation cases</span><b>{health.queues.pendingModerationCases ? 'yes' : 'no'}</b></div>
             </div>
             <div className="flex gap-2 mt-3">
-              <button onClick={retryBackgroundJobs} className={btnSecondary}>Re-queue failed jobs</button>
+              {isOwner && <button onClick={retryBackgroundJobs} className={btnSecondary}>Re-queue failed jobs</button>}
               <button onClick={load} className={btnSecondary}>Refresh</button>
             </div>
             <p className="text-xs text-gray-500 mt-3">

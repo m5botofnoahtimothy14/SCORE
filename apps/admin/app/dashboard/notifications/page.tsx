@@ -35,7 +35,9 @@ export default function NotificationsPage() {
       if (!user) throw new Error('Not signed in.')
       setUserId(user.id)
       const { data: membership } = await supabase.from('school_memberships').select('school_id')
-        .eq('user_id', user.id).eq('is_active', true).limit(1).maybeSingle()
+        .eq('user_id', user.id).eq('is_active', true)
+        .in('role', ['platform_owner', 'school_admin', 'principal'])
+        .order('joined_at', { ascending: true }).limit(1).maybeSingle()
       const sid = (membership as { school_id: string } | null)?.school_id
       if (!sid) throw new Error('No school scope.')
       setSchoolId(sid)
@@ -56,6 +58,14 @@ export default function NotificationsPage() {
 
   useEffect(() => { load() }, [])
 
+  // Drain pending jobs through the server route; returns the real send result.
+  async function dispatch(): Promise<{ sent: number; failed: number }> {
+    const res = await fetch('/api/notifications/dispatch', { method: 'POST' })
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok) throw new Error(data.detail || data.error || 'Dispatch failed.')
+    return { sent: data?.result?.sent ?? 0, failed: data?.result?.failed ?? 0 }
+  }
+
   async function retry(id: string) {
     try {
       const supabase = createClient()
@@ -64,7 +74,8 @@ export default function NotificationsPage() {
         .eq('id', id)
       if (error) throw error
       await logAudit(supabase, userId!, { schoolId, action: 'notification.retry', targetType: 'notification_job', targetId: id, outcome: 'success' })
-      show(true, 'Job re-queued for dispatch.')
+      const { sent } = await dispatch()
+      show(true, `Job re-queued — ${sent} sent.`)
       load()
     } catch (e) {
       show(false, e instanceof Error ? e.message : 'Retry failed.')
@@ -73,7 +84,7 @@ export default function NotificationsPage() {
 
   async function testPing() {
     if (!fcmConfigured) {
-      show(false, 'FCM is not configured — set FCM_SERVER_KEY / FCM_PROJECT_ID first. No test was sent.')
+      show(false, 'FCM is not configured — set the Firebase service-account secrets (FCM_PROJECT_ID / FCM_CLIENT_EMAIL / FCM_PRIVATE_KEY) first. No test was sent.')
       return
     }
     try {
@@ -85,7 +96,9 @@ export default function NotificationsPage() {
         idempotency_key: `test:${userId}:${Date.now()}`,
       })
       if (error) throw error
-      show(true, 'Test queued. Check your device — dispatch runs via the edge function.')
+      const { sent } = await dispatch()
+      show(sent > 0, sent > 0 ? 'Test notification sent.' : 'Queued, but no active device received it (register a device first).')
+      load()
     } catch (e) {
       show(false, e instanceof Error ? e.message : 'Test failed.')
     }

@@ -49,3 +49,8 @@ app.*.map.json
 
 # Kotlin build sessions
 android/.kotlin/
+
+# Firebase config (secrets)
+android/app/google-services.json
+android/*firebase-adminsdk*.json
+android/google-services.json

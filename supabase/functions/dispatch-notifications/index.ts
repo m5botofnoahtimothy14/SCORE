@@ -1,30 +1,39 @@
 // ============================================================
 // Edge Function: dispatch-notifications
-// Sends FCM push notifications for pending notification jobs
-// Server-side only — FCM key never exposed to client
+// Sends FCM (HTTP v1) push notifications for pending notification jobs.
+// Auth uses the Firebase service-account (FCM_PROJECT_ID / FCM_CLIENT_EMAIL /
+// FCM_PRIVATE_KEY) — no legacy server key. Server-side only.
 // ============================================================
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const FCM_SERVER_KEY = Deno.env.get("FCM_SERVER_KEY");
 const FCM_PROJECT_ID = Deno.env.get("FCM_PROJECT_ID");
+const FCM_CLIENT_EMAIL = Deno.env.get("FCM_CLIENT_EMAIL");
+const FCM_PRIVATE_KEY = Deno.env.get("FCM_PRIVATE_KEY");
 const INTERNAL_WEBHOOK_SECRET = Deno.env.get("INTERNAL_WEBHOOK_SECRET")!;
 
 const BATCH_SIZE = 50;
+const TOKEN_URL = "https://oauth2.googleapis.com/token";
+const SCOPE = "https://www.googleapis.com/auth/firebase.messaging";
+
+let cachedToken: string | null = null;
+let cachedTokenExp = 0;
 
 serve(async (req: Request) => {
-  // Allow both internal webhook calls and scheduled invocations
   const secret = req.headers.get("x-webhook-secret");
   const isInternal = secret === INTERNAL_WEBHOOK_SECRET;
   const isScheduled = req.headers.get("x-scheduled") === "true";
+  // Service-role callers (e.g. the DMS server) are trusted implicitly.
+  const auth = req.headers.get("authorization") ?? "";
+  const isServiceRole = auth === `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`;
 
-  if (!isInternal && !isScheduled) {
+  if (!isInternal && !isScheduled && !isServiceRole) {
     return new Response("Unauthorized", { status: 401 });
   }
 
-  if (!FCM_SERVER_KEY && !FCM_PROJECT_ID) {
+  if (!FCM_PROJECT_ID || !FCM_CLIENT_EMAIL || !FCM_PRIVATE_KEY) {
     console.error("FCM not configured — notifications disabled");
     return new Response(
       JSON.stringify({ error: "FCM not configured", sent: 0 }),
@@ -37,10 +46,9 @@ serve(async (req: Request) => {
   let body: { school_id?: string } = {};
   try { body = await req.json(); } catch { /* no body */ }
 
-  // Get pending notification jobs
   const query = supabase
     .from("notification_jobs")
-    .select("*, notification_devices!inner(fcm_token, is_active)")
+    .select("*")
     .eq("status", "pending")
     .order("created_at", { ascending: true })
     .limit(BATCH_SIZE);
@@ -56,11 +64,21 @@ serve(async (req: Request) => {
     return new Response("DB error", { status: 500 });
   }
 
+  let accessToken = "";
+  try {
+    accessToken = await getAccessToken();
+  } catch (e) {
+    console.error("FCM token error:", e);
+    return new Response(
+      JSON.stringify({ error: "FCM auth failed", sent: 0 }),
+      { status: 502, headers: { "Content-Type": "application/json" } }
+    );
+  }
+
   let sent = 0;
   let failed = 0;
 
   for (const job of jobs ?? []) {
-    // Get active FCM tokens for recipient
     const { data: devices } = await supabase
       .from("notification_devices")
       .select("id, fcm_token")
@@ -68,7 +86,6 @@ serve(async (req: Request) => {
       .eq("is_active", true);
 
     if (!devices?.length) {
-      // No active devices — mark skipped
       await supabase.from("notification_jobs")
         .update({ status: "skipped", sent_at: new Date().toISOString() })
         .eq("id", job.id);
@@ -78,6 +95,7 @@ serve(async (req: Request) => {
     let jobSent = false;
     for (const device of devices) {
       const success = await sendFcmNotification(
+        accessToken,
         device.fcm_token,
         { title: job.title, body: job.body },
         job.data
@@ -86,7 +104,6 @@ serve(async (req: Request) => {
       if (success) {
         jobSent = true;
       } else {
-        // Token may be stale — deactivate
         await supabase.from("notification_devices")
           .update({ is_active: false })
           .eq("id", device.id);
@@ -117,12 +134,12 @@ serve(async (req: Request) => {
 });
 
 async function sendFcmNotification(
+  accessToken: string,
   token: string,
   notification: { title: string; body: string },
   data: Record<string, unknown>
 ): Promise<boolean> {
   try {
-    // Using FCM v1 API (HTTP v1)
     const payload = {
       message: {
         token,
@@ -131,13 +148,13 @@ async function sendFcmNotification(
           body: notification.body,   // Generic — no sensitive content
         },
         data: Object.fromEntries(
-          Object.entries(data).map(([k, v]) => [k, String(v)])
+          Object.entries(data ?? {}).map(([k, v]) => [k, String(v)])
         ),
         android: {
           priority: "high",
           notification: {
-            channel_id: data.type === "alert" ? "priority_alerts" :
-              data.type === "announcement" ? "announcements" : "messages",
+            channel_id: data?.type === "alert" ? "priority_alerts" :
+              data?.type === "announcement" ? "announcements" : "messages",
             sound: "default",
           },
         },
@@ -149,26 +166,85 @@ async function sendFcmNotification(
       {
         method: "POST",
         headers: {
+          "Authorization": `Bearer ${accessToken}`,
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${FCM_SERVER_KEY}`,
         },
         body: JSON.stringify(payload),
       }
     );
 
-    if (!response.ok) {
-      const errBody = await response.text();
-      console.error("FCM send error:", response.status, errBody);
-      // Token invalid/expired
-      if (response.status === 404 || errBody.includes("UNREGISTERED")) {
-        return false; // Signal to deactivate token
-      }
+    if (response.status === 401) {
+      // Token may have expired mid-batch — refresh once.
+      cachedToken = null;
       return false;
     }
-
-    return true;
+    return response.ok;
   } catch (err) {
-    console.error("FCM send exception:", err);
+    console.error("FCM send error:", err);
     return false;
   }
+}
+
+// ---- OAuth2 access token from the service account (RS256 JWT) ----
+
+async function getAccessToken(): Promise<string> {
+  const now = Math.floor(Date.now() / 1000);
+  if (cachedToken && cachedTokenExp > now + 60) return cachedToken;
+
+  const header = { alg: "RS256", typ: "JWT" };
+  const claims = {
+    iss: FCM_CLIENT_EMAIL,
+    scope: SCOPE,
+    aud: TOKEN_URL,
+    iat: now,
+    exp: now + 3600,
+  };
+  const signingInput = `${b64url(JSON.stringify(header))}.${b64url(JSON.stringify(claims))}`;
+
+  const key = await importPrivateKey(FCM_PRIVATE_KEY!);
+  const signature = await crypto.subtle.sign(
+    { name: "RSASSA-PKCS1-v1_5" },
+    key,
+    new TextEncoder().encode(signingInput)
+  );
+  const jwt = `${signingInput}.${b64urlBytes(new Uint8Array(signature))}`;
+
+  const res = await fetch(TOKEN_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
+      assertion: jwt,
+    }),
+  });
+  if (!res.ok) throw new Error(`token endpoint ${res.status}: ${await res.text()}`);
+  const data = await res.json();
+  cachedToken = data.access_token;
+  cachedTokenExp = now + (data.expires_in ?? 3600);
+  return cachedToken!;
+}
+
+async function importPrivateKey(pem: string): Promise<CryptoKey> {
+  const normalized = pem.replace(/\\n/g, "\n");
+  const body = normalized
+    .replace("-----BEGIN PRIVATE KEY-----", "")
+    .replace("-----END PRIVATE KEY-----", "")
+    .replace(/\s+/g, "");
+  const der = Uint8Array.from(atob(body), (c) => c.charCodeAt(0));
+  return await crypto.subtle.importKey(
+    "pkcs8",
+    der,
+    { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
+    false,
+    ["sign"]
+  );
+}
+
+function b64url(s: string): string {
+  return b64urlBytes(new TextEncoder().encode(s));
+}
+function b64urlBytes(bytes: Uint8Array): string {
+  let bin = "";
+  for (const b of bytes) bin += String.fromCharCode(b);
+  return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }

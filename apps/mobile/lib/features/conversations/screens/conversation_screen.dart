@@ -218,22 +218,36 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
         if (!_messages.any((m) => m.id == msg.id)) {
           _messages = [msg, ..._messages];
         }
-        _sending = false;
       });
       _scroll.animateTo(0, duration: const Duration(milliseconds: 200), curve: Curves.easeOut);
     } on ChatException catch (e) {
-      if (mounted) {
-        setState(() {
-          _sendError = e.message;
-          _sending = false;
-        });
-      }
+      if (mounted) setState(() => _sendError = e.message);
+    } catch (_) {
+      if (mounted) setState(() => _sendError = 'Message was not sent. Please retry.');
+    } finally {
+      if (mounted) setState(() => _sending = false);
     }
+  }
+
+  String _mimeFromName(String name) {
+    final n = name.toLowerCase();
+    if (n.endsWith('.png')) return 'image/png';
+    if (n.endsWith('.webp')) return 'image/webp';
+    if (n.endsWith('.gif')) return 'image/gif';
+    return 'image/jpeg';
   }
 
   Future<void> _pickImage() async {
     if (_uploading || _schoolId == null) return;
-    final picked = await _picker.pickImage(source: ImageSource.gallery, maxWidth: 1920);
+    if (_convType == 'class_channel' && !_isTeacher) {
+      setState(() => _sendError = 'Students cannot post in class channels.');
+      return;
+    }
+    final picked = await _picker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 1920,
+      imageQuality: 85,
+    );
     if (picked == null) return;
     setState(() {
       _uploading = true;
@@ -246,46 +260,37 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
             conversationId: widget.conversationId,
             localPath: picked.path,
             fileName: picked.name,
-            mimeType: 'image/jpeg',
+            mimeType: _mimeFromName(picked.name),
             sizeBytes: bytes,
           );
+      // Link the upload to a real message (empty body allowed with attachment).
+      final caption = _input.text.trim();
+      final msg = await ref.read(_chatProvider).sendMessage(
+            conversationId: widget.conversationId,
+            body: caption,
+            attachmentId: attachment.id,
+          );
+      _input.clear();
       if (!mounted) return;
-      setState(() => _uploading = false);
+      setState(() {
+        if (!_messages.any((m) => m.id == msg.id)) {
+          _messages = [msg, ..._messages];
+        }
+      });
+      _scroll.animateTo(0, duration: const Duration(milliseconds: 200), curve: Curves.easeOut);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(attachment.status == 'approved'
               ? 'Image shared.'
-              : 'Image uploaded — visible after automatic safety review.'),
+              : 'Image shared — visible to others after automatic safety review.'),
         ),
       );
-      await _refreshAfterUpload();
     } on ChatException catch (e) {
-      if (mounted) {
-        setState(() {
-          _sendError = e.message;
-          _uploading = false;
-        });
-      }
-    }
-  }
-
-  Future<void> _refreshAfterUpload() async {
-    // Poll a few times: moderation webhook flips pending→approved shortly.
-    for (var i = 0; i < 4; i++) {
-      await Future.delayed(const Duration(seconds: 3));
-      if (!mounted) return;
-      try {
-        final fresh = await ref
-            .read(_chatProvider)
-            .fetchMessages(conversationId: widget.conversationId, limit: 10);
-        final known = _messages.map((m) => m.id).toSet();
-        final unseen = fresh.where((m) => !known.contains(m.id)).toList();
-        if (unseen.isNotEmpty && mounted) {
-          setState(() => _messages = [...unseen, ..._messages]
-            ..sort((a, b) => b.createdAt.compareTo(a.createdAt)));
-          return;
-        }
-      } catch (_) {}
+      if (mounted) setState(() => _sendError = e.message);
+    } catch (_) {
+      if (mounted) setState(() => _sendError = 'Could not share the image. Please try again.');
+    } finally {
+      if (mounted) setState(() => _uploading = false);
     }
   }
 
@@ -312,13 +317,14 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
           ElevatedButton(
             onPressed: () async {
+              final note = details.text;
               Navigator.pop(ctx);
               try {
                 await ref.read(_chatProvider).reportMessage(
                       schoolId: _schoolId!,
                       messageId: m.id,
                       reason: selected,
-                      details: details.text,
+                      details: note,
                     );
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -335,7 +341,7 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
           ),
         ],
       ),
-    );
+    ).whenComplete(details.dispose);
   }
 
   Future<void> _changeQuestionStatus(String to) async {
@@ -478,13 +484,10 @@ class _Bubble extends StatelessWidget {
               if (message.body != null && message.body!.isNotEmpty)
                 Text(message.body!,
                     style: TextStyle(color: mine ? Colors.white : const Color(0xFF111827))),
-              if (message.attachments.isNotEmpty)
+              for (final a in message.attachments)
                 Padding(
                   padding: const EdgeInsets.only(top: 6),
-                  child: Text(
-                    '📎 ${message.attachments.length} attachment(s) · ${message.attachments.first.status}',
-                    style: TextStyle(color: mine ? const Color(0xFFBFDBFE) : const Color(0xFF6B7280), fontSize: 12),
-                  ),
+                  child: _AttachmentView(attachment: a),
                 ),
               const SizedBox(height: 4),
               Row(
@@ -519,6 +522,91 @@ class _Bubble extends StatelessWidget {
   String _time(DateTime dt) {
     final l = dt.toLocal();
     return '${l.hour.toString().padLeft(2, '0')}:${l.minute.toString().padLeft(2, '0')}';
+  }
+}
+
+class _AttachmentView extends ConsumerStatefulWidget {
+  final AttachmentRecord attachment;
+  const _AttachmentView({required this.attachment});
+  @override
+  ConsumerState<_AttachmentView> createState() => _AttachmentViewState();
+}
+
+class _AttachmentViewState extends ConsumerState<_AttachmentView> {
+  Future<String>? _url;
+
+  bool get _isApprovedImage =>
+      widget.attachment.type == 'image' && widget.attachment.status == 'approved';
+
+  @override
+  void initState() {
+    super.initState();
+    if (_isApprovedImage) {
+      _url = ref.read(_chatProvider).signedUrl(widget.attachment.storagePath);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final a = widget.attachment;
+    if (a.type != 'image') {
+      return _stub(Icons.attach_file, a.fileName.isEmpty ? a.type : a.fileName);
+    }
+    if (!_isApprovedImage) {
+      final blocked = a.status == 'rejected' || a.status == 'blocked' || a.status == 'quarantined';
+      return _stub(
+        blocked ? Icons.block : Icons.shield_outlined,
+        blocked ? 'Image blocked by safety review' : 'Image under safety review',
+      );
+    }
+    return FutureBuilder<String>(
+      future: _url,
+      builder: (context, snap) {
+        if (snap.connectionState != ConnectionState.done) {
+          return _stub(Icons.image_outlined, 'Loading image...');
+        }
+        if (!snap.hasData) {
+          return _stub(Icons.broken_image_outlined, 'Image unavailable');
+        }
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(10),
+          child: Image.network(
+            snap.data!,
+            width: 220,
+            fit: BoxFit.cover,
+            loadingBuilder: (c, child, progress) =>
+                progress == null ? child : _stub(Icons.image_outlined, 'Loading image...'),
+            errorBuilder: (c, e, s) => _stub(Icons.broken_image_outlined, 'Image unavailable'),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _stub(IconData icon, String label) {
+    return Container(
+      width: 220,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF3F4F6),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 18, color: const Color(0xFF6B7280)),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              label,
+              style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 

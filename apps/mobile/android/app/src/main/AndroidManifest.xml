@@ -7,12 +7,9 @@
         android:label="TeachCross"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
-        <!-- Firebase Cloud Messaging -->
-        <service android:name="com.google.firebase.MESSAGING_EVENT" android:exported="false">
-            <intent-filter>
-                <action android:name="com.google.firebase.MESSAGING_EVENT"/>
-            </intent-filter>
-        </service>
+        <!-- Firebase Cloud Messaging.
+             The flutterfire plugin registers FlutterFirebaseMessagingService and the
+             MESSAGING_EVENT intent-filter itself, so we only set the default channel. -->
         <meta-data android:name="com.google.firebase.messaging.default_notification_channel_id" android:value="messages"/>
         <activity
             android:name=".MainActivity"

@@ -17,12 +17,28 @@ import '../../features/directory/screens/directory_screen.dart';
 import '../../features/directory/screens/leadership_screen.dart';
 import '../../features/search/screens/search_screen.dart';
 import '../../features/profile/screens/notification_settings_screen.dart';
+import '../notifications/notification_service.dart';
+
+/// Maps a notification payload string to an in-app route, or null if unknown.
+String? _routeForPayload(String payload) {
+  if (payload.isEmpty) return null;
+  if (payload == 'home') return '/home';
+  if (payload.startsWith('conversation:')) {
+    final id = payload.substring('conversation:'.length);
+    return id.isEmpty ? '/conversations' : '/conversations/$id';
+  }
+  if (payload.startsWith('announcement:')) {
+    final id = payload.substring('announcement:'.length);
+    return id.isEmpty ? '/announcements' : '/announcements/$id';
+  }
+  return null;
+}
 
 /// Plain provider (no codegen) — avoids build_runner in CI/dev.
 final appRouterProvider = Provider<GoRouter>((ref) {
   final auth = Supabase.instance.client.auth;
 
-  return GoRouter(
+  final router = GoRouter(
     initialLocation: '/',
     refreshListenable: GoRouterRefreshStream(
       Supabase.instance.client.auth.onAuthStateChange,
@@ -103,6 +119,22 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
     ),
   );
+
+  NotificationService.onNavigate = (payload) {
+    final target = _routeForPayload(payload);
+    if (target != null) router.go(target);
+  };
+
+  // Handle a notification that launched the app before the router existed.
+  final pending = NotificationService.consumePendingNavigation();
+  if (pending != null) {
+    final target = _routeForPayload(pending);
+    if (target != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => router.go(target));
+    }
+  }
+
+  return router;
 });
 
 class GoRouterRefreshStream extends ChangeNotifier {

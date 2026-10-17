@@ -7,6 +7,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const INTERNAL_WEBHOOK_SECRET = Deno.env.get("INTERNAL_WEBHOOK_SECRET")!;
 
 serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
@@ -75,14 +76,22 @@ serve(async (req: Request) => {
 
     // Teachers can only target their assigned classes
     if (teacherRoles.includes(membership.role) && audience_type === "class" && class_id) {
-      const { data: assignment } = await supabase
-        .from("teaching_assignments")
+      const { data: teacherRow } = await supabase
+        .from("teachers")
         .select("id")
-        .eq("class_id", class_id)
+        .eq("user_id", user.id)
         .eq("school_id", school_id)
-        .in("teacher_id", [
-          supabase.from("teachers").select("id").eq("user_id", user.id).eq("school_id", school_id),
-        ]);
+        .maybeSingle();
+
+      const { data: assignment } = teacherRow
+        ? await supabase
+            .from("teaching_assignments")
+            .select("id")
+            .eq("class_id", class_id)
+            .eq("school_id", school_id)
+            .eq("teacher_id", teacherRow.id)
+            .maybeSingle()
+        : { data: null };
 
       if (!assignment) return jsonError("not_assigned_to_class", 403);
     }
@@ -138,8 +147,15 @@ serve(async (req: Request) => {
         await supabase.from("notification_jobs").insert(notifJobs.slice(i, i + BATCH));
       }
 
-      // Dispatch notifications
-      supabase.functions.invoke("dispatch-notifications", { body: { school_id } });
+      // Dispatch notifications (server-to-server via the shared secret).
+      try {
+        await supabase.functions.invoke("dispatch-notifications", {
+          body: { school_id },
+          headers: { "x-webhook-secret": INTERNAL_WEBHOOK_SECRET },
+        });
+      } catch (e) {
+        console.error("dispatch-notifications invoke failed:", e);
+      }
     }
 
     await supabase.from("audit_events").insert({

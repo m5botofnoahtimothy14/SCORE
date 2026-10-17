@@ -3,7 +3,7 @@ import Link from 'next/link'
 import {
   LayoutDashboard, School, Users, GraduationCap, BookOpen,
   Megaphone, ShieldAlert, ClipboardList, Settings, Bell,
-  Activity, TicketIcon, Search, UserCog,
+  Activity, TicketIcon, UserCog,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { ADMIN_ROLES, roleLabel } from '@/lib/auth'
@@ -168,11 +168,7 @@ function TopBar({ role }: { role: string }) {
   return (
     <div className="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between">
       <div className="flex items-center gap-2">
-        <Search className="w-4 h-4 text-gray-400" />
-        <input
-          placeholder="Search..."
-          className="text-sm text-gray-500 outline-none bg-transparent"
-        />
+        <span className="text-sm text-gray-400">TeachCross Administration</span>
       </div>
       <div className="flex items-center gap-3">
         <span

@@ -23,6 +23,14 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Fail fast with a readable message if build-time config is missing.
+  try {
+    AppConfig.validate();
+  } catch (e) {
+    runApp(_ConfigErrorApp(message: e.toString()));
+    return;
+  }
+
   // Lock to portrait
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
@@ -61,6 +69,43 @@ Future<void> main() async {
       child: TeachCrossApp(),
     ),
   );
+
+  // Returning session: refresh push registration in the background.
+  if (Supabase.instance.client.auth.currentSession != null) {
+    NotificationService.registerToken();
+  }
+}
+
+class _ConfigErrorApp extends StatelessWidget {
+  final String message;
+  const _ConfigErrorApp({required this.message});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      home: Scaffold(
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.settings_outlined, size: 64, color: Colors.orange),
+                const SizedBox(height: 16),
+                const Text(
+                  'App not configured',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 8),
+                Text(message, textAlign: TextAlign.center),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class TeachCrossApp extends ConsumerWidget {

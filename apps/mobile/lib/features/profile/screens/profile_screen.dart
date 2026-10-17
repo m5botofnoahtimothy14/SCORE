@@ -6,6 +6,12 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../auth/services/auth_service.dart';
 import '../../../core/widgets/states.dart';
 
+/// Safe single-letter avatar initial (handles null/empty names).
+String _initialOf(dynamic value) {
+  final s = value?.toString().trim() ?? '';
+  return s.isEmpty ? '?' : s.substring(0, 1).toUpperCase();
+}
+
 /// Account + session info, notification settings entry, sign-out.
 /// Never displays secrets; session expiry shown from the JWT itself.
 class ProfileScreen extends ConsumerStatefulWidget {
@@ -116,7 +122,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                               radius: 32,
                               backgroundColor: const Color(0xFFEBF5FF),
                               child: Text(
-                                ((_profile?['display_name'] as String?) ?? '?').substring(0, 1).toUpperCase(),
+                                _initialOf(_profile?['display_name']),
                                 style: const TextStyle(
                                     fontSize: 28, color: Color(0xFF1A56DB), fontWeight: FontWeight.bold),
                               ),

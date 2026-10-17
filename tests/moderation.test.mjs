@@ -27,15 +27,16 @@ test('text: missing or failed provider NEVER approves (held for review)', () => 
   assert.equal(decideTextVerdict({ categories: {}, provider: 'none' }).messageStatus, 'held_for_review');
 });
 
-test('image: thresholds map to attachment status', () => {
+test('image: APILayer score maps to attachment status', () => {
   const cfg = { providerConfigured: true };
-  assert.equal(decideImageVerdict({ ...cfg, adult: 0.05, violence: 0.02, racy: 0.1 }).attachmentStatus, 'approved');
-  assert.equal(decideImageVerdict({ ...cfg, adult: 0.6, violence: 0.1, racy: 0.1 }).attachmentStatus, 'quarantined');
-  assert.equal(decideImageVerdict({ ...cfg, adult: 0.1, violence: 0.1, racy: 0.85 }).attachmentStatus, 'quarantined');
-  assert.equal(decideImageVerdict({ ...cfg, adult: 0.9, violence: 0.1, racy: 0.1 }).attachmentStatus, 'rejected');
+  assert.equal(decideImageVerdict({ ...cfg, score: 1 }).attachmentStatus, 'approved');
+  assert.equal(decideImageVerdict({ ...cfg, score: 2 }).attachmentStatus, 'approved');
+  assert.equal(decideImageVerdict({ ...cfg, score: 3 }).attachmentStatus, 'quarantined');
+  assert.equal(decideImageVerdict({ ...cfg, score: 4 }).attachmentStatus, 'rejected');
+  assert.equal(decideImageVerdict({ ...cfg, score: 5 }).attachmentStatus, 'rejected');
 });
 
 test('image: missing/failed provider NEVER approves (quarantined)', () => {
-  assert.equal(decideImageVerdict({ adult: 0, violence: 0, racy: 0, providerConfigured: false }).attachmentStatus, 'quarantined');
-  assert.equal(decideImageVerdict({ adult: 0, violence: 0, racy: 0, providerConfigured: true, providerError: 'Vision API error: 500' }).attachmentStatus, 'quarantined');
+  assert.equal(decideImageVerdict({ score: 1, providerConfigured: false }).attachmentStatus, 'quarantined');
+  assert.equal(decideImageVerdict({ score: 1, providerConfigured: true, providerError: 'APILayer error: 500' }).attachmentStatus, 'quarantined');
 });

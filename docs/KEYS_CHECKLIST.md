@@ -1,8 +1,38 @@
 # TeachCross — Keys & Credentials Checklist
 
 Everything below is needed for a production deployment. Demo (local
-device + Supabase Cloud free project) needs only item 1; the rest unlock
-the full feature set. Nothing here is committed — see `.env.example`.
+the full feature set. Nothing here is committed — the live values live in
+`apps/admin/.env.local` (git-ignored).
+
+## Environment variable reference (all vars, by location)
+
+**Admin DMS — `apps/admin/.env.local`** (create this file; never commit):
+```
+NEXT_PUBLIC_SUPABASE_URL=...
+NEXT_PUBLIC_SUPABASE_ANON_KEY=...
+SUPABASE_SERVICE_ROLE_KEY=...        # server-only, used by API routes
+```
+
+**Edge-function secrets** (set with `supabase secrets set --project-ref <ref>`):
+```
+INTERNAL_WEBHOOK_SECRET=...          # long random string
+OPENAI_API_KEY=sk-...                # text moderation
+GOOGLE_CLOUD_VISION_API_KEY=AIza...  # image safety
+FCM_PROJECT_ID=...                   # push dispatch
+FCM_SERVER_KEY=...                   # FCM server key / service account
+MSG91_AUTH_KEY=...                   # India SMS OTP (primary)
+MSG91_OTP_TEMPLATE_ID=...            # DLT-approved template id
+TWILIO_ACCOUNT_SID=AC...             # SMS fallback
+TWILIO_AUTH_TOKEN=...
+TWILIO_FROM_NUMBER=+1...
+```
+
+**Mobile build-time** (`flutter run/build --dart-define`):
+```
+SUPABASE_URL=...
+SUPABASE_ANON_KEY=...                # anon key only — never service_role
+```
+
 
 ## 1. Supabase project (REQUIRED — backend, demo + prod)
 

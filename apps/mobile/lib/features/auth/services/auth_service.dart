@@ -6,6 +6,8 @@
 // edge functions (real SMS provider required).
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../core/notifications/notification_service.dart';
+
 class AuthException implements Exception {
   final String code;
   final String message;
@@ -56,6 +58,7 @@ class AuthService {
       final err = data is Map ? data['error']?.toString() : null;
       throw AuthException(err ?? 'invalid_credentials', _activationErrorMessage(err));
     }
+    NotificationService.registerToken();
     return (
       studentId: data['student_id'] as String,
       classId: data['class_id'] as String?,
@@ -145,6 +148,7 @@ class AuthService {
           throw const AuthException('invalid_credentials', 'Verification failed. Request a new code and try again.');
       }
     }
+    NotificationService.registerToken();
   }
 
   /// Signs out and deactivates this device's push token server-side.

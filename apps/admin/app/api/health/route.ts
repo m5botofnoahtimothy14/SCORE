@@ -70,13 +70,10 @@ export async function GET() {
     tables: tableStatus,
     providers: {
       // Presence only — values stay server-side.
-      fcmConfigured: Boolean(process.env.FCM_SERVER_KEY || process.env.FCM_PROJECT_ID),
+      fcmConfigured: Boolean(process.env.FCM_PROJECT_ID || process.env.FCM_CLIENT_EMAIL),
       textModerationConfigured: Boolean(process.env.OPENAI_API_KEY),
-      imageSafetyConfigured: Boolean(process.env.GOOGLE_CLOUD_VISION_API_KEY),
-      smsConfigured: Boolean(
-        (process.env.MSG91_AUTH_KEY && process.env.MSG91_OTP_TEMPLATE_ID) ||
-          (process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN)
-      ),
+      imageSafetyConfigured: Boolean(process.env.APILAYER_API_KEY),
+      smsConfigured: Boolean(process.env.TEXTBEE_API_KEY),
     },
     queues: {
       failedNotificationJobs: failedJobs?.length ?? 0,

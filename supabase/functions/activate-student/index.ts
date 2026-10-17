@@ -105,8 +105,11 @@ serve(async (req: Request) => {
         reason: data.error,
         ip_address: ip,
       });
-      // Return generic error to prevent ID enumeration
-      return jsonError("invalid_credentials", 401);
+      // Surface a small set of safe, helpful codes; keep everything else
+      // generic to prevent student-ID enumeration.
+      const safeErrors = ["code_expired", "no_activation_code", "code_already_used", "rate_limited"];
+      const err = safeErrors.includes(data.error) ? data.error : "invalid_credentials";
+      return jsonError(err, 401);
     }
 
     await supabase.from("audit_events").insert({

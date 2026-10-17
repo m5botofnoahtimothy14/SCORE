@@ -105,8 +105,7 @@ export default function SettingsPage() {
           )}
           <label className="text-xs text-gray-500 block mt-3">OTP provider</label>
           <select className={inputCls} value={settings.otp_provider} onChange={(e) => setSettings({ ...settings, otp_provider: e.target.value })}>
-            <option value="twilio">Twilio</option>
-            <option value="msg91">MSG91 (India)</option>
+            <option value="textbee">TextBee (Android gateway)</option>
           </select>
         </Card>
         <Card className="p-4">
@@ -118,7 +117,7 @@ export default function SettingsPage() {
           </select>
           <label className="text-xs text-gray-500">Image safety provider</label>
           <select className={inputCls} value={settings.image_safety_provider} onChange={(e) => setSettings({ ...settings, image_safety_provider: e.target.value })}>
-            <option value="google_vision">Google Cloud Vision</option>
+            <option value="apilayer_nudity">APILayer Nudity Detection</option>
           </select>
           <p className="text-xs text-gray-500 mt-2">If a provider is unconfigured or fails, content is held/quarantined — never auto-approved.</p>
         </Card>

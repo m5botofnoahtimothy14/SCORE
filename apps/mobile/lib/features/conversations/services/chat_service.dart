@@ -87,7 +87,13 @@ class ChatService {
   }
 
   // ── Messages ─────────────────────────────────────────────
-  Future<MessageRecord> sendMessage({required String conversationId, required String body, String? replyToId, String? idempotencyKey}) async {
+  Future<MessageRecord> sendMessage({
+    required String conversationId,
+    required String body,
+    String? replyToId,
+    String? idempotencyKey,
+    String? attachmentId,
+  }) async {
     final key = idempotencyKey ?? _uuid.v4();
     late final Map<String, dynamic> res;
     try {
@@ -97,6 +103,7 @@ class ChatService {
         'p_body': body,
         'p_idempotency_key': key,
         if (replyToId != null) 'p_reply_to_id': replyToId,
+        if (attachmentId != null) 'p_attachment_id': attachmentId,
       });
       res = Map<String, dynamic>.from(rpc as Map);
     } catch (_) {
@@ -105,7 +112,11 @@ class ChatService {
     if (res['success'] != true) {
       throw ChatException(res['error']?.toString() ?? 'send_failed', _sendErrorMessage(res['error']?.toString()));
     }
-    final msg = await _client.from('messages').select().eq('id', res['message_id']).single();
+    final msg = await _client
+        .from('messages')
+        .select('*, attachments(*)')
+        .eq('id', res['message_id'])
+        .single();
     return _MessageRow.fromJson(Map<String, dynamic>.from(msg), _userId);
   }
 
@@ -121,6 +132,8 @@ class ChatService {
         return 'Message cannot be empty.';
       case 'message_too_long':
         return 'Message is too long (max 4000 characters).';
+      case 'attachment_not_found':
+        return 'The attachment could not be linked. Please try uploading again.';
       default:
         return 'Message was not sent. Please retry.';
     }

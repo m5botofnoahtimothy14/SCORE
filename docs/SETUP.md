@@ -34,7 +34,8 @@ BOOTSTRAP_SCHOOL_CODE=DEMO node scripts/bootstrap.mjs
 
 ```sh
 cd apps/admin
-cp ../../.env.example .env.local   # fill NEXT_PUBLIC_* + SUPABASE_SERVICE_ROLE_KEY
+# create apps/admin/.env.local with NEXT_PUBLIC_SUPABASE_URL,
+# NEXT_PUBLIC_SUPABASE_ANON_KEY and SUPABASE_SERVICE_ROLE_KEY (see docs/KEYS_CHECKLIST.md)
 npm install
 npm run typecheck
 npm run dev     # http://localhost:3000 → /auth/login

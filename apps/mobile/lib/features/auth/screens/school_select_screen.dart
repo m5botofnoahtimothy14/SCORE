@@ -32,6 +32,7 @@ class _SchoolSelectScreenState extends ConsumerState<SchoolSelectScreen> {
           .select('id, name, code, city, state, logo_url')
           .order('name');
 
+      if (!mounted) return;
       setState(() {
         _schools = List<Map<String, dynamic>>.from(data);
         _filtered = _schools;
@@ -48,12 +49,23 @@ class _SchoolSelectScreenState extends ConsumerState<SchoolSelectScreen> {
 
   void _filter(String query) {
     setState(() {
+      final q = query.trim().toLowerCase();
+      if (q.isEmpty) {
+        _filtered = _schools;
+        return;
+      }
       _filtered = _schools
           .where((s) =>
-              s['name'].toString().toLowerCase().contains(query.toLowerCase()) ||
-              s['code'].toString().toLowerCase().contains(query.toLowerCase()))
+              (s['name']?.toString().toLowerCase() ?? '').contains(q) ||
+              (s['code']?.toString().toLowerCase() ?? '').contains(q))
           .toList();
     });
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   @override
@@ -210,7 +222,9 @@ class _SchoolCard extends StatelessWidget {
           child: school['logo_url'] != null
               ? ClipOval(child: Image.network(school['logo_url'], width: 40, height: 40, fit: BoxFit.cover))
               : Text(
-                  school['code']?.toString().substring(0, 1) ?? 'S',
+                  (school['code']?.toString().isNotEmpty ?? false)
+                      ? school['code'].toString().substring(0, 1)
+                      : 'S',
                   style: const TextStyle(
                     color: Color(0xFF1A56DB),
                     fontWeight: FontWeight.bold,

@@ -4,6 +4,14 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Manages FCM token registration, notification channels, and local display
 class NotificationService {
+  /// True once Firebase initialized successfully (set in main()).
+  static bool available = false;
+
+  /// Navigation sink wired by the router: payload -> route.
+  static void Function(String payload)? onNavigate;
+
+  /// Consumed at startup if a notification launched the app before the router existed.
+  static String? pendingPayload;
   static const String _channelMessages = 'messages';
   static const String _channelAnnouncements = 'announcements';
   static const String _channelAlerts = 'priority_alerts';
@@ -21,7 +29,6 @@ class NotificationService {
         'Messages',
         description: 'Teacher and support messages',
         importance: Importance.high,
-        sound: RawResourceAndroidNotificationSound('notification'),
         enableVibration: true,
       ),
     );
@@ -41,7 +48,6 @@ class NotificationService {
         'Priority Alerts',
         description: 'Urgent school safety and priority alerts',
         importance: Importance.max,
-        sound: RawResourceAndroidNotificationSound('alert'),
         enableVibration: true,
         enableLights: true,
       ),
@@ -66,6 +72,7 @@ class NotificationService {
     );
 
     // Request permission
+    available = pushEnabled;
     if (!pushEnabled) return;
     final messaging = FirebaseMessaging.instance;
     await messaging.requestPermission(
@@ -93,59 +100,67 @@ class NotificationService {
 
   /// Register or refresh FCM token with Supabase
   static Future<void> registerToken() async {
-    final supabase = Supabase.instance.client;
-    final user = supabase.auth.currentUser;
-    if (user == null) return;
+    if (!available) return;
+    try {
+      final supabase = Supabase.instance.client;
+      final user = supabase.auth.currentUser;
+      if (user == null) return;
 
-    final messaging = FirebaseMessaging.instance;
-    final token = await messaging.getToken();
-    if (token == null) return;
+      final messaging = FirebaseMessaging.instance;
+      final token = await messaging.getToken();
+      if (token == null) return;
 
-    // Get school_id for user
-    final membership = await supabase
-        .from('school_memberships')
-        .select('school_id')
-        .eq('user_id', user.id)
-        .eq('is_active', true)
-        .limit(1)
-        .maybeSingle();
+      // Get school_id for user
+      final membership = await supabase
+          .from('school_memberships')
+          .select('school_id')
+          .eq('user_id', user.id)
+          .eq('is_active', true)
+          .limit(1)
+          .maybeSingle();
 
-    if (membership == null) return;
+      if (membership == null) return;
 
-    await supabase.from('notification_devices').upsert({
-      'user_id': user.id,
-      'school_id': membership['school_id'],
-      'fcm_token': token,
-      'platform': 'android',
-      'is_active': true,
-      'last_seen_at': DateTime.now().toIso8601String(),
-    }, onConflict: 'fcm_token');
-
-    // Listen for token refresh
-    messaging.onTokenRefresh.listen((newToken) async {
       await supabase.from('notification_devices').upsert({
         'user_id': user.id,
         'school_id': membership['school_id'],
-        'fcm_token': newToken,
+        'fcm_token': token,
         'platform': 'android',
         'is_active': true,
+        'last_seen_at': DateTime.now().toIso8601String(),
       }, onConflict: 'fcm_token');
-    });
+
+      // Listen for token refresh
+      messaging.onTokenRefresh.listen((newToken) async {
+        try {
+          await supabase.from('notification_devices').upsert({
+            'user_id': user.id,
+            'school_id': membership['school_id'],
+            'fcm_token': newToken,
+            'platform': 'android',
+            'is_active': true,
+          }, onConflict: 'fcm_token');
+        } catch (_) {}
+      });
+    } catch (_) {}
   }
 
   /// Deactivate tokens on logout
   static Future<void> deactivateToken() async {
-    final supabase = Supabase.instance.client;
-    final user = supabase.auth.currentUser;
-    if (user == null) return;
+    if (!available) return;
+    try {
+      final supabase = Supabase.instance.client;
+      final user = supabase.auth.currentUser;
+      if (user == null) return;
 
-    final token = await FirebaseMessaging.instance.getToken();
-    if (token == null) return;
+      final token = await FirebaseMessaging.instance.getToken();
+      if (token == null) return;
 
-    await supabase
-        .from('notification_devices')
-        .update({'is_active': false})
-        .eq('fcm_token', token);
+      await supabase
+          .from('notification_devices')
+          .update({'is_active': false})
+          .eq('fcm_token', token);
+    } catch (_) {}
   }
 
   /// Show a local notification for foreground FCM messages
@@ -174,7 +189,7 @@ class NotificationService {
           channelId,
           importance: type == 'alert' ? Importance.max : Importance.high,
           priority: type == 'alert' ? Priority.max : Priority.high,
-          icon: '@mipmap/ic_notification',
+          icon: '@mipmap/ic_launcher',
         ),
       ),
       payload: _buildPayload(data),
@@ -207,18 +222,17 @@ class NotificationService {
   }
 
   static void _navigateFromPayload(String payload) {
-    // Navigation is handled by the router; this could trigger a
-    // global navigation event via a StreamController
-    // Implementation depends on the router instance in context
-    // For simplicity, store payload and navigate on next frame
-    _pendingNavigationPayload = payload;
+    final handler = onNavigate;
+    if (handler != null) {
+      handler(payload);
+    } else {
+      pendingPayload = payload;
+    }
   }
 
-  static String? _pendingNavigationPayload;
-
   static String? consumePendingNavigation() {
-    final payload = _pendingNavigationPayload;
-    _pendingNavigationPayload = null;
+    final payload = pendingPayload;
+    pendingPayload = null;
     return payload;
   }
 }

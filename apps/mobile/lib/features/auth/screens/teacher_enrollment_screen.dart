@@ -67,8 +67,10 @@ class _TeacherEnrollmentScreenState extends ConsumerState<TeacherEnrollmentScree
       setState(() => _codeSent = true);
       _startResendTimer();
     } on AuthException catch (e) {
+      if (!mounted) return;
       setState(() => _error = e.message);
     } catch (_) {
+      if (!mounted) return;
       setState(() => _error = 'Something went wrong. Please try again.');
     } finally {
       if (mounted) setState(() => _working = false);
@@ -94,8 +96,10 @@ class _TeacherEnrollmentScreenState extends ConsumerState<TeacherEnrollmentScree
       if (!mounted) return;
       context.go('/home');
     } on AuthException catch (e) {
+      if (!mounted) return;
       setState(() => _error = e.message);
     } catch (_) {
+      if (!mounted) return;
       setState(() => _error = 'Something went wrong. Please try again.');
     } finally {
       if (mounted) setState(() => _working = false);

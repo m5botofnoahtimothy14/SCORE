@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../core/notifications/notification_service.dart';
+
 /// Notification settings: permission status, per-channel toggles (local),
 /// token registration refresh. Never claims delivery — shows truthful status.
 class NotificationSettingsScreen extends StatefulWidget {
@@ -29,16 +31,21 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
 
   Future<void> _load() async {
     final prefs = await SharedPreferences.getInstance();
-    final settings = await FirebaseMessaging.instance.getNotificationSettings();
+    AuthorizationStatus? permission;
     String? token;
-    try {
-      token = await FirebaseMessaging.instance.getToken();
-    } catch (_) {
-      token = null;
+    if (NotificationService.available) {
+      try {
+        final settings = await FirebaseMessaging.instance.getNotificationSettings();
+        permission = settings.authorizationStatus;
+        token = await FirebaseMessaging.instance.getToken();
+      } catch (_) {
+        permission = null;
+        token = null;
+      }
     }
     if (!mounted) return;
     setState(() {
-      _permission = settings.authorizationStatus;
+      _permission = permission;
       _token = token;
       for (final k in _channels.keys) {
         _channels[k] = prefs.getBool('notif_$k') ?? true;
@@ -53,6 +60,7 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
   }
 
   Future<void> _refreshToken() async {
+    if (!NotificationService.available) return;
     setState(() => _working = true);
     try {
       await FirebaseMessaging.instance.deleteToken();
@@ -96,7 +104,11 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
   }
 
   Future<void> _requestPermission() async {
-    await FirebaseMessaging.instance.requestPermission(alert: true, badge: true, sound: true);
+    if (!NotificationService.available) return;
+    try {
+      await FirebaseMessaging.instance
+          .requestPermission(alert: true, badge: true, sound: true);
+    } catch (_) {}
     await _load();
   }
 
@@ -117,11 +129,14 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
               ),
               title: const Text('System permission'),
               subtitle: Text(
-                _permission == AuthorizationStatus.authorized
-                    ? 'Allowed — alerts can appear per your system settings.'
-                    : 'Not allowed — enable notifications in system settings to receive alerts.',
+                !NotificationService.available
+                    ? 'Push is not enabled in this build.'
+                    : _permission == AuthorizationStatus.authorized
+                        ? 'Allowed — alerts can appear per your system settings.'
+                        : 'Not allowed — enable notifications in system settings to receive alerts.',
               ),
-              trailing: _permission == AuthorizationStatus.authorized
+              trailing: (!NotificationService.available ||
+                      _permission == AuthorizationStatus.authorized)
                   ? null
                   : TextButton(onPressed: _requestPermission, child: const Text('Enable')),
             ),
@@ -157,12 +172,16 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
             child: ListTile(
               leading: const Icon(Icons.smartphone_outlined),
               title: const Text('This device'),
-              subtitle: Text(_token == null
-                  ? 'No push token — registration may have failed.'
-                  : 'Registered for push (${_token!.substring(0, _token!.length > 12 ? 12 : _token!.length)}...)'),
-              trailing: _working
-                  ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                  : TextButton(onPressed: _refreshToken, child: const Text('Refresh')),
+              subtitle: Text(!NotificationService.available
+                  ? 'Push is not enabled in this build.'
+                  : _token == null
+                      ? 'No push token — registration may have failed.'
+                      : 'Registered for push (${_token!.substring(0, _token!.length > 12 ? 12 : _token!.length)}...)'),
+              trailing: !NotificationService.available
+                  ? null
+                  : _working
+                      ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                      : TextButton(onPressed: _refreshToken, child: const Text('Refresh')),
             ),
           ),
         ],

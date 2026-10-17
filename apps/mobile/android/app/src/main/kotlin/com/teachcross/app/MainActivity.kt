@@ -1,4 +1,4 @@
-package com.teachcross.teachcross_mobile
+package com.teachcross.app
 
 import io.flutter.embedding.android.FlutterActivity
 

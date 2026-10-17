@@ -14,7 +14,7 @@ VALUES ('11111111-1111-1111-1111-111111111111', 'Demo Public School', 'DEMO', 'N
 ON CONFLICT (code) DO NOTHING;
 
 INSERT INTO school_settings (school_id, allow_student_id_only_login, require_activation_code, otp_provider, moderation_provider, image_safety_provider, max_file_size_mb, retention_days, timezone)
-VALUES ('11111111-1111-1111-1111-111111111111', FALSE, TRUE, 'twilio', 'openai', 'google_vision', 10, 365, 'Asia/Kolkata')
+VALUES ('11111111-1111-1111-1111-111111111111', FALSE, TRUE, 'textbee', 'openai', 'apilayer_nudity', 10, 365, 'Asia/Kolkata')
 ON CONFLICT (school_id) DO NOTHING;
 
 -- Academic year
