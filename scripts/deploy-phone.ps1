@@ -27,10 +27,35 @@ $env:PUB_CACHE = 'D:\dev\pub-cache'
 Write-Host '==> Devices:' -ForegroundColor Cyan
 & $adb devices
 
+# Firebase client config is read from the (git-ignored) google-services.json so
+# push notifications work. Without these dart-defines firebase_options.dart
+# throws and push stays disabled.
+$gsPath = Join-Path $root 'apps\mobile\android\app\google-services.json'
+$firebaseDefines = @()
+if (Test-Path $gsPath) {
+  $gs = Get-Content -LiteralPath $gsPath -Raw | ConvertFrom-Json
+  $client = $gs.client | Select-Object -First 1
+  $firebaseDefines = @(
+    "--dart-define=FIREBASE_API_KEY=$($client.api_key[0].current_key)",
+    "--dart-define=FIREBASE_APP_ID=$($client.client_info.mobilesdk_app_id)",
+    "--dart-define=FIREBASE_SENDER_ID=$($gs.project_info.project_number)",
+    "--dart-define=FIREBASE_PROJECT_ID=$($gs.project_info.project_id)"
+  )
+  Write-Host "==> Firebase: project $($gs.project_info.project_id)" -ForegroundColor Cyan
+} else {
+  Write-Warning "google-services.json not found; building WITHOUT push (Firebase disabled)."
+}
+
 Write-Host '==> Building release APK...' -ForegroundColor Cyan
-& $flutter build apk --release `
-  --dart-define=SUPABASE_URL=$SupabaseUrl `
-  --dart-define=SUPABASE_ANON_KEY=$SupabaseAnonKey
+Push-Location (Join-Path $root 'apps\mobile')
+try {
+  & $flutter build apk --release `
+    --dart-define=SUPABASE_URL=$SupabaseUrl `
+    --dart-define=SUPABASE_ANON_KEY=$SupabaseAnonKey `
+    @firebaseDefines
+} finally {
+  Pop-Location
+}
 
 $apk = Join-Path $root 'apps\mobile\build\app\outputs\flutter-apk\app-release.apk'
 if (-not (Test-Path $apk)) { throw "APK not found: $apk" }
