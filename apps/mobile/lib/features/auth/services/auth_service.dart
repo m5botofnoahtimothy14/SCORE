@@ -24,12 +24,36 @@ class AuthService {
   Future<User> ensureSession() async {
     final current = _client.auth.currentUser;
     if (current != null) return current;
-    final res = await _client.auth.signInAnonymously();
-    final user = res.user;
-    if (user == null) {
-      throw const AuthException('auth_failed', 'Could not start a secure session. Please try again.');
+    try {
+      final res = await _client.auth.signInAnonymously();
+      final user = res.user;
+      if (user == null) {
+        throw const AuthException('auth_failed', 'Could not start a secure session. Please try again.');
+      }
+      return user;
+    } on AuthException {
+      rethrow;
+    } catch (_) {
+      throw const AuthException('auth_failed', 'Could not start a secure session. Check your connection.');
     }
-    return user;
+  }
+
+  /// Invokes an edge function and normalizes the response.
+  /// Supabase throws [FunctionException] for non-2xx replies; the real error
+  /// code lives in its `details` body, so surface that instead of labelling
+  /// every business error (e.g. invalid_credentials) as a network failure.
+  Future<Map<String, dynamic>?> _invoke(String function, Map<String, dynamic> body) async {
+    try {
+      final res = await _client.functions.invoke(function, body: body);
+      final data = res.data;
+      return data is Map ? Map<String, dynamic>.from(data) : null;
+    } on FunctionException catch (e) {
+      final details = e.details;
+      if (details is Map) return Map<String, dynamic>.from(details);
+      throw const AuthException('server_error', 'Something went wrong. Please try again.');
+    } catch (_) {
+      throw const AuthException('network_error', 'Network error. Check your connection and try again.');
+    }
   }
 
   /// Student enrollment: verifies school-issued ID + activation code.
@@ -40,22 +64,13 @@ class AuthService {
     required String activationCode,
   }) async {
     await ensureSession();
-    late final FunctionResponse res;
-    try {
-      res = await _client.functions.invoke(
-        'activate-student',
-        body: {
-          'school_id': schoolId,
-          'student_id_no': studentIdNo.trim(),
-          'activation_code': activationCode.trim(),
-        },
-      );
-    } catch (_) {
-      throw const AuthException('network_error', 'Network error. Check your connection and try again.');
-    }
-    final data = res.data;
-    if (data is! Map || data['success'] != true) {
-      final err = data is Map ? data['error']?.toString() : null;
+    final data = await _invoke('activate-student', {
+      'school_id': schoolId,
+      'student_id_no': studentIdNo.trim(),
+      'activation_code': activationCode.trim(),
+    });
+    if (data == null || data['success'] != true) {
+      final err = data?['error']?.toString();
       throw AuthException(err ?? 'invalid_credentials', _activationErrorMessage(err));
     }
     NotificationService.registerToken();
@@ -87,18 +102,13 @@ class AuthService {
     required String schoolId,
     required String staffIdNo,
   }) async {
-    late final FunctionResponse res;
-    try {
-      res = await _client.functions.invoke(
-        'send-otp',
-        body: {'phone': phone.trim(), 'school_id': schoolId, 'staff_id_no': staffIdNo.trim()},
-      );
-    } catch (_) {
-      throw const AuthException('network_error', 'Network error. Check your connection and try again.');
-    }
-    final data = res.data;
-    if (data is! Map || data['success'] != true) {
-      final err = data is Map ? data['error']?.toString() : 'unknown';
+    final data = await _invoke('send-otp', {
+      'phone': phone.trim(),
+      'school_id': schoolId,
+      'staff_id_no': staffIdNo.trim(),
+    });
+    if (data == null || data['success'] != true) {
+      final err = data?['error']?.toString();
       if (err == 'sms_provider_unavailable') {
         throw const AuthException('sms_provider_unavailable',
             'SMS service is not configured for this school yet. Please contact your administrator.');
@@ -118,23 +128,14 @@ class AuthService {
     required String staffIdNo,
   }) async {
     await ensureSession();
-    late final FunctionResponse res;
-    try {
-      res = await _client.functions.invoke(
-        'verify-otp',
-        body: {
-          'phone': phone.trim(),
-          'otp': otp.trim(),
-          'school_id': schoolId,
-          'staff_id_no': staffIdNo.trim(),
-        },
-      );
-    } catch (_) {
-      throw const AuthException('network_error', 'Network error. Check your connection and try again.');
-    }
-    final data = res.data;
-    if (data is! Map || data['success'] != true) {
-      final err = data is Map ? data['error']?.toString() : 'unknown';
+    final data = await _invoke('verify-otp', {
+      'phone': phone.trim(),
+      'otp': otp.trim(),
+      'school_id': schoolId,
+      'staff_id_no': staffIdNo.trim(),
+    });
+    if (data == null || data['success'] != true) {
+      final err = data?['error']?.toString();
       switch (err) {
         case 'invalid_otp':
           throw const AuthException('invalid_otp', 'Incorrect code. Please check and try again.');
@@ -152,12 +153,10 @@ class AuthService {
   }
 
   /// Signs out and deactivates this device's push token server-side.
+  /// Only this device's token is deactivated (never the user's other devices).
   Future<void> signOut() async {
     try {
-      final token = _client.auth.currentUser;
-      if (token != null) {
-        await _client.from('notification_devices').update({'is_active': false}).eq('user_id', token.id);
-      }
+      await NotificationService.deactivateToken();
     } catch (_) {
       // Best effort — still sign out locally.
     }

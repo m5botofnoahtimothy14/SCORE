@@ -34,6 +34,37 @@ String? _routeForPayload(String payload) {
   return null;
 }
 
+/// Cache of whether an (anonymous) user has completed onboarding, i.e. holds
+/// an active school membership. Avoids a DB round-trip on every navigation.
+final Map<String, bool> _onboardedCache = {};
+
+/// Call after a successful activation so the router re-evaluates onboarding.
+void invalidateOnboardingCache([String? userId]) {
+  if (userId == null) {
+    _onboardedCache.clear();
+  } else {
+    _onboardedCache.remove(userId);
+  }
+}
+
+Future<bool> _isOnboarded(String userId) async {
+  final cached = _onboardedCache[userId];
+  if (cached != null) return cached;
+  try {
+    final rows = await Supabase.instance.client
+        .from('school_memberships')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('is_active', true)
+        .limit(1);
+    final ok = (rows as List).isNotEmpty;
+    _onboardedCache[userId] = ok;
+    return ok;
+  } catch (_) {
+    return false; // fail closed — keep the user on the auth flow
+  }
+}
+
 /// Plain provider (no codegen) — avoids build_runner in CI/dev.
 final appRouterProvider = Provider<GoRouter>((ref) {
   final auth = Supabase.instance.client.auth;
@@ -45,14 +76,20 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     ),
     redirect: (context, state) async {
       final session = auth.currentSession;
-      final isLoggedIn = session != null;
       final isAuthRoute = state.matchedLocation.startsWith('/auth');
 
-      if (!isLoggedIn && !isAuthRoute) {
-        return '/auth/school-select';
+      if (session == null) {
+        return isAuthRoute ? null : '/auth/school-select';
       }
 
-      if (isLoggedIn && isAuthRoute) {
+      // Anonymous sessions exist for the student/teacher activation flow.
+      // They must not enter the app until activation grants a membership,
+      // otherwise a failed activation strands the user inside /home.
+      if (session.user.isAnonymous && !await _isOnboarded(session.user.id)) {
+        return isAuthRoute ? null : '/auth/school-select';
+      }
+
+      if (isAuthRoute) {
         return '/home';
       }
 

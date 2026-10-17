@@ -162,14 +162,13 @@ class ChatService {
         .order('created_at', ascending: true);
   }
 
+  /// Marks the conversation read. Uses a SECURITY DEFINER RPC (not a broad
+  /// table UPDATE policy) so members can't self-escalate can_send/role, and
+  /// so message_receipts (RLS with no client policies) can be written at all.
   Future<void> markRead({required String conversationId, required String messageId}) async {
-    await _client.from('conversation_members').update({
-      'last_read_at': DateTime.now().toIso8601String(),
-    }).eq('conversation_id', conversationId).eq('user_id', _userId);
-    await _client.from('message_receipts').upsert(
-      {'message_id': messageId, 'user_id': _userId, 'read_at': DateTime.now().toIso8601String()},
-      onConflict: 'message_id,user_id',
-    );
+    await _client.rpc('mark_conversation_read', params: {
+      'p_conversation_id': conversationId,
+    });
   }
 
   // ── Reports ──────────────────────────────────────────────

@@ -56,7 +56,8 @@ export default function NotificationsPage() {
     }
   }
 
-  useEffect(() => { load() }, [])
+  // Re-query whenever the status tab changes (was only loading once).
+  useEffect(() => { load() }, [statusFilter]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Drain pending jobs through the server route; returns the real send result.
   async function dispatch(): Promise<{ sent: number; failed: number }> {

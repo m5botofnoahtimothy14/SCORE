@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide AuthException;
 
 import '../services/auth_service.dart';
+import '../../../core/config/router.dart';
 import '../../../core/widgets/states.dart';
 
 final _authServiceProvider = Provider<AuthService>(
@@ -68,6 +69,7 @@ class _StudentEnrollmentScreenState extends ConsumerState<StudentEnrollmentScree
             activationCode: _codeController.text,
           );
       if (!mounted) return;
+      invalidateOnboardingCache(Supabase.instance.client.auth.currentUser?.id);
       context.go('/home');
     } on AuthException catch (e) {
       if (!mounted) return;
