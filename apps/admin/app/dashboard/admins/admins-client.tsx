@@ -29,7 +29,7 @@ const roleLabel = (r: string) => (r === 'platform_owner' ? 'Super Admin' : r ===
 
 const emptyForm = { email: '', password: '', display_name: '', school_id: '', role: 'school_admin' }
 
-// Super Admin only — manage school IT-head "Admin" accounts.
+// Super Admin only â€” manage school IT-head "Admin" accounts.
 export function AdminsClient() {
   const [admins, setAdmins] = useState<AdminRow[]>([])
   const [schools, setSchools] = useState<School[]>([])
@@ -120,7 +120,7 @@ export function AdminsClient() {
         ) : (
           <table className="w-full text-sm">
             <thead>
-              <tr className="text-left text-gray-500 border-b border-gray-100">
+              <tr className="text-left text-ink-600 border-b border-ink-200">
                 <th className="px-4 py-3 font-medium">Name</th>
                 <th className="px-4 py-3 font-medium">Email</th>
                 <th className="px-4 py-3 font-medium">Role</th>
@@ -131,17 +131,17 @@ export function AdminsClient() {
             </thead>
             <tbody>
               {admins.map((a) => (
-                <tr key={a.id} className="border-b border-gray-50 last:border-0">
-                  <td className="px-4 py-3 text-gray-900">
-                    {a.display_name || '—'}
+                <tr key={a.id} className="border-b border-ink-50 last:border-0">
+                  <td className="px-4 py-3 text-ink-950">
+                    {a.display_name || 'â€”'}
                     {a.role === 'platform_owner' && (
-                      <span className="ml-2 text-[10px] uppercase tracking-wide text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded">You · Owner</span>
+                      <span className="ml-2 text-[10px] uppercase tracking-wide text-brand-600 bg-brand-50 px-1.5 py-0.5 rounded">You Â· Owner</span>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-gray-600">{a.email}</td>
+                  <td className="px-4 py-3 text-ink-700">{a.email}</td>
                   <td className="px-4 py-3">{roleLabel(a.role)}</td>
-                  <td className="px-4 py-3 text-gray-600">
-                    {a.school_name} <span className="text-gray-400 font-mono text-xs">{a.school_code}</span>
+                  <td className="px-4 py-3 text-ink-700">
+                    {a.school_name} <span className="text-ink-500 font-mono text-xs">{a.school_code}</span>
                   </td>
                   <td className="px-4 py-3"><StatusBadge value={a.is_active ? 'active' : 'suspended'} /></td>
                   <td className="px-4 py-3 text-right">
@@ -165,16 +165,16 @@ export function AdminsClient() {
             <input className={inputCls} type="email" placeholder="Email *" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
             <input className={inputCls} type="password" placeholder="Temporary password (8+ chars) *" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
             <select className={inputCls} value={form.school_id} onChange={(e) => setForm({ ...form, school_id: e.target.value })}>
-              <option value="">Select school…</option>
+              <option value="">Select schoolâ€¦</option>
               {schools.map((s) => (
                 <option key={s.id} value={s.id}>{s.name} ({s.code})</option>
               ))}
             </select>
             <select className={inputCls} value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}>
-              <option value="school_admin">Admin — School IT Head</option>
+              <option value="school_admin">Admin â€” School IT Head</option>
               <option value="principal">Principal</option>
             </select>
-            <p className="text-xs text-gray-500">
+            <p className="text-xs text-ink-600">
               This person signs in to the DMS with this email and password, scoped to their school.
             </p>
             <div className="flex justify-end gap-2 pt-2">

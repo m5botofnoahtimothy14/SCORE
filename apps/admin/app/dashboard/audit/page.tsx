@@ -97,17 +97,17 @@ export default function AuditPage() {
       <Card>
         {rows.length === 0 ? <EmptyState title="No audit events match" /> : (
           <table className="w-full text-sm">
-            <thead><tr className="text-left text-gray-500 text-xs border-b">
+            <thead><tr className="text-left text-ink-600 text-xs border-b">
               <th className="p-3">Time</th><th>Action</th><th>Target</th><th>Outcome</th><th>Reason</th>
             </tr></thead>
             <tbody>
               {rows.map((r) => (
-                <tr key={r.id} className="border-b border-gray-100 last:border-0">
-                  <td className="p-3 text-xs text-gray-500 whitespace-nowrap">{new Date(r.created_at).toLocaleString()}</td>
+                <tr key={r.id} className="border-b border-ink-200 last:border-0">
+                  <td className="p-3 text-xs text-ink-600 whitespace-nowrap">{new Date(r.created_at).toLocaleString()}</td>
                   <td className="font-mono text-xs">{r.action}</td>
-                  <td className="text-xs">{r.target_type ?? '—'}</td>
+                  <td className="text-xs">{r.target_type ?? 'â€”'}</td>
                   <td><StatusBadge value={r.outcome} /></td>
-                  <td className="text-xs text-gray-500">{r.reason ?? '—'}</td>
+                  <td className="text-xs text-ink-600">{r.reason ?? 'â€”'}</td>
                 </tr>
               ))}
             </tbody>

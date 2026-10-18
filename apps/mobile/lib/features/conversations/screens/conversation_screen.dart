@@ -7,7 +7,9 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
 
 import '../services/chat_service.dart';
+import '../../../core/layout/responsive.dart';
 import '../../../core/models/models.dart';
+import '../../../core/widgets/presence_dot.dart';
 import '../../../core/widgets/states.dart';
 
 final _chatProvider = Provider<ChatService>(
@@ -37,6 +39,12 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
   bool _sending = false;
   bool _uploading = false;
   String _title = 'Conversation';
+  String? _peerDetail;
+
+  /// Presence of the peer, when the peer is a teacher. Null for student peers
+  /// and for teachers who have never opened the app.
+  DateTime? _peerLastSeen;
+  bool _peerIsTeacher = false;
   String? _schoolId;
   String? _convType;
   Map<String, dynamic>? _question;
@@ -86,10 +94,14 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
           .maybeSingle();
       final role = membership != null ? (membership as Map)['role'] as String : '';
       final question = await ref.read(_chatProvider).supportQuestionFor(widget.conversationId);
+      final peer = await ref.read(_chatProvider).resolvePeer(widget.conversationId);
       await _loadPage();
       if (!mounted) return;
       setState(() {
-        _title = _titleFor(c['type'] as String, c['title'] as String?);
+        _title = peer.name ?? _titleFor(c['type'] as String, c['title'] as String?);
+        _peerIsTeacher = peer.lastSeenAt != null || peer.detail == 'Staff';
+        _peerLastSeen = peer.lastSeenAt;
+        _peerDetail = _headerDetail(peer.detail);
         _schoolId = c['school_id'] as String;
         _convType = c['type'] as String;
         _question = question;
@@ -148,6 +160,15 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
       default:
         return 'Conversation';
     }
+  }
+
+  /// Subtitle under the chat title: the peer's class/role plus, when the peer
+  /// is a teacher, whether they are online right now.
+  String? _headerDetail(String? detail) {
+    if (!_peerIsTeacher) return detail;
+    final presence = presenceLabel(_peerLastSeen);
+    if (detail == null || detail.isEmpty) return presence;
+    return '$detail · $presence';
   }
 
   Future<void> _loadPage() async {
@@ -359,7 +380,40 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(_title),
+        title: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Text(
+              _title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            if (_peerDetail != null && _peerDetail!.isNotEmpty)
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  if (_peerIsTeacher) ...[
+                    PresenceDot(lastSeen: _peerLastSeen, compact: true, dotSize: 7),
+                    const SizedBox(width: 5),
+                  ],
+                  Flexible(
+                    child: Text(
+                      _peerDetail!,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w500,
+                        color: Theme.of(context).textTheme.bodySmall?.color,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+          ],
+        ),
         actions: [
           if (_convType == 'student_support' && _question != null)
             Padding(
@@ -372,86 +426,91 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
             ),
         ],
       ),
-      body: Column(
-        children: [
-          Expanded(
-            child: _loading
-                ? const LoadingView()
-                : _error != null
-                    ? ErrorView(message: _error!, onRetry: () {
-                        setState(() {
-                          _loading = true;
-                          _error = null;
-                        });
-                        _init();
-                      })
-                    : _messages.isEmpty
-                        ? const EmptyView(
-                            title: 'No messages yet',
-                            subtitle: 'Start the conversation below.',
-                            icon: Icons.chat_bubble_outline,
-                          )
-                        : ListView.builder(
-                            controller: _scroll,
-                            reverse: true,
-                            padding: const EdgeInsets.all(12),
-                            itemCount: _messages.length + (_loadingMore ? 1 : 0),
-                            itemBuilder: (context, i) {
-                              if (i == _messages.length) {
-                                return const Padding(
-                                  padding: EdgeInsets.all(8),
-                                  child: Center(child: CircularProgressIndicator()),
+      body: AdaptivePage(
+        // A chat thread reads best in a narrow column; on a tablet the extra
+        // width is left to the rail rather than stretching every message.
+        maxWidth: 760,
+        child: Column(
+          children: [
+            Expanded(
+              child: _loading
+                  ? const LoadingView()
+                  : _error != null
+                      ? ErrorView(message: _error!, onRetry: () {
+                          setState(() {
+                            _loading = true;
+                            _error = null;
+                          });
+                          _init();
+                        })
+                      : _messages.isEmpty
+                          ? const EmptyView(
+                              title: 'No messages yet',
+                              subtitle: 'Start the conversation below.',
+                              icon: Icons.chat_bubble_outline,
+                            )
+                          : ListView.builder(
+                              controller: _scroll,
+                              reverse: true,
+                              padding: const EdgeInsets.all(12),
+                              itemCount: _messages.length + (_loadingMore ? 1 : 0),
+                              itemBuilder: (context, i) {
+                                if (i == _messages.length) {
+                                  return const Padding(
+                                    padding: EdgeInsets.all(8),
+                                    child: Center(child: CircularProgressIndicator()),
+                                  );
+                                }
+                                final m = _messages[i];
+                                return _Bubble(
+                                  message: m,
+                                  onReport: m.isMine ? null : () => _report(m),
                                 );
-                              }
-                              final m = _messages[i];
-                              return _Bubble(
-                                message: m,
-                                onReport: m.isMine ? null : () => _report(m),
-                              );
-                            },
-                          ),
-          ),
-          if (_sendError != null)
-            Container(
-              width: double.infinity,
-              color: const Color(0xFFFEF2F2),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Text(_sendError!, style: const TextStyle(color: Color(0xFF991B1B), fontSize: 12)),
+                              },
+                            ),
             ),
-          SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
-              child: Row(
-                children: [
-                  IconButton(
-                    icon: _uploading
-                        ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                        : const Icon(Icons.image_outlined),
-                    onPressed: _uploading ? null : _pickImage,
-                    tooltip: 'Share image',
-                  ),
-                  Expanded(
-                    child: TextField(
-                      controller: _input,
-                      minLines: 1,
-                      maxLines: 4,
-                      decoration: const InputDecoration(hintText: 'Type a message...'),
-                      onSubmitted: (_) => _send(),
+            if (_sendError != null)
+              Container(
+                width: double.infinity,
+                color: const Color(0xFFFEF2F2),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Text(_sendError!, style: const TextStyle(color: Color(0xFF991B1B), fontSize: 12)),
+              ),
+            SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
+                child: Row(
+                  children: [
+                    IconButton(
+                      icon: _uploading
+                          ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                          : const Icon(Icons.image_outlined),
+                      onPressed: _uploading ? null : _pickImage,
+                      tooltip: 'Share image',
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  IconButton.filled(
-                    icon: _sending
-                        ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                        : const Icon(Icons.send),
-                    onPressed: _sending ? null : _send,
-                    tooltip: 'Send',
-                  ),
-                ],
+                    Expanded(
+                      child: TextField(
+                        controller: _input,
+                        minLines: 1,
+                        maxLines: 4,
+                        decoration: const InputDecoration(hintText: 'Type a message...'),
+                        onSubmitted: (_) => _send(),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    IconButton.filled(
+                      icon: _sending
+                          ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                          : const Icon(Icons.send),
+                      onPressed: _sending ? null : _send,
+                      tooltip: 'Send',
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -465,54 +524,59 @@ class _Bubble extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final mine = message.isMine;
-    return Align(
-      alignment: mine ? Alignment.centerRight : Alignment.centerLeft,
-      child: GestureDetector(
-        onLongPress: onReport,
-        child: Container(
-          margin: const EdgeInsets.symmetric(vertical: 4),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.78),
-          decoration: BoxDecoration(
-            color: mine ? const Color(0xFF1A56DB) : Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            border: mine ? null : Border.all(color: const Color(0xFFE5E7EB)),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (message.body != null && message.body!.isNotEmpty)
-                Text(message.body!,
-                    style: TextStyle(color: mine ? Colors.white : const Color(0xFF111827))),
-              for (final a in message.attachments)
-                Padding(
-                  padding: const EdgeInsets.only(top: 6),
-                  child: _AttachmentView(attachment: a),
-                ),
-              const SizedBox(height: 4),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    _time(message.createdAt),
-                    style: TextStyle(color: mine ? const Color(0xFFBFDBFE) : const Color(0xFF9CA3AF), fontSize: 11),
+    return LayoutBuilder(
+      builder: (context, constraints) => Align(
+        alignment: mine ? Alignment.centerRight : Alignment.centerLeft,
+        child: GestureDetector(
+          onLongPress: onReport,
+          child: Container(
+            margin: const EdgeInsets.symmetric(vertical: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            // 78% of the chat column, not of the screen, so the bubble keeps
+            // its shape on a tablet.
+            constraints:
+                BoxConstraints(maxWidth: (constraints.maxWidth * 0.78).clamp(0.0, 560.0)),
+            decoration: BoxDecoration(
+              color: mine ? const Color(0xFF1A56DB) : Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: mine ? null : Border.all(color: const Color(0xFFE5E7EB)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (message.body != null && message.body!.isNotEmpty)
+                  Text(message.body!,
+                      style: TextStyle(color: mine ? Colors.white : const Color(0xFF111827))),
+                for (final a in message.attachments)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 6),
+                    child: _AttachmentView(attachment: a),
                   ),
-                  if (mine) ...[
-                    const SizedBox(width: 4),
-                    Icon(
-                      message.isPending ? Icons.schedule : Icons.done_all,
-                      size: 14,
-                      color: mine ? const Color(0xFFBFDBFE) : const Color(0xFF9CA3AF),
+                const SizedBox(height: 4),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      _time(message.createdAt),
+                      style: TextStyle(color: mine ? const Color(0xFFBFDBFE) : const Color(0xFF9CA3AF), fontSize: 11),
                     ),
+                    if (mine) ...[
+                      const SizedBox(width: 4),
+                      Icon(
+                        message.isPending ? Icons.schedule : Icons.done_all,
+                        size: 14,
+                        color: mine ? const Color(0xFFBFDBFE) : const Color(0xFF9CA3AF),
+                      ),
+                    ],
                   ],
-                ],
-              ),
-              if (message.isPending && !mine)
-                const SizedBox.shrink(),
-              if (message.isPending && mine)
-                const Text('Sending / under review...',
-                    style: TextStyle(color: Color(0xFFBFDBFE), fontSize: 11)),
-            ],
+                ),
+                if (message.isPending && !mine)
+                  const SizedBox.shrink(),
+                if (message.isPending && mine)
+                  const Text('Sending / under review...',
+                      style: TextStyle(color: Color(0xFFBFDBFE), fontSize: 11)),
+              ],
+            ),
           ),
         ),
       ),

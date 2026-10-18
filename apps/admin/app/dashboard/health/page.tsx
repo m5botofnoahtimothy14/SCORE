@@ -15,7 +15,7 @@ interface Health {
   latencyMs: number
 }
 
-// System health: ONLY real data from /api/health. Nothing is fabricated —
+// System health: ONLY real data from /api/health. Nothing is fabricated â€”
 // unreachable services report as errors, not as healthy.
 export default function HealthPage() {
   const [health, setHealth] = useState<Health | null>(null)
@@ -81,14 +81,14 @@ export default function HealthPage() {
   return (
     <div>
       {node}
-      <PageHeader title="System Health" subtitle={`v${health.version} · checked in ${health.latencyMs}ms · last message ${health.activity.lastMessageAt ? new Date(health.activity.lastMessageAt).toLocaleString() : 'never'}`} />
+      <PageHeader title="System Health" subtitle={`v${health.version} Â· checked in ${health.latencyMs}ms Â· last message ${health.activity.lastMessageAt ? new Date(health.activity.lastMessageAt).toLocaleString() : 'never'}`} />
       <div className="grid md:grid-cols-2 gap-4">
         <Card className="p-4">
           <h2 className="font-semibold mb-3">Database {ok(health.db.ok)}</h2>
           <table className="w-full text-sm">
             <tbody>
               {Object.entries(health.tables).map(([t, s]) => (
-                <tr key={t} className="border-b border-gray-100 last:border-0">
+                <tr key={t} className="border-b border-ink-200 last:border-0">
                   <td className="py-1.5 font-mono text-xs">{t}</td>
                   <td className="text-right">{ok(s.ok)}</td>
                 </tr>
@@ -105,7 +105,7 @@ export default function HealthPage() {
               <div className="flex justify-between"><span>Image safety</span>{ok(health.providers.imageSafetyConfigured)}</div>
               <div className="flex justify-between"><span>SMS (OTP)</span>{ok(health.providers.smsConfigured)}</div>
             </div>
-            <p className="text-xs text-gray-500 mt-3">
+            <p className="text-xs text-ink-600 mt-3">
               Unconfigured providers fail closed: messages are held for review, uploads quarantined, OTP requests rejected with an explicit error.
             </p>
           </Card>
@@ -120,8 +120,8 @@ export default function HealthPage() {
               {isOwner && <button onClick={retryBackgroundJobs} className={btnSecondary}>Re-queue failed jobs</button>}
               <button onClick={load} className={btnSecondary}>Refresh</button>
             </div>
-            <p className="text-xs text-gray-500 mt-3">
-              Realtime liveness is not directly measurable from here — verify delivery in the mobile app and check Supabase Dashboard → Realtime for inspector data.
+            <p className="text-xs text-ink-600 mt-3">
+              Realtime liveness is not directly measurable from here â€” verify delivery in the mobile app and check Supabase Dashboard â†’ Realtime for inspector data.
             </p>
           </Card>
         </div>

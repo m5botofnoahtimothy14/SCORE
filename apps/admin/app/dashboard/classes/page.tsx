@@ -149,7 +149,7 @@ export default function ClassesPage() {
       const foundIds = new Set(((found ?? []) as { student_id_no: string }[]).map((f) => f.student_id_no))
       const missing = ids.filter((i) => !foundIds.has(i))
       if (missing.length > 0) {
-        show(false, `Unknown IDs: ${missing.slice(0, 5).join(', ')}${missing.length > 5 ? '…' : ''}`)
+        show(false, `Unknown IDs: ${missing.slice(0, 5).join(', ')}${missing.length > 5 ? 'â€¦' : ''}`)
         return
       }
       let assigned = 0
@@ -177,9 +177,9 @@ export default function ClassesPage() {
         <Card className="p-4">
           <h2 className="font-semibold mb-3">Academic years</h2>
           {years.map((y) => (
-            <div key={y.id} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0 text-sm">
+            <div key={y.id} className="flex items-center justify-between py-2 border-b border-ink-200 last:border-0 text-sm">
               <span>{y.name} {y.is_current && <StatusBadge value="active" />}</span>
-              {!y.is_current && <button onClick={() => setCurrentYear(y.id)} className="text-blue-600 text-xs hover:underline">Set current</button>}
+              {!y.is_current && <button onClick={() => setCurrentYear(y.id)} className="text-brand-600 text-xs hover:underline">Set current</button>}
             </div>
           ))}
           <div className="grid grid-cols-3 gap-2 mt-3">
@@ -193,7 +193,7 @@ export default function ClassesPage() {
           <h2 className="font-semibold mb-3">Subjects</h2>
           <div className="flex flex-wrap gap-2 mb-3">
             {subjects.map((s) => <StatusBadge key={s.id} value={s.code ? `${s.name}` : s.name} />)}
-            {subjects.length === 0 && <span className="text-sm text-gray-500">None yet.</span>}
+            {subjects.length === 0 && <span className="text-sm text-ink-600">None yet.</span>}
           </div>
           <div className="grid grid-cols-2 gap-2">
             <input className={inputCls} placeholder="Mathematics" value={subjectForm.name} onChange={(e) => setSubjectForm({ ...subjectForm, name: e.target.value })} />
@@ -205,11 +205,11 @@ export default function ClassesPage() {
       <Card className="p-4 mt-4">
         <h2 className="font-semibold mb-3">Classes</h2>
         <table className="w-full text-sm mb-4">
-          <thead><tr className="text-left text-gray-500 text-xs border-b"><th className="py-2">Name</th><th>Grade</th><th>Section</th><th>Enrolled</th><th>Status</th></tr></thead>
+          <thead><tr className="text-left text-ink-600 text-xs border-b"><th className="py-2">Name</th><th>Grade</th><th>Section</th><th>Enrolled</th><th>Status</th></tr></thead>
           <tbody>
             {classes.map((c) => (
-              <tr key={c.id} className="border-b border-gray-100 last:border-0">
-                <td className="py-2 font-medium">{c.name}</td><td>{c.grade}</td><td>{c.section ?? '—'}</td>
+              <tr key={c.id} className="border-b border-ink-200 last:border-0">
+                <td className="py-2 font-medium">{c.name}</td><td>{c.grade}</td><td>{c.section ?? 'â€”'}</td>
                 <td>{enrollCounts[c.id] ?? 0}</td>
                 <td><StatusBadge value={c.is_active ? 'active' : 'suspended'} /></td>
               </tr>
@@ -221,7 +221,7 @@ export default function ClassesPage() {
           <input className={inputCls} placeholder="Grade (8)" value={classForm.grade} onChange={(e) => setClassForm({ ...classForm, grade: e.target.value })} />
           <input className={inputCls} placeholder="Section (A)" value={classForm.section} onChange={(e) => setClassForm({ ...classForm, section: e.target.value })} />
           <select className={inputCls} value={classForm.year_id} onChange={(e) => setClassForm({ ...classForm, year_id: e.target.value })}>
-            <option value="">Academic year…</option>
+            <option value="">Academic yearâ€¦</option>
             {years.map((y) => <option key={y.id} value={y.id}>{y.name}</option>)}
           </select>
         </div>
@@ -229,9 +229,9 @@ export default function ClassesPage() {
       </Card>
       <Card className="p-4 mt-4">
         <h2 className="font-semibold mb-1">Bulk assignment</h2>
-        <p className="text-xs text-gray-500 mb-3">Enroll many students (by Student ID) into a class at once.</p>
+        <p className="text-xs text-ink-600 mb-3">Enroll many students (by Student ID) into a class at once.</p>
         <select className={`${inputCls} mb-2`} value={bulkClass} onChange={(e) => setBulkClass(e.target.value)}>
-          <option value="">Select class…</option>
+          <option value="">Select classâ€¦</option>
           {classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
         </select>
         <textarea className={inputCls} rows={4} placeholder={'S1001\nS1002'} value={bulkIds} onChange={(e) => setBulkIds(e.target.value)} />

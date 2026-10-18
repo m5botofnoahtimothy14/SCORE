@@ -1,4 +1,5 @@
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/foundation.dart' show defaultTargetPlatform, TargetPlatform;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -17,54 +18,74 @@ class NotificationService {
   static const String _channelAlerts = 'priority_alerts';
   static const String _channelAdmin = 'admin_alerts';
 
+  /// Value stored in `notification_devices.platform`. iOS and macOS both
+  /// receive push through APNs, Android through FCM.
+  static String get _devicePlatform =>
+      (defaultTargetPlatform == TargetPlatform.iOS ||
+              defaultTargetPlatform == TargetPlatform.macOS)
+          ? 'ios'
+          : 'android';
+
   static Future<void> initialize(
     FlutterLocalNotificationsPlugin localNotifications, {
     bool pushEnabled = true,
   }) async {
-    // Create Android notification channels
-    final androidPlugin = AndroidFlutterLocalNotificationsPlugin();
-    await androidPlugin.createNotificationChannel(
-      const AndroidNotificationChannel(
-        _channelMessages,
-        'Messages',
-        description: 'Teacher and support messages',
-        importance: Importance.high,
-        enableVibration: true,
-      ),
-    );
+    // Notification channels are an Android concept; the plugin throws a
+    // MissingPluginException on iOS, so only create them there.
+    if (defaultTargetPlatform == TargetPlatform.android) {
+      final androidPlugin = AndroidFlutterLocalNotificationsPlugin();
+      await androidPlugin.createNotificationChannel(
+        const AndroidNotificationChannel(
+          _channelMessages,
+          'Messages',
+          description: 'Teacher and support messages',
+          importance: Importance.high,
+          enableVibration: true,
+        ),
+      );
 
-    await androidPlugin.createNotificationChannel(
-      const AndroidNotificationChannel(
-        _channelAnnouncements,
-        'Announcements',
-        description: 'School and class announcements',
-        importance: Importance.defaultImportance,
-      ),
-    );
+      await androidPlugin.createNotificationChannel(
+        const AndroidNotificationChannel(
+          _channelAnnouncements,
+          'Announcements',
+          description: 'School and class announcements',
+          importance: Importance.defaultImportance,
+        ),
+      );
 
-    await androidPlugin.createNotificationChannel(
-      const AndroidNotificationChannel(
-        _channelAlerts,
-        'Priority Alerts',
-        description: 'Urgent school safety and priority alerts',
-        importance: Importance.max,
-        enableVibration: true,
-        enableLights: true,
-      ),
-    );
+      await androidPlugin.createNotificationChannel(
+        const AndroidNotificationChannel(
+          _channelAlerts,
+          'Priority Alerts',
+          description: 'Urgent school safety and priority alerts',
+          importance: Importance.max,
+          enableVibration: true,
+          enableLights: true,
+        ),
+      );
 
-    await androidPlugin.createNotificationChannel(
-      const AndroidNotificationChannel(
-        _channelAdmin,
-        'Administrative Alerts',
-        description: 'Account and security notifications',
-        importance: Importance.high,
-      ),
-    );
+      await androidPlugin.createNotificationChannel(
+        const AndroidNotificationChannel(
+          _channelAdmin,
+          'Administrative Alerts',
+          description: 'Account and security notifications',
+          importance: Importance.high,
+        ),
+      );
+    }
 
-    // Initialize local notifications plugin
+    // Each platform refuses to initialize without its own settings.
     const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
-    const initSettings = InitializationSettings(android: androidSettings);
+    const darwinSettings = DarwinInitializationSettings(
+      // Permissions are requested explicitly via FirebaseMessaging below.
+      requestAlertPermission: false,
+      requestBadgePermission: false,
+      requestSoundPermission: false,
+    );
+    const initSettings = InitializationSettings(
+      android: androidSettings,
+      iOS: darwinSettings,
+    );
 
     await localNotifications.initialize(
       initSettings,
@@ -125,7 +146,7 @@ class NotificationService {
         'user_id': user.id,
         'school_id': membership['school_id'],
         'fcm_token': token,
-        'platform': 'android',
+        'platform': _devicePlatform,
         'is_active': true,
         'last_seen_at': DateTime.now().toIso8601String(),
       }, onConflict: 'fcm_token');
@@ -137,7 +158,7 @@ class NotificationService {
             'user_id': user.id,
             'school_id': membership['school_id'],
             'fcm_token': newToken,
-            'platform': 'android',
+            'platform': _devicePlatform,
             'is_active': true,
           }, onConflict: 'fcm_token');
         } catch (_) {}
@@ -190,6 +211,11 @@ class NotificationService {
           importance: type == 'alert' ? Importance.max : Importance.high,
           priority: type == 'alert' ? Priority.max : Priority.high,
           icon: '@mipmap/ic_launcher',
+        ),
+        iOS: const DarwinNotificationDetails(
+          presentAlert: true,
+          presentBadge: true,
+          presentSound: true,
         ),
       ),
       payload: _buildPayload(data),

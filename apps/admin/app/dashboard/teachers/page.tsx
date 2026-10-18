@@ -56,7 +56,7 @@ export default function TeachersPage() {
       const byTeacher = new Map<string, { class_name: string; subject: string | null }[]>()
       for (const row of (((a ?? []) as unknown) as { teacher_id: string; classes: { name: string } | null; subjects: { name: string } | null }[])) {
         const list = byTeacher.get(row.teacher_id) ?? []
-        list.push({ class_name: row.classes?.name ?? '—', subject: row.subjects?.name ?? null })
+        list.push({ class_name: row.classes?.name ?? 'â€”', subject: row.subjects?.name ?? null })
         byTeacher.set(row.teacher_id, list)
       }
       setTeachers((((t ?? []) as Teacher[])).map((x) => ({ ...x, assignments: byTeacher.get(x.id) ?? [] })))
@@ -226,22 +226,22 @@ export default function TeachersPage() {
       <Card>
         {filtered.length === 0 ? <EmptyState title="No teachers found" /> : (
           <table className="w-full text-sm">
-            <thead><tr className="text-left text-gray-500 text-xs border-b">
+            <thead><tr className="text-left text-ink-600 text-xs border-b">
               <th className="p-3">Name</th><th>Staff ID</th><th>Phone</th><th>Classes</th><th>Status</th><th>Activated</th><th className="text-right pr-3">Actions</th>
             </tr></thead>
             <tbody>
               {filtered.map((t) => (
-                <tr key={t.id} className="border-b border-gray-100 last:border-0">
-                  <td className="p-3 font-medium">{t.first_name} {t.last_name}{t.is_leadership && ' · leadership'}</td>
+                <tr key={t.id} className="border-b border-ink-200 last:border-0">
+                  <td className="p-3 font-medium">{t.first_name} {t.last_name}{t.is_leadership && ' Â· leadership'}</td>
                   <td className="font-mono text-xs">{t.staff_id_no}</td>
                   <td className="text-xs">{t.phone}</td>
-                  <td className="text-xs">{t.assignments?.map((a) => `${a.class_name}${a.subject ? ` (${a.subject})` : ''}`).join(', ') || '—'}</td>
+                  <td className="text-xs">{t.assignments?.map((a) => `${a.class_name}${a.subject ? ` (${a.subject})` : ''}`).join(', ') || 'â€”'}</td>
                   <td><StatusBadge value={t.is_active ? 'active' : 'suspended'} /></td>
                   <td>{t.user_id ? 'Yes' : 'No'}</td>
                   <td className="text-right pr-3 whitespace-nowrap">
-                    <button onClick={() => setEditing(t)} className="text-blue-600 text-xs mr-2 hover:underline">Edit</button>
-                    <button onClick={() => setAssigning(t)} className="text-blue-600 text-xs mr-2 hover:underline">Assign</button>
-                    <button onClick={() => toggleActive(t)} className="text-xs text-gray-600 hover:underline">{t.is_active ? 'Deactivate' : 'Reactivate'}</button>
+                    <button onClick={() => setEditing(t)} className="text-brand-600 text-xs mr-2 hover:underline">Edit</button>
+                    <button onClick={() => setAssigning(t)} className="text-brand-600 text-xs mr-2 hover:underline">Assign</button>
+                    <button onClick={() => toggleActive(t)} className="text-xs text-ink-700 hover:underline">{t.is_active ? 'Deactivate' : 'Reactivate'}</button>
                   </td>
                 </tr>
               ))}
@@ -293,12 +293,12 @@ export default function TeachersPage() {
 
       {importOpen && (
         <Modal title="Import teacher roster (CSV)" wide onClose={() => setImportOpen(false)}>
-          <p className="text-xs text-gray-500 mb-2">Columns: first_name,last_name,staff_id_no,phone,email,is_leadership,class_grade,class_section,subject</p>
-          <button onClick={() => setImportText(TEACHER_CSV_TEMPLATE)} className="text-xs text-blue-600 hover:underline mb-2">Load template</button>
+          <p className="text-xs text-ink-600 mb-2">Columns: first_name,last_name,staff_id_no,phone,email,is_leadership,class_grade,class_section,subject</p>
+          <button onClick={() => setImportText(TEACHER_CSV_TEMPLATE)} className="text-xs text-brand-600 hover:underline mb-2">Load template</button>
           <textarea className={inputCls} rows={8} value={importText} onChange={(e) => setImportText(e.target.value)} placeholder="Paste CSV here..." />
           {importReport && (
             <div className="mt-2 text-sm">
-              <p className="text-gray-700">{importReport.ok} valid rows.</p>
+              <p className="text-ink-800">{importReport.ok} valid rows.</p>
               {importReport.errors.map((e, i) => <p key={i} className="text-red-600 text-xs">Line {e.line}: {e.message}</p>)}
             </div>
           )}

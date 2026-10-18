@@ -49,6 +49,13 @@ class ConversationRecord {
   final int unreadCount;
   final String? lastMessageBody;
   final DateTime? lastMessageAt;
+
+  /// Resolved identity of the *other* participants — a teacher must always see
+  /// which student is messaging them, and a student must see which teacher.
+  final String? peerName;
+  final String? peerDetail;
+  final bool peerIsStudent;
+
   const ConversationRecord({
     required this.id,
     required this.schoolId,
@@ -59,8 +66,14 @@ class ConversationRecord {
     this.unreadCount = 0,
     this.lastMessageBody,
     this.lastMessageAt,
+    this.peerName,
+    this.peerDetail,
+    this.peerIsStudent = false,
   });
+
+  /// What to show in a list row.
   String displayTitle() {
+    if (peerName != null && peerName!.isNotEmpty) return peerName!;
     if (title != null && title!.isNotEmpty) return title!;
     switch (type) {
       case 'student_support':
@@ -73,6 +86,23 @@ class ConversationRecord {
         return 'School Leadership';
       default:
         return 'Conversation';
+    }
+  }
+
+  /// Secondary line: class for students, role/staff-id for staff.
+  String displaySubtitle() {
+    if (peerDetail != null && peerDetail!.isNotEmpty) return peerDetail!;
+    switch (type) {
+      case 'student_support':
+        return 'Student support';
+      case 'class_channel':
+        return 'Class channel';
+      case 'staff':
+        return 'Staff chat';
+      case 'leadership':
+        return 'Leadership';
+      default:
+        return '';
     }
   }
 }

@@ -1,38 +1,98 @@
 // ============================================================
 // TeachCross — test helpers: moderation policy + rate limiting.
-// Mirrors supabase/functions/moderate-{message,image} thresholds and
-// the sliding-window rate limits in send-otp / activate-student.
-// Safe-failure rule: missing/failed provider MUST NOT approve.
+//
+// The moderation verdict functions below are THIN DELEGATES to the real
+// edge module, supabase/functions/_shared/moderation_policy.ts. There is
+// deliberately NO mirrored copy of the thresholds here: a hand-copied
+// threshold table is exactly how a tuned policy silently stops being the
+// thing that is tested. Node >= 22.6 strips the module's types natively.
+//
+// Also mirrors the sliding-window rate limits in send-otp /
+// activate-student. Safe-failure rule: a missing/failed provider MUST NOT
+// approve.
 // ============================================================
 
-export const BLOCK_THRESHOLD = 0.8;
-export const HOLD_THRESHOLD = 0.5;
-export const WARN_THRESHOLD = 0.3;
-
-export function decideTextVerdict({ categories, provider, providerError }) {
-  if (providerError || provider === 'none') {
-    return { verdict: 'held', messageStatus: 'held_for_review', providerError };
-  }
-  const scores = Object.values(categories ?? {});
-  const maxScore = scores.length ? Math.max(...scores) : 0;
-  if ((categories?.['sexual/minors'] ?? 0) > 0.1) return { verdict: 'escalated', messageStatus: 'held_for_review', maxScore };
-  if (maxScore >= BLOCK_THRESHOLD) return { verdict: 'blocked', messageStatus: 'blocked', maxScore };
-  if (maxScore >= HOLD_THRESHOLD) return { verdict: 'held', messageStatus: 'held_for_review', maxScore };
-  if (maxScore >= WARN_THRESHOLD) return { verdict: 'warned', messageStatus: 'approved', maxScore };
-  return { verdict: 'approved', messageStatus: 'approved', maxScore };
+let policyMod = null;
+let policyLoadError = null;
+try {
+  policyMod = await import('../../supabase/functions/_shared/moderation_policy.ts');
+} catch (err) {
+  policyLoadError = err;
 }
 
-// APILayer Nudity Detection returns a 1–5 score (5 = most likely nude).
-export const IMAGE_REJECT_AT = 4;
-export const IMAGE_HOLD_AT = 3;
+export const MODERATION_POLICY_LOAD_ERROR = policyLoadError;
 
-export function decideImageVerdict({ score, providerConfigured, providerError }) {
-  if (!providerConfigured || providerError) {
-    return { verdict: 'quarantined', attachmentStatus: 'quarantined' }; // fail closed
+const {
+  DEFAULT_POLICY,
+  applyPolicy,
+  effectiveThresholds,
+  toTextVerdict,
+  toImageVerdict,
+} = policyMod ?? {};
+
+export { DEFAULT_POLICY, effectiveThresholds, applyPolicy };
+
+function requirePolicy() {
+  if (!policyMod) {
+    throw new Error(
+      'moderation_policy.ts could not be loaded (needs Node >= 22.6 for native type stripping): ' +
+        String(policyLoadError?.message ?? policyLoadError),
+    );
   }
-  if (score >= IMAGE_REJECT_AT) return { verdict: 'rejected', attachmentStatus: 'rejected' };
-  if (score >= IMAGE_HOLD_AT) return { verdict: 'quarantined', attachmentStatus: 'quarantined' };
-  return { verdict: 'approved', attachmentStatus: 'approved' };
+}
+
+/**
+ * Mirrors the edge function's text path: vendor scores in, verdict +
+ * message status out. Fail-closed when the provider is missing or errored.
+ */
+export function decideTextVerdict({ categories, text = '', provider, providerError, audience, senderRole }) {
+  requirePolicy();
+  const decision = applyPolicy({
+    categories: categories ?? {},
+    text,
+    context: { media: 'text', provider, providerError: providerError ?? null, audience, senderRole },
+  });
+  const verdict = toTextVerdict(decision);
+  const messageStatus =
+    verdict === 'blocked'
+      ? 'blocked'
+      : verdict === 'approved' || verdict === 'warned'
+        ? 'approved'
+        : 'held_for_review';
+  return {
+    verdict,
+    messageStatus,
+    policyAction: decision.action,
+    reasons: [...decision.reasons],
+    matchedRules: [...decision.matchedRules],
+  };
+}
+
+/**
+ * Mirrors the edge function's image path. `score` is the 1..5 nudity
+ * observation (APILayer scale). Fail-closed when the provider is missing
+ * or errored — an image is never approved without a completed scan.
+ */
+export function decideImageVerdict({ score, providerConfigured = true, providerError, audience }) {
+  requirePolicy();
+  const decision = applyPolicy({
+    categories: {},
+    text: '',
+    context: {
+      media: 'image',
+      provider: providerConfigured ? 'apilayer_nudity' : 'none',
+      providerError: providerError ?? null,
+      nudityScore: typeof score === 'number' ? score : null,
+      audience,
+    },
+  });
+  return {
+    verdict: toImageVerdict(decision),
+    attachmentStatus: toImageVerdict(decision),
+    policyAction: decision.action,
+    reasons: [...decision.reasons],
+    matchedRules: [...decision.matchedRules],
+  };
 }
 
 // Sliding-window limiter (mirrors rate_limit_events checks)

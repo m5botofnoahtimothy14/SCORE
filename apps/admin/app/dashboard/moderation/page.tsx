@@ -166,19 +166,19 @@ export default function ModerationPage() {
         <Card>
           {cases.length === 0 ? <EmptyState title="Queue is clear" subtitle="Flagged content will appear here." /> : (
             <table className="w-full text-sm">
-              <thead><tr className="text-left text-gray-500 text-xs border-b">
+              <thead><tr className="text-left text-ink-600 text-xs border-b">
                 <th className="p-3">Flagged content</th><th>Verdict</th><th>Status</th><th className="text-right pr-3">Review</th>
               </tr></thead>
               <tbody>
                 {cases.map((c) => (
-                  <tr key={c.id} className="border-b border-gray-100 last:border-0">
+                  <tr key={c.id} className="border-b border-ink-200 last:border-0">
                     <td className="p-3 max-w-md">
                       <p className="truncate">{c.message_body ?? '(attachment case)'}</p>
-                      <p className="text-xs text-gray-500">{c.sender_name ?? ''} · {c.reason_code} · {new Date(c.created_at).toLocaleString()}</p>
+                      <p className="text-xs text-ink-600">{c.sender_name ?? ''} Â· {c.reason_code} Â· {new Date(c.created_at).toLocaleString()}</p>
                     </td>
                     <td><StatusBadge value={c.moderation_results?.verdict ?? 'held'} /></td>
                     <td><StatusBadge value={c.status} /></td>
-                    <td className="text-right pr-3"><button onClick={() => { setSelected(c); setNote('') }} className="text-blue-600 text-xs hover:underline">Open</button></td>
+                    <td className="text-right pr-3"><button onClick={() => { setSelected(c); setNote('') }} className="text-brand-600 text-xs hover:underline">Open</button></td>
                   </tr>
                 ))}
               </tbody>
@@ -189,18 +189,18 @@ export default function ModerationPage() {
         <Card>
           {attachments.length === 0 ? <EmptyState title="No attachments pending" /> : (
             <table className="w-full text-sm">
-              <thead><tr className="text-left text-gray-500 text-xs border-b">
+              <thead><tr className="text-left text-ink-600 text-xs border-b">
                 <th className="p-3">File</th><th>Status</th><th>Preview</th><th className="text-right pr-3">Decision</th>
               </tr></thead>
               <tbody>
                 {attachments.map((a) => (
-                  <tr key={a.id} className="border-b border-gray-100 last:border-0">
+                  <tr key={a.id} className="border-b border-ink-200 last:border-0">
                     <td className="p-3">{a.file_name}</td>
                     <td><StatusBadge value={a.status} /></td>
                     <td>
                       {a.previewUrl
-                        ? <a href={a.previewUrl} target="_blank" rel="noreferrer" className="text-blue-600 text-xs hover:underline">Open signed link (2 min)</a>
-                        : <button onClick={() => preview(a.storage_path, a.id)} className="text-blue-600 text-xs hover:underline">Generate preview</button>}
+                        ? <a href={a.previewUrl} target="_blank" rel="noreferrer" className="text-brand-600 text-xs hover:underline">Open signed link (2 min)</a>
+                        : <button onClick={() => preview(a.storage_path, a.id)} className="text-brand-600 text-xs hover:underline">Generate preview</button>}
                     </td>
                     <td className="text-right pr-3 whitespace-nowrap">
                       <button onClick={() => decideAttachment(a.id, true)} className="text-green-700 text-xs mr-2 hover:underline">Approve</button>
@@ -215,13 +215,13 @@ export default function ModerationPage() {
       )}
       {selected && (
         <Modal title="Review case" wide onClose={() => setSelected(null)}>
-          <div className="bg-gray-50 rounded-lg p-3 text-sm mb-3">
+          <div className="bg-ink-50 rounded-lg p-3 text-sm mb-3">
             <p className="font-medium">{selected.sender_name ?? 'Unknown sender'}</p>
-            <p className="mt-1">{selected.message_body ?? '(no text — attachment case)'}</p>
-            <p className="text-xs text-gray-500 mt-2">
-              Provider: {selected.moderation_results?.provider ?? '—'} ·
+            <p className="mt-1">{selected.message_body ?? '(no text â€” attachment case)'}</p>
+            <p className="text-xs text-ink-600 mt-2">
+              Provider: {selected.moderation_results?.provider ?? 'â€”'} Â·
               Scores: {JSON.stringify(selected.moderation_results?.categories ?? {})}
-              {selected.moderation_results?.provider_error && ` · Error: ${selected.moderation_results.provider_error}`}
+              {selected.moderation_results?.provider_error && ` Â· Error: ${selected.moderation_results.provider_error}`}
             </p>
           </div>
           <textarea className={inputCls} rows={3} placeholder="Reviewer notes / reason code..." value={note} onChange={(e) => setNote(e.target.value)} />

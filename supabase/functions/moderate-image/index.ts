@@ -7,11 +7,21 @@
 // Fallback: APILayer Nudity Detection (1–5 score, 5 = most likely nude),
 //          used only when OpenAI is unavailable.
 //
+// The vendor is the SIGNAL SOURCE. The verdict is decided by the first-part
+// policy in _shared/moderation_policy.ts, using the same threshold table and
+// the same multi-signal rule as text. See docs/MODERATION.md.
+//
 // We fail closed: any provider error => quarantined, never approved.
 // ============================================================
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { encode as base64Encode } from "https://deno.land/std@0.177.0/encoding/base64.ts";
+import {
+  applyPolicy,
+  toImageVerdict,
+  explainDecision,
+  type PolicyDecision,
+} from "../_shared/moderation_policy.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -20,10 +30,6 @@ const INTERNAL_WEBHOOK_SECRET = Deno.env.get("INTERNAL_WEBHOOK_SECRET")!;
 const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
 const APILAYER_API_KEY = Deno.env.get("APILAYER_API_KEY");
 const APILAYER_BASE = Deno.env.get("APILAYER_NUDITY_URL") ?? "https://api.apilayer.com/nudity_detection";
-
-// Score thresholds on the 1..5 scale. School context => stricter.
-const REJECT_AT = 4;      // >= 4 : reject outright
-const QUARANTINE_AT = 3;  // == 3 : hold for human review
 
 serve(async (req: Request) => {
   const secret = req.headers.get("x-webhook-secret");
@@ -54,20 +60,44 @@ serve(async (req: Request) => {
     let verdict: "approved" | "rejected" | "quarantined";
     let scanResult: Record<string, unknown> = {};
     let provider = "none";
+    let decision: PolicyDecision | undefined;
 
     const classify = await classifyImage(supabase, attachment.storage_path, attachment.mime_type);
 
     if (classify.error) {
+      // FAIL CLOSED: a provider failure is a quarantine, never an approval,
+      // whatever score the failing provider reported on the way out.
       verdict = "quarantined";
       scanResult = { error: classify.error, provider: classify.provider };
       console.error("Image scan failed — quarantining:", attachment_id, classify.error);
     } else {
       provider = classify.provider;
-      scanResult = { description: classify.description, score: classify.value, categories: classify.details };
-      const v = classify.value ?? 5;
-      if (v >= REJECT_AT) verdict = "rejected";
-      else if (v >= QUARANTINE_AT) verdict = "quarantined";
-      else verdict = "approved";
+      // The vendor's semantic categories are the signals; the nudity score
+      // is a direct physical observation fed to the policy as well.
+      const categoryScores = (classify.details?.category_scores as Record<string, number>) ?? {};
+      decision = applyPolicy({
+        categories: categoryScores,
+        text: "",
+        context: {
+          media: "image",
+          provider: classify.provider,
+          providerError: null,
+          nudityScore: classify.value,
+          flagged: Boolean(classify.details?.flagged),
+        },
+      });
+      verdict = toImageVerdict(decision);
+      scanResult = {
+        description: classify.description,
+        score: classify.value,
+        categories: classify.details,
+        policy_version: decision.policyVersion,
+        policy_action: decision.action,
+        policy_reasons: decision.reasons,
+        policy_rules: decision.matchedRules,
+        policy_explanation: explainDecision(decision),
+      };
+      console.log(`image moderation ${attachment_id}: ${explainDecision(decision)}`);
     }
 
     const modVerdict = verdict === "approved" ? "approved" : verdict === "rejected" ? "blocked" : "held";
@@ -78,6 +108,18 @@ serve(async (req: Request) => {
       provider,
       verdict: modVerdict,
       categories: scanResult,
+      raw_response: decision
+        ? {
+          policy_version: decision.policyVersion,
+          action: decision.action,
+          policy_score: decision.score,
+          raw_max_score: decision.rawMaxScore,
+          matched_rules: decision.matchedRules,
+          reasons: decision.reasons,
+          explanation: explainDecision(decision),
+          signals: decision.signals,
+        }
+        : { policy_version: "not_applied", reason: "provider failure — quarantined (fail-closed)" },
       processed_at: new Date().toISOString(),
     });
 

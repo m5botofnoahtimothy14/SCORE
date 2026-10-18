@@ -33,4 +33,19 @@ class AppConfig {
   static const int maxOtpAttempts = 5;
   static const int messagePaginationSize = 30;
   static const int announcementPaginationSize = 20;
+
+  // Brand + developer attribution.
+  // Single source of truth: the splash, the EULA footer and the profile
+  // signature block all render from these, so a rename or a new support
+  // contact is a one-line change here and nowhere else.
+  static const String appName = 'TeachCross';
+  static const String brandName = 'CRIMSON';
+  static const String developerName = 'Noah Timothy Keba Joseph';
+
+  /// The collaboration lockup shown on the splash and in the signature block.
+  static const String signatureLine = 'CRIMSON X NOAH TIMOTHY KEBA';
+
+  // Support placeholders — replace with the live desk before shipping.
+  static const String supportEmail = 'support@teachcross.app';
+  static const String supportPhone = '+91 90000 00000';
 }

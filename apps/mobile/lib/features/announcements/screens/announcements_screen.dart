@@ -3,7 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../core/layout/responsive.dart';
+import '../../../core/models/identity.dart';
 import '../../../core/models/models.dart';
+import '../../../core/providers/identity_provider.dart';
+import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/states.dart';
 
 /// Class + school announcements addressed to this user (via
@@ -80,8 +84,32 @@ class _AnnouncementsScreenState extends ConsumerState<AnnouncementsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Students read notices; staff can also write them.
+    final identity = ref.watch(identityProvider).valueOrNull;
+    final canPost = identity != null && identity.tier != AppTier.student;
+    final accent = canPost ? TierAccent.of(identity.tier) : null;
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Notices')),
+      appBar: AppBar(
+        title: const Text('Notices'),
+        actions: [
+          if (canPost)
+            Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: TextButton.icon(
+                onPressed: () => context.go('/announcements/compose'),
+                style: TextButton.styleFrom(
+                  foregroundColor: accent!.solid,
+                  backgroundColor: accent.soft,
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                icon: const Icon(Icons.add, size: 18),
+                label: const Text('New notice'),
+              ),
+            ),
+        ],
+      ),
       body: _loading
           ? const LoadingView()
           : _error != null
@@ -94,35 +122,38 @@ class _AnnouncementsScreenState extends ConsumerState<AnnouncementsScreen> {
                     )
                   : RefreshIndicator(
                       onRefresh: _load,
-                      child: ListView.builder(
-                        padding: const EdgeInsets.all(12),
-                        itemCount: _items.length,
-                        itemBuilder: (context, i) {
-                          final a = _items[i];
-                          final needsAck = a.requiresAck && !(_acked[a.id] ?? false);
-                          return Card(
-                            child: ListTile(
-                              leading: Icon(
-                                a.isPriority ? Icons.warning : Icons.campaign,
-                                color: a.isPriority ? const Color(0xFFDC2626) : const Color(0xFF1A56DB),
+                      child: AdaptivePage(
+                        child: ListView.builder(
+                          // Horizontal padding comes from AdaptivePage.
+                          padding: const EdgeInsets.fromLTRB(0, 12, 0, 12),
+                          itemCount: _items.length,
+                          itemBuilder: (context, i) {
+                            final a = _items[i];
+                            final needsAck = a.requiresAck && !(_acked[a.id] ?? false);
+                            return Card(
+                              child: ListTile(
+                                leading: Icon(
+                                  a.isPriority ? Icons.warning : Icons.campaign,
+                                  color: a.isPriority ? const Color(0xFFDC2626) : const Color(0xFF1A56DB),
+                                ),
+                                title: Text(a.title, style: const TextStyle(fontWeight: FontWeight.w600)),
+                                subtitle: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(a.body, maxLines: 2, overflow: TextOverflow.ellipsis),
+                                    const SizedBox(height: 4),
+                                    Row(children: [
+                                      _badge(a.category.replaceAll('_', ' ')),
+                                      if (needsAck) ...[const SizedBox(width: 6), _badge('action needed', red: true)],
+                                    ]),
+                                  ],
+                                ),
+                                trailing: const Icon(Icons.chevron_right),
+                                onTap: () => context.go('/announcements/${a.id}'),
                               ),
-                              title: Text(a.title, style: const TextStyle(fontWeight: FontWeight.w600)),
-                              subtitle: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(a.body, maxLines: 2, overflow: TextOverflow.ellipsis),
-                                  const SizedBox(height: 4),
-                                  Row(children: [
-                                    _badge(a.category.replaceAll('_', ' ')),
-                                    if (needsAck) ...[const SizedBox(width: 6), _badge('action needed', red: true)],
-                                  ]),
-                                ],
-                              ),
-                              trailing: const Icon(Icons.chevron_right),
-                              onTap: () => context.go('/announcements/${a.id}'),
-                            ),
-                          );
-                        },
+                            );
+                          },
+                        ),
                       ),
                     ),
     );

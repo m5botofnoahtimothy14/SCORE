@@ -4,7 +4,9 @@ import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../auth/services/auth_service.dart';
+import '../../../core/widgets/developer_signature.dart';
 import '../../../core/widgets/states.dart';
+import '../../../features/legal/screens/eula_screen.dart';
 
 /// Safe single-letter avatar initial (handles null/empty names).
 String _initialOf(dynamic value) {
@@ -102,6 +104,18 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     if (mounted) context.go('/auth/school-select');
   }
 
+  /// The terms stay reachable for the life of the account, in read-only mode:
+  /// same content, plus the date the user accepted, and no accept/decline.
+  /// All three entries open the one screen so the legal text can never diverge.
+  void _openTerms() {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        fullscreenDialog: true,
+        builder: (_) => const EulaScreen(acceptedMode: true),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -178,6 +192,42 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       ),
                     ),
                     const SizedBox(height: 16),
+                    Card(
+                      child: Column(
+                        children: [
+                          const ListTile(
+                            leading: Icon(Icons.shield_outlined),
+                            title: Text('Legal'),
+                            subtitle: Text(
+                              'The terms you accepted are always available here.',
+                              style: TextStyle(fontSize: 12),
+                            ),
+                          ),
+                          const Divider(height: 1),
+                          _LegalTile(
+                            icon: Icons.gavel_outlined,
+                            label: 'Terms & Conditions',
+                            subtitle: 'The End User Licence Agreement for TeachCross.',
+                            onTap: _openTerms,
+                          ),
+                          const Divider(height: 1),
+                          _LegalTile(
+                            icon: Icons.privacy_tip_outlined,
+                            label: 'Privacy Policy',
+                            subtitle: 'How your data is handled under the DPDP Act, 2023.',
+                            onTap: _openTerms,
+                          ),
+                          const Divider(height: 1),
+                          _LegalTile(
+                            icon: Icons.verified_user_outlined,
+                            label: 'EULA / Consent',
+                            subtitle: 'Your consent record and the date you accepted.',
+                            onTap: _openTerms,
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
                     SizedBox(
                       width: double.infinity,
                       child: OutlinedButton.icon(
@@ -190,8 +240,36 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         onPressed: _signOut,
                       ),
                     ),
+                    const SizedBox(height: 20),
+                    const DeveloperSignature(compact: true),
                   ],
                 ),
+    );
+  }
+}
+
+/// One read-only legal entry. Always opens the same [EulaScreen].
+class _LegalTile extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  const _LegalTile({
+    required this.icon,
+    required this.label,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      leading: Icon(icon),
+      title: Text(label),
+      subtitle: Text(subtitle, style: const TextStyle(fontSize: 12)),
+      trailing: const Icon(Icons.chevron_right),
+      onTap: onTap,
     );
   }
 }

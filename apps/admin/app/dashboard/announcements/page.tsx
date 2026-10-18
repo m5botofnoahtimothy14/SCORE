@@ -145,7 +145,7 @@ export default function AnnouncementsPage() {
           </select>
           {form.audience_type === 'class' && (
             <select className={inputCls} value={form.class_id} onChange={(e) => setForm({ ...form, class_id: e.target.value })}>
-              <option value="">Select class…</option>
+              <option value="">Select classâ€¦</option>
               {classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
           )}
@@ -159,17 +159,17 @@ export default function AnnouncementsPage() {
       <Card>
         {items.length === 0 ? <EmptyState title="No announcements yet" /> : (
           <table className="w-full text-sm">
-            <thead><tr className="text-left text-gray-500 text-xs border-b">
+            <thead><tr className="text-left text-ink-600 text-xs border-b">
               <th className="p-3">Title</th><th>Category</th><th>Audience</th><th>Published</th><th className="text-right pr-3">Details</th>
             </tr></thead>
             <tbody>
               {items.map((a) => (
-                <tr key={a.id} className="border-b border-gray-100 last:border-0">
+                <tr key={a.id} className="border-b border-ink-200 last:border-0">
                   <td className="p-3 font-medium">{a.title}</td>
                   <td><StatusBadge value={a.category} /></td>
                   <td className="text-xs">{a.audience_type.replace('_', ' ')}</td>
-                  <td className="text-xs text-gray-500">{a.published_at ? new Date(a.published_at).toLocaleString() : '—'}</td>
-                  <td className="text-right pr-3"><button onClick={() => openDetail(a)} className="text-blue-600 text-xs hover:underline">Delivery & acks</button></td>
+                  <td className="text-xs text-ink-600">{a.published_at ? new Date(a.published_at).toLocaleString() : 'â€”'}</td>
+                  <td className="text-right pr-3"><button onClick={() => openDetail(a)} className="text-brand-600 text-xs hover:underline">Delivery & acks</button></td>
                 </tr>
               ))}
             </tbody>
@@ -179,12 +179,12 @@ export default function AnnouncementsPage() {
       {detail && (
         <Modal title="Delivery & acknowledgement" onClose={() => setDetail(null)}>
           <div className="grid grid-cols-2 gap-3 text-sm">
-            <div className="bg-gray-50 rounded-lg p-3"><p className="text-gray-500 text-xs">Recipients</p><p className="text-xl font-bold">{detail.recipients}</p></div>
-            <div className="bg-gray-50 rounded-lg p-3"><p className="text-gray-500 text-xs">Acknowledged</p><p className="text-xl font-bold">{detail.acked}</p></div>
-            <div className="bg-gray-50 rounded-lg p-3"><p className="text-gray-500 text-xs">Notifications sent</p><p className="text-xl font-bold">{detail.sent}</p></div>
-            <div className="bg-gray-50 rounded-lg p-3"><p className="text-gray-500 text-xs">Notifications failed</p><p className="text-xl font-bold">{detail.failed}</p></div>
+            <div className="bg-ink-50 rounded-lg p-3"><p className="text-ink-600 text-xs">Recipients</p><p className="text-xl font-bold">{detail.recipients}</p></div>
+            <div className="bg-ink-50 rounded-lg p-3"><p className="text-ink-600 text-xs">Acknowledged</p><p className="text-xl font-bold">{detail.acked}</p></div>
+            <div className="bg-ink-50 rounded-lg p-3"><p className="text-ink-600 text-xs">Notifications sent</p><p className="text-xl font-bold">{detail.sent}</p></div>
+            <div className="bg-ink-50 rounded-lg p-3"><p className="text-ink-600 text-xs">Notifications failed</p><p className="text-xl font-bold">{detail.failed}</p></div>
           </div>
-          <p className="text-xs text-gray-500 mt-3">Acknowledgement is recipient-confirmed. A sent notification alone never counts as read.</p>
+          <p className="text-xs text-ink-600 mt-3">Acknowledgement is recipient-confirmed. A sent notification alone never counts as read.</p>
         </Modal>
       )}
     </div>

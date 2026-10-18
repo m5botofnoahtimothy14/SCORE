@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../core/providers/identity_provider.dart';
+import '../../../core/widgets/presence_dot.dart';
 import '../../../core/widgets/states.dart';
 
 /// Safe single-letter avatar initial (handles null/empty names).
@@ -13,17 +16,25 @@ String _initialOf(dynamic value) {
 /// Directory of teachers the signed-in user is authorized to see.
 /// RLS scopes this automatically: students see only their assigned
 /// teachers, teachers see colleagues, nothing else.
-class DirectoryScreen extends StatefulWidget {
+///
+/// Each row carries a presence dot driven by `teachers.last_seen_at`, and — for
+/// students only — a Message button that opens (or creates) the personal 1:1
+/// chat via the `start_teacher_conversation` RPC.
+class DirectoryScreen extends ConsumerStatefulWidget {
   const DirectoryScreen({super.key});
   @override
-  State<DirectoryScreen> createState() => _DirectoryScreenState();
+  ConsumerState<DirectoryScreen> createState() => _DirectoryScreenState();
 }
 
-class _DirectoryScreenState extends State<DirectoryScreen> {
+class _DirectoryScreenState extends ConsumerState<DirectoryScreen> {
   List<Map<String, dynamic>> _teachers = [];
   bool _loading = true;
   String? _error;
   String _query = '';
+
+  /// Row id of the teacher whose chat is currently being opened, so only that
+  /// button shows a spinner.
+  String? _openingTeacherId;
 
   @override
   void initState() {
@@ -39,7 +50,7 @@ class _DirectoryScreenState extends State<DirectoryScreen> {
     try {
       final rows = await Supabase.instance.client
           .from('teachers')
-          .select('user_id, first_name, last_name, is_leadership')
+          .select('id, user_id, first_name, last_name, is_leadership, last_seen_at')
           .eq('is_active', true)
           .order('first_name') as List;
       if (!mounted) return;
@@ -56,8 +67,15 @@ class _DirectoryScreenState extends State<DirectoryScreen> {
     }
   }
 
+  DateTime? _lastSeenOf(Map<String, dynamic> teacher) =>
+      DateTime.tryParse(teacher['last_seen_at'] as String? ?? '');
+
   @override
   Widget build(BuildContext context) {
+    // Only students may open a personal chat with a teacher. Staff see the
+    // directory (presence is still useful) but get no Message affordance.
+    final isStudent = ref.watch(identityProvider).valueOrNull?.isStudent ?? false;
+
     final filtered = _query.isEmpty
         ? _teachers
         : _teachers
@@ -92,6 +110,8 @@ class _DirectoryScreenState extends State<DirectoryScreen> {
                               itemCount: filtered.length,
                               itemBuilder: (context, i) {
                                 final t = filtered[i];
+                                final id = t['id'] as String?;
+                                final opening = id != null && _openingTeacherId == id;
                                 return Card(
                                   child: ListTile(
                                     leading: CircleAvatar(
@@ -104,13 +124,32 @@ class _DirectoryScreenState extends State<DirectoryScreen> {
                                     ),
                                     title: Text('${t['first_name']} ${t['last_name']}',
                                         style: const TextStyle(fontWeight: FontWeight.w600)),
-                                    subtitle: t['is_leadership'] == true
-                                        ? const Text('School leadership')
-                                        : null,
-                                    trailing: OutlinedButton(
-                                      onPressed: () => _openDirectChat(t),
-                                      child: const Text('Message'),
+                                    subtitle: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        PresenceDot(lastSeen: _lastSeenOf(t)),
+                                        if (t['is_leadership'] == true)
+                                          Text(
+                                            'School leadership',
+                                            style: Theme.of(context).textTheme.bodySmall,
+                                          ),
+                                      ],
                                     ),
+                                    trailing: isStudent
+                                        ? OutlinedButton(
+                                            onPressed: opening || id == null
+                                                ? null
+                                                : () => _openDirectChat(t),
+                                            child: opening
+                                                ? const SizedBox(
+                                                    height: 16,
+                                                    width: 16,
+                                                    child: CircularProgressIndicator(strokeWidth: 2),
+                                                  )
+                                                : const Text('Message'),
+                                          )
+                                        : null,
                                   ),
                                 );
                               },
@@ -122,59 +161,50 @@ class _DirectoryScreenState extends State<DirectoryScreen> {
     );
   }
 
-  /// Opens the existing 1:1 conversation if one exists; otherwise directs
-  /// the student to the Teacher Support room (students cannot create chats).
+  /// Opens (or creates) the student's personal 1:1 chat with this teacher.
+  /// The server owns the authorization rules: it returns the existing thread
+  /// when there is one, and rejects with `teacher_unavailable` /
+  /// `not_a_member` / `not_authenticated` otherwise.
   Future<void> _openDirectChat(Map<String, dynamic> teacher) async {
-    final teacherUserId = teacher['user_id'] as String?;
-    if (teacherUserId == null) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('This teacher has not activated their account yet.')),
-        );
-      }
+    final teacherId = teacher['id'] as String?;
+    if (teacherId == null) {
+      _toast('This teacher has not activated their account yet.');
       return;
     }
+
+    setState(() => _openingTeacherId = teacherId);
     try {
-      final client = Supabase.instance.client;
-      final me = client.auth.currentUser!.id;
-      final mine = await client
-          .from('conversation_members')
-          .select('conversation_id, conversations!inner(id, type)')
-          .eq('user_id', me)
-          .isFilter('removed_at', null) as List;
-      String? directId;
-      for (final m in mine) {
-        final c = (m as Map)['conversations'] as Map;
-        if (c['type'] != 'student_teacher') continue;
-        final other = await client
-            .from('conversation_members')
-            .select('user_id')
-            .eq('conversation_id', c['id'])
-            .eq('user_id', teacherUserId)
-            .isFilter('removed_at', null)
-            .maybeSingle();
-        if (other != null) {
-          directId = c['id'] as String;
-          break;
-        }
-      }
+      final convId = await Supabase.instance.client
+          .rpc('start_teacher_conversation', params: {'p_teacher_id': teacherId});
       if (!mounted) return;
-      if (directId != null) {
-        context.go('/conversations/$directId');
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('No direct chat yet — ask via your Teacher Support conversation.'),
-          ),
-        );
-        context.go('/conversations');
+      final id = convId as String?;
+      if (id == null || id.isEmpty) {
+        _toast('Could not open the chat. Try again.');
+        return;
       }
-    } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not open chat. Try again.')),
-        );
-      }
+      context.go('/conversations/$id');
+    } catch (e) {
+      if (mounted) _toast(_errorFor(e));
+    } finally {
+      if (mounted) setState(() => _openingTeacherId = null);
     }
+  }
+
+  String _errorFor(Object e) {
+    final raw = e.toString();
+    if (raw.contains('teacher_unavailable')) {
+      return 'This teacher is not available for direct messages right now.';
+    }
+    if (raw.contains('not_a_member')) {
+      return 'You are not a member of this school.';
+    }
+    if (raw.contains('not_authenticated')) {
+      return 'Please sign in again to message a teacher.';
+    }
+    return 'Could not open chat. Try again.';
+  }
+
+  void _toast(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
 }

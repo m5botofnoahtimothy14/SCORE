@@ -2,19 +2,27 @@
 // Edge Function: moderate-message
 // Server-side content moderation — never trust client
 // Called automatically after message insert via DB trigger/webhook
+//
+// The vendor (OpenAI moderation) is the SIGNAL SOURCE. The verdict is
+// decided by the first-part policy in _shared/moderation_policy.ts,
+// which is what stops generic vendor thresholds from blocking real
+// learning conversations. See docs/MODERATION.md.
 // ============================================================
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import {
+  applyPolicy,
+  toTextVerdict,
+  explainDecision,
+  type ConversationAudience,
+  type PolicyDecision,
+  type SenderRole,
+} from "../_shared/moderation_policy.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
 const INTERNAL_WEBHOOK_SECRET = Deno.env.get("INTERNAL_WEBHOOK_SECRET")!;
-
-// Moderation thresholds
-const BLOCK_THRESHOLD = 0.8;
-const HOLD_THRESHOLD = 0.5;
-const WARN_THRESHOLD = 0.3;
 
 serve(async (req: Request) => {
   // Verify this is called from our internal webhook, not the public
@@ -36,7 +44,7 @@ serve(async (req: Request) => {
     // Get message
     const { data: message } = await supabase
       .from("messages")
-      .select("id, body, sender_id, status")
+      .select("id, body, sender_id, conversation_id, status")
       .eq("id", message_id)
       .single();
 
@@ -44,11 +52,17 @@ serve(async (req: Request) => {
       return new Response("Message not found or already processed", { status: 200 });
     }
 
+    // Policy context: conversation audience + sender role. Best effort —
+    // a missing context must never weaken the policy, so any failure here
+    // falls back to the neutral `unknown` profile.
+    const context = await resolvePolicyContext(supabase, message);
+
     let verdict: string;
     let categories: Record<string, number> = {};
     let confidence = 0;
     let provider = "none";
     let providerError: string | undefined;
+    let decision: PolicyDecision | undefined;
 
     if (!message.body || message.body.trim() === "") {
       // Attachment-only message — approve text, attachment moderated separately
@@ -75,20 +89,20 @@ serve(async (req: Request) => {
         confidence = result.maxScore;
         provider = "openai";
 
-        if (result.maxScore >= BLOCK_THRESHOLD) {
-          verdict = "blocked";
-        } else if (result.maxScore >= HOLD_THRESHOLD) {
-          verdict = "held";
-        } else if (result.maxScore >= WARN_THRESHOLD) {
-          verdict = "warned";
-        } else {
-          verdict = "approved";
-        }
-
-        // Always escalate sexual content involving minors
-        if ((categories["sexual/minors"] ?? 0) > 0.1) {
-          verdict = "escalated";
-        }
+        // The policy decides. Fail-closed behaviour is inside applyPolicy:
+        // a missing provider or providerError can never return "approve".
+        decision = applyPolicy({
+          categories,
+          text: message.body,
+          context: {
+            ...context,
+            provider: "openai",
+            providerError: null,
+            flagged: result.flagged,
+          },
+        });
+        verdict = toTextVerdict(decision);
+        console.log(`moderation ${message_id}: ${explainDecision(decision)}`);
       }
     }
 
@@ -103,6 +117,22 @@ serve(async (req: Request) => {
         confidence,
         categories,
         provider_error: providerError,
+        // Full policy audit trail: what fired, why, with which thresholds.
+        raw_response: decision
+          ? {
+            policy_version: decision.policyVersion,
+            action: decision.action,
+            policy_score: decision.score,
+            raw_max_score: decision.rawMaxScore,
+            audience: decision.audience,
+            audience_scale: decision.audienceScale,
+            matched_rules: decision.matchedRules,
+            allowlist_matches: decision.allowlistMatches,
+            reasons: decision.reasons,
+            explanation: explainDecision(decision),
+            signals: decision.signals,
+          }
+          : { policy_version: "not_applied", reason: providerError ?? "internal/attachment-only" },
       })
       .select("id")
       .single();
@@ -146,6 +176,7 @@ serve(async (req: Request) => {
 async function moderateWithOpenAI(text: string): Promise<{
   categories: Record<string, number>;
   maxScore: number;
+  flagged: boolean;
   error?: string;
 }> {
   try {
@@ -159,19 +190,54 @@ async function moderateWithOpenAI(text: string): Promise<{
     });
 
     if (!response.ok) {
-      return { categories: {}, maxScore: 0, error: `OpenAI API error: ${response.status}` };
+      return { categories: {}, maxScore: 0, flagged: false, error: `OpenAI API error: ${response.status}` };
     }
 
     const data = await response.json();
     const result = data.results?.[0];
-    if (!result) return { categories: {}, maxScore: 0, error: "No moderation result" };
+    if (!result) return { categories: {}, maxScore: 0, flagged: false, error: "No moderation result" };
 
     const categories: Record<string, number> = result.category_scores ?? {};
     const maxScore = Math.max(...Object.values(categories) as number[], 0);
 
-    return { categories, maxScore };
+    return { categories, maxScore, flagged: Boolean(result.flagged) };
   } catch (err) {
-    return { categories: {}, maxScore: 0, error: String(err) };
+    return { categories: {}, maxScore: 0, flagged: false, error: String(err) };
+  }
+}
+
+/**
+ * Build the policy context from the live conversation. Best effort: any
+ * failure falls back to the neutral `unknown` audience, which can only make
+ * the policy LESS strict, never more. A missing context must never be able
+ * to approve something.
+ */
+async function resolvePolicyContext(
+  supabase: ReturnType<typeof createClient>,
+  message: { conversation_id: string | null; sender_id: string },
+): Promise<{ audience: ConversationAudience; senderRole: SenderRole }> {
+  try {
+    const conversationId = message.conversation_id;
+    if (!conversationId) return { audience: "unknown", senderRole: "unknown" };
+
+    const [{ data: conversation }, { data: membership }] = await Promise.all([
+      supabase.from("conversations").select("type").eq("id", conversationId).maybeSingle(),
+      supabase
+        .from("conversation_members")
+        .select("role")
+        .eq("conversation_id", conversationId)
+        .eq("user_id", message.sender_id)
+        .is("removed_at", null)
+        .maybeSingle(),
+    ]);
+
+    return {
+      audience: (conversation?.type as ConversationAudience) ?? "unknown",
+      senderRole: (membership?.role as SenderRole) ?? "unknown",
+    };
+  } catch (err) {
+    console.warn("resolvePolicyContext failed, using neutral profile:", err);
+    return { audience: "unknown", senderRole: "unknown" };
   }
 }
 

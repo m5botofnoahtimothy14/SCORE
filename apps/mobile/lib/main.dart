@@ -7,13 +7,16 @@ import 'package:flutter/services.dart';
 
 import 'core/config/app_config.dart';
 import 'core/config/router.dart';
+import 'core/legal/eula_gate.dart';
 import 'core/notifications/notification_service.dart';
+import 'core/services/presence_service.dart';
+import 'core/theme/app_theme.dart';
 import 'firebase_options.dart';
 
 final FlutterLocalNotificationsPlugin localNotificationsPlugin =
     FlutterLocalNotificationsPlugin();
 
-// Background FCM handler — must be top-level
+// Background FCM handler â€” must be top-level
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
@@ -31,11 +34,15 @@ Future<void> main() async {
     return;
   }
 
-  // Lock to portrait
-  await SystemChrome.setPreferredOrientations([
-    DeviceOrientation.portraitUp,
-    DeviceOrientation.portraitDown,
-  ]);
+  // Orientation is deliberately not locked: every screen reflows from 600px
+  // up, so tablets and foldables get the extra width in landscape instead of
+  // a stretched portrait layout. Phones simply render the compact layout.
+  await SystemChrome.setPreferredOrientations(DeviceOrientation.values);
+
+  // Read the EULA acceptance before the first frame so the consent gate
+  // never flashes over an already-consented user. A storage failure is
+  // handled inside the store and simply asks again on next launch.
+  await EulaStore.load();
 
   // Firebase is optional at runtime: without FIREBASE_* build defines the
   // app runs with push disabled and says so truthfully in settings.
@@ -45,7 +52,7 @@ Future<void> main() async {
     pushEnabled = true;
     FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
   } catch (e) {
-    debugPrint('Firebase not configured — push notifications disabled: $e');
+    debugPrint('Firebase not configured â€” push notifications disabled: $e');
   }
 
   // Initialize local notifications (channels always; FCM only if ready)
@@ -69,6 +76,10 @@ Future<void> main() async {
       child: TeachCrossApp(),
     ),
   );
+
+  // Teacher presence heartbeat. Fire-and-forget: it never gates startup, and
+  // it re-pings itself whenever the app comes back to the foreground.
+  PresenceService.start();
 
   // Returning session: refresh push registration in the background.
   if (Supabase.instance.client.auth.currentSession != null) {
@@ -124,70 +135,4 @@ class TeachCrossApp extends ConsumerWidget {
       routerConfig: router,
     );
   }
-}
-
-class AppTheme {
-  static const _primaryColor = Color(0xFF1A56DB);
-  static const _secondaryColor = Color(0xFF0E9F6E);
-
-  static ThemeData light() => ThemeData(
-        useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: _primaryColor,
-          secondary: _secondaryColor,
-          brightness: Brightness.light,
-        ),
-        fontFamily: 'Inter',
-        appBarTheme: const AppBarTheme(
-          elevation: 0,
-          centerTitle: true,
-          backgroundColor: Colors.white,
-          foregroundColor: Color(0xFF111827),
-          titleTextStyle: TextStyle(
-            fontSize: 17,
-            fontWeight: FontWeight.w600,
-            color: Color(0xFF111827),
-          ),
-        ),
-        inputDecorationTheme: InputDecorationTheme(
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          filled: true,
-          fillColor: const Color(0xFFF9FAFB),
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        ),
-        elevatedButtonTheme: ElevatedButtonThemeData(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: _primaryColor,
-            foregroundColor: Colors.white,
-            minimumSize: const Size(double.infinity, 52),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-          ),
-        ),
-        cardTheme: CardThemeData(
-          elevation: 0,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-            side: const BorderSide(color: Color(0xFFE5E7EB)),
-          ),
-        ),
-      );
-
-  static ThemeData dark() => ThemeData(
-        useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: _primaryColor,
-          secondary: _secondaryColor,
-          brightness: Brightness.dark,
-        ),
-        fontFamily: 'Inter',
-        appBarTheme: const AppBarTheme(
-          elevation: 0,
-          centerTitle: true,
-          backgroundColor: Color(0xFF111827),
-          foregroundColor: Colors.white,
-        ),
-      );
 }

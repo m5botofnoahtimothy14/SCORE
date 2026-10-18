@@ -137,18 +137,18 @@ export default function IncidentsPage() {
         <h2 className="font-semibold p-4 pb-0">Incidents</h2>
         {incidents.length === 0 ? <EmptyState title="No incidents" /> : (
           <table className="w-full text-sm">
-            <thead><tr className="text-left text-gray-500 text-xs border-b">
+            <thead><tr className="text-left text-ink-600 text-xs border-b">
               <th className="p-3">Title</th><th>Severity</th><th>Status</th><th>Opened</th><th className="text-right pr-3">Open</th>
             </tr></thead>
             <tbody>
               {incidents.map((i) => (
-                <tr key={i.id} className="border-b border-gray-100 last:border-0">
+                <tr key={i.id} className="border-b border-ink-200 last:border-0">
                   <td className="p-3 font-medium">{i.title}</td>
                   <td><StatusBadge value={i.severity} /></td>
                   <td><StatusBadge value={i.status} /></td>
-                  <td className="text-xs text-gray-500">{new Date(i.created_at).toLocaleString()}</td>
+                  <td className="text-xs text-ink-600">{new Date(i.created_at).toLocaleString()}</td>
                   <td className="text-right pr-3">
-                    <button onClick={() => { setSelected(i); setNotes(i.investigation_notes ?? ''); setSeverity(i.severity); setStatus(i.status) }} className="text-blue-600 text-xs hover:underline">Open</button>
+                    <button onClick={() => { setSelected(i); setNotes(i.investigation_notes ?? ''); setSeverity(i.severity); setStatus(i.status) }} className="text-brand-600 text-xs hover:underline">Open</button>
                   </td>
                 </tr>
               ))}
@@ -160,23 +160,23 @@ export default function IncidentsPage() {
         <h2 className="font-semibold p-4 pb-0">Investigation requests</h2>
         {requests.length === 0 ? <EmptyState title="No requests" subtitle="Time-limited, approval-gated access only." /> : (
           <table className="w-full text-sm">
-            <thead><tr className="text-left text-gray-500 text-xs border-b">
+            <thead><tr className="text-left text-ink-600 text-xs border-b">
               <th className="p-3">Purpose</th><th>Scope</th><th>Status</th><th>Expires</th><th className="text-right pr-3">Decision</th>
             </tr></thead>
             <tbody>
               {requests.map((r) => (
-                <tr key={r.id} className="border-b border-gray-100 last:border-0">
+                <tr key={r.id} className="border-b border-ink-200 last:border-0">
                   <td className="p-3 max-w-xs truncate">{r.purpose}</td>
                   <td className="text-xs max-w-xs truncate">{r.scope_description}</td>
                   <td><StatusBadge value={r.status} /></td>
-                  <td className="text-xs">{r.access_expires_at ? new Date(r.access_expires_at).toLocaleString() : '—'}</td>
+                  <td className="text-xs">{r.access_expires_at ? new Date(r.access_expires_at).toLocaleString() : 'â€”'}</td>
                   <td className="text-right pr-3">
                     {isOwner && r.status === 'requested' ? (
                       <>
                         <button onClick={() => decideRequest(r.id, true)} className="text-green-700 text-xs mr-2 hover:underline">Approve 24h</button>
                         <button onClick={() => decideRequest(r.id, false)} className="text-red-700 text-xs hover:underline">Reject</button>
                       </>
-                    ) : <span className="text-xs text-gray-400">platform owner decides</span>}
+                    ) : <span className="text-xs text-ink-500">platform owner decides</span>}
                   </td>
                 </tr>
               ))}
@@ -186,8 +186,8 @@ export default function IncidentsPage() {
       </Card>
       {selected && (
         <Modal title={selected.title} wide onClose={() => setSelected(null)}>
-          {selected.description && <p className="text-sm text-gray-600 mb-3">{selected.description}</p>}
-          <label className="text-xs text-gray-500">Investigation notes (restricted)</label>
+          {selected.description && <p className="text-sm text-ink-700 mb-3">{selected.description}</p>}
+          <label className="text-xs text-ink-600">Investigation notes (restricted)</label>
           <textarea className={`${inputCls} mb-3`} rows={4} value={notes} onChange={(e) => setNotes(e.target.value)} />
           <div className="grid grid-cols-2 gap-2 mb-3">
             <select className={inputCls} value={severity} onChange={(e) => setSeverity(e.target.value)}>

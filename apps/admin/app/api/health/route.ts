@@ -70,9 +70,16 @@ export async function GET() {
     tables: tableStatus,
     providers: {
       // Presence only — values stay server-side.
-      fcmConfigured: Boolean(process.env.FCM_PROJECT_ID || process.env.FCM_CLIENT_EMAIL),
-      textModerationConfigured: Boolean(process.env.OPENAI_API_KEY),
-      imageSafetyConfigured: Boolean(process.env.APILAYER_API_KEY),
+      // Image safety now runs on OpenAI omni-moderation (APILayer is only a
+      // fallback), so OPENAI_API_KEY is what actually gates it.
+      fcmConfigured: Boolean(process.env.FCM_PROJECT_ID && process.env.FCM_CLIENT_EMAIL),
+      textModerationConfigured: Boolean(process.env.APILAYER_API_KEY),
+      imageSafetyConfigured: Boolean(process.env.OPENAI_API_KEY || process.env.APILAYER_API_KEY),
+      moderationPrimary: process.env.OPENAI_API_KEY ? 'openai' : process.env.APILAYER_API_KEY ? 'apilayer' : null,
+      imageSafetyPrimary: process.env.OPENAI_API_KEY ? 'openai-omni' : process.env.APILAYER_API_KEY ? 'apilayer' : null,
+      aiInsightsConfigured: Boolean(
+        process.env.GOOGLE_API_KEY || process.env.OPENAI_API_KEY,
+      ),
       smsConfigured: Boolean(process.env.TEXTBEE_API_KEY),
     },
     queues: {

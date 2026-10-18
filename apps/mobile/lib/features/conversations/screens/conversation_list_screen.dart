@@ -4,7 +4,10 @@ import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../services/chat_service.dart';
+import '../../../core/models/identity.dart';
 import '../../../core/models/models.dart';
+import '../../../core/providers/identity_provider.dart';
+import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/states.dart';
 
 final _chatProvider = Provider<ChatService>(
@@ -86,6 +89,8 @@ class _ConversationListScreenState extends ConsumerState<ConversationListScreen>
 
   @override
   Widget build(BuildContext context) {
+    final tier = ref.watch(identityProvider).valueOrNull?.tier ?? AppTier.student;
+    final accent = TierAccent.of(tier);
     return Scaffold(
       appBar: AppBar(title: const Text('Messages')),
       body: Column(
@@ -117,31 +122,63 @@ class _ConversationListScreenState extends ConsumerState<ConversationListScreen>
                               itemCount: _filtered.length,
                               itemBuilder: (context, i) {
                                 final c = _filtered[i];
+                                final subtitle = c.displaySubtitle();
                                 return Card(
                                   margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                                   child: ListTile(
+                                    contentPadding: const EdgeInsets.symmetric(
+                                        horizontal: 14, vertical: 2),
                                     leading: CircleAvatar(
-                                      backgroundColor: const Color(0xFFEBF5FF),
-                                      child: Icon(_iconFor(c.type), color: const Color(0xFF1A56DB)),
+                                      radius: 21,
+                                      backgroundColor: accent.soft,
+                                      child: Icon(_iconFor(c.type), color: accent.onSoft, size: 20),
                                     ),
-                                    title: Text(c.displayTitle(),
-                                        style: const TextStyle(fontWeight: FontWeight.w600)),
-                                    subtitle: Text(
-                                      c.lastMessageBody ?? 'No messages yet',
+                                    title: Text(
+                                      c.displayTitle(),
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(fontWeight: FontWeight.w600),
+                                    ),
+                                    // Line 1: who/class. Line 2: last message.
+                                    subtitle: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        if (subtitle.isNotEmpty)
+                                          Padding(
+                                            padding: const EdgeInsets.only(top: 1),
+                                            child: Text(
+                                              subtitle,
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: TextStyle(
+                                                fontSize: 11.5,
+                                                fontWeight: FontWeight.w600,
+                                                color: accent.onSoft,
+                                              ),
+                                            ),
+                                          ),
+                                        Text(
+                                          c.lastMessageBody ?? 'No messages yet',
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ],
                                     ),
                                     trailing: c.unreadCount > 0
                                         ? Container(
-                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                            padding: const EdgeInsets.symmetric(
+                                                horizontal: 8, vertical: 3),
                                             decoration: BoxDecoration(
-                                              color: const Color(0xFF1A56DB),
+                                              color: accent.solid,
                                               borderRadius: BorderRadius.circular(12),
                                             ),
                                             child: Text('${c.unreadCount}',
-                                                style: const TextStyle(color: Colors.white, fontSize: 12)),
+                                                style: const TextStyle(
+                                                    color: Colors.white,
+                                                    fontSize: 12,
+                                                    fontWeight: FontWeight.w700)),
                                           )
-                                        : null,
+                                        : const Icon(Icons.chevron_right, size: 20),
                                     onTap: () => context.go('/conversations/${c.id}'),
                                   ),
                                 );

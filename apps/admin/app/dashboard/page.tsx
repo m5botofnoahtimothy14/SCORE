@@ -2,6 +2,10 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import {
+  GraduationCap, Users, BookOpen, Megaphone, ShieldAlert,
+  Siren, BellOff, ArrowUpRight, AlertTriangle,
+} from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { PageHeader, Card, StatusBadge, LoadingState, ErrorState } from '@/components/ui'
 
@@ -90,69 +94,119 @@ export default function OverviewPage() {
   }, [])
 
   if (error) return <ErrorState message={error} onRetry={load} />
-  if (!data) return <LoadingState message="Loading overview..." />
+  if (!data) return <LoadingState message="Loading overview…" />
 
   const stats = [
-    { label: 'Students', value: data.students, href: '/dashboard/students' },
-    { label: 'Teachers', value: data.teachers, href: '/dashboard/teachers' },
-    { label: 'Classes', value: data.classes, href: '/dashboard/classes' },
-    { label: 'Notices (7d)', value: data.announcementsWeek, href: '/dashboard/announcements' },
-    { label: 'Pending moderation', value: data.pendingModeration, href: '/dashboard/moderation' },
-    { label: 'Open incidents', value: data.openIncidents, href: '/dashboard/incidents' },
-    { label: 'Failed notifications', value: data.failedNotifications, href: '/dashboard/notifications' },
-  ]
+    { label: 'Students', value: data.students, href: '/dashboard/students', icon: GraduationCap, tone: 'brand' },
+    { label: 'Teachers', value: data.teachers, href: '/dashboard/teachers', icon: Users, tone: 'brand' },
+    { label: 'Classes', value: data.classes, href: '/dashboard/classes', icon: BookOpen, tone: 'brand' },
+    { label: 'Notices (7d)', value: data.announcementsWeek, href: '/dashboard/announcements', icon: Megaphone, tone: 'brand' },
+    { label: 'Pending moderation', value: data.pendingModeration, href: '/dashboard/moderation', icon: ShieldAlert, tone: 'amber' },
+    { label: 'Open incidents', value: data.openIncidents, href: '/dashboard/incidents', icon: Siren, tone: 'rose' },
+    { label: 'Failed notifications', value: data.failedNotifications, href: '/dashboard/notifications', icon: BellOff, tone: 'rose' },
+  ] as const
+
+  const tones: Record<string, { chip: string; icon: string }> = {
+    brand: { chip: 'from-brand-500/12 to-brand-500/0', icon: 'text-brand-500 bg-brand-50' },
+    amber: { chip: 'from-amber-500/14 to-amber-500/0', icon: 'text-amber-600 bg-amber-50' },
+    rose: { chip: 'from-rose-500/14 to-rose-500/0', icon: 'text-rose-500 bg-rose-50' },
+  }
 
   return (
     <div>
       <PageHeader title={data.schoolName} subtitle={`Signed in as ${data.role.replace(/_/g, ' ')}`} />
+
       {(!data.providers.fcm || !data.providers.moderation || !data.providers.vision) && (
-        <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 mb-6 text-sm text-yellow-800">
-          Provider configuration incomplete:{' '}
-          {[
-            !data.providers.fcm && 'FCM (push notifications disabled)',
-            !data.providers.moderation && 'text moderation (messages held for review)',
-            !data.providers.vision && 'image safety (uploads quarantined)',
-          ]
-            .filter(Boolean)
-            .join(' · ')}
-          . See <Link href="/dashboard/health" className="underline">System Health</Link> for setup.
+        <div className="mb-6 flex animate-fade-up items-start gap-3 rounded-2xl border border-amber-200/80 bg-gradient-to-b from-amber-50 to-amber-50/40 p-4 shadow-soft">
+          <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-500" />
+          <p className="text-sm text-amber-900">
+            <span className="font-semibold">Provider configuration incomplete: </span>
+            {[
+              !data.providers.fcm && 'FCM (push notifications disabled)',
+              !data.providers.moderation && 'text moderation (messages held for review)',
+              !data.providers.vision && 'image safety (uploads quarantined)',
+            ]
+              .filter(Boolean)
+              .join(' · ')}
+            . See{' '}
+            <Link href="/dashboard/health" className="font-medium underline underline-offset-2">
+              System Health
+            </Link>{' '}
+            for setup.
+          </p>
         </div>
       )}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        {stats.map((s) => (
-          <Link key={s.label} href={s.href}>
-            <Card className="p-4 hover:shadow-md transition-shadow">
-              <p className="text-2xl font-bold text-gray-900">{s.value}</p>
-              <p className="text-xs text-gray-500 mt-1">{s.label}</p>
-            </Card>
-          </Link>
-        ))}
+
+      <div className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-4">
+        {stats.map((s, i) => {
+          const t = tones[s.tone]
+          return (
+            <Link
+              key={s.label}
+              href={s.href}
+              className="group animate-fade-up"
+              style={{ animationDelay: `${i * 45}ms` }}
+            >
+              <Card interactive className="relative p-4">
+                <div className={`pointer-events-none absolute inset-0 bg-gradient-to-br ${t.chip} opacity-0 transition-opacity duration-300 group-hover:opacity-100`} />
+                <div className="relative flex items-start justify-between">
+                  <div>
+                    <p className="text-[28px] font-bold leading-none tracking-tight text-ink-950 tabular-nums">
+                      {s.value.toLocaleString()}
+                    </p>
+                    <p className="mt-2 text-xs font-medium text-ink-500">{s.label}</p>
+                  </div>
+                  <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${t.icon} ring-1 ring-inset ring-black/[0.03]`}>
+                    <s.icon className="h-[18px] w-[18px]" strokeWidth={2} />
+                  </span>
+                </div>
+                <span className="pointer-events-none absolute bottom-3.5 right-3.5 opacity-0 transition-all duration-300 group-hover:translate-x-0 group-hover:opacity-100 -translate-x-1 text-ink-300">
+                  <ArrowUpRight className="h-4 w-4" />
+                </span>
+              </Card>
+            </Link>
+          )
+        })}
       </div>
-      <Card className="p-4">
-        <h2 className="font-semibold text-gray-900 mb-3">Recent audit events</h2>
+
+      <Card className="animate-fade-up" style={{ animationDelay: '160ms' }}>
+        <div className="flex items-center justify-between border-b border-ink-200/70 px-5 py-4">
+          <h2 className="text-sm font-semibold text-ink-900">Recent audit events</h2>
+          <Link
+            href="/dashboard/audit"
+            className="inline-flex items-center gap-1 text-xs font-medium text-brand-600 transition-colors hover:text-brand-700"
+          >
+            View all
+            <ArrowUpRight className="h-3.5 w-3.5" />
+          </Link>
+        </div>
         {data.recentAudit.length === 0 ? (
-          <p className="text-sm text-gray-500">No audit events yet.</p>
+          <p className="px-5 py-8 text-center text-sm text-ink-500">No audit events yet.</p>
         ) : (
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-left text-gray-500 text-xs">
-                <th className="py-2">Action</th>
-                <th>Outcome</th>
-                <th>Time</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.recentAudit.map((a) => (
-                <tr key={a.id} className="border-t border-gray-100">
-                  <td className="py-2 font-mono text-xs">{a.action}</td>
-                  <td>
-                    <StatusBadge value={a.outcome} />
-                  </td>
-                  <td className="text-gray-500 text-xs">{new Date(a.created_at).toLocaleString()}</td>
+          <div className="overflow-x-auto">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Action</th>
+                  <th className="w-32">Outcome</th>
+                  <th className="w-48">Time</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {data.recentAudit.map((a) => (
+                  <tr key={a.id}>
+                    <td className="font-mono text-xs text-ink-600">{a.action}</td>
+                    <td>
+                      <StatusBadge value={a.outcome} />
+                    </td>
+                    <td className="text-xs text-ink-500">
+                      {new Date(a.created_at).toLocaleString()}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </Card>
     </div>

@@ -99,20 +99,20 @@ export default function TicketsPage() {
       <Card>
         {tickets.length === 0 ? <EmptyState title="No tickets" /> : (
           <table className="w-full text-sm">
-            <thead><tr className="text-left text-gray-500 text-xs border-b">
+            <thead><tr className="text-left text-ink-600 text-xs border-b">
               <th className="p-3">Subject</th><th>Category</th><th>Status</th><th>Opened</th><th className="text-right pr-3">Actions</th>
             </tr></thead>
             <tbody>
               {tickets.map((t) => (
-                <tr key={t.id} className="border-b border-gray-100 last:border-0">
-                  <td className="p-3"><p className="font-medium">{t.subject}</p><p className="text-xs text-gray-500 max-w-md truncate">{t.description}</p></td>
+                <tr key={t.id} className="border-b border-ink-200 last:border-0">
+                  <td className="p-3"><p className="font-medium">{t.subject}</p><p className="text-xs text-ink-600 max-w-md truncate">{t.description}</p></td>
                   <td className="text-xs">{t.category}</td>
                   <td><StatusBadge value={t.status} /></td>
-                  <td className="text-xs text-gray-500">{new Date(t.created_at).toLocaleString()}</td>
+                  <td className="text-xs text-ink-600">{new Date(t.created_at).toLocaleString()}</td>
                   <td className="text-right pr-3 whitespace-nowrap">
-                    {t.status === 'open' && <button onClick={() => setStatus(t, 'in_progress')} className="text-blue-600 text-xs mr-2 hover:underline">Start</button>}
+                    {t.status === 'open' && <button onClick={() => setStatus(t, 'in_progress')} className="text-brand-600 text-xs mr-2 hover:underline">Start</button>}
                     {['open', 'in_progress'].includes(t.status) && <button onClick={() => setStatus(t, 'resolved')} className="text-green-700 text-xs mr-2 hover:underline">Resolve</button>}
-                    {t.status !== 'closed' && <button onClick={() => setStatus(t, 'closed')} className="text-xs text-gray-600 hover:underline">Close</button>}
+                    {t.status !== 'closed' && <button onClick={() => setStatus(t, 'closed')} className="text-xs text-ink-700 hover:underline">Close</button>}
                   </td>
                 </tr>
               ))}

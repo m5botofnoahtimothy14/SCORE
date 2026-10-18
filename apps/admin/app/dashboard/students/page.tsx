@@ -167,7 +167,7 @@ export default function StudentsPage() {
       const data = await res.json()
       if (!data.success) throw new Error(data.error ?? 'issue_failed')
       setIssuedCode({ name: `${s.first_name} ${s.last_name}`, code: data.code, expires: data.expires_at })
-      show(true, 'Code issued — copy it now, it will not be shown again.')
+      show(true, 'Code issued â€” copy it now, it will not be shown again.')
     } catch (e) {
       show(false, e instanceof Error ? e.message : 'Could not issue code.')
     }
@@ -245,28 +245,28 @@ export default function StudentsPage() {
           <option value="">All classes</option>
           {classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
         </select>
-        <label className="text-sm text-gray-600 flex items-center gap-1">
+        <label className="text-sm text-ink-700 flex items-center gap-1">
           <input type="checkbox" checked={showInactive} onChange={(e) => setShowInactive(e.target.checked)} /> show inactive
         </label>
       </Card>
       <Card>
         {pageRows.length === 0 ? <EmptyState title="No students match" subtitle="Adjust filters or add records." /> : (
           <table className="w-full text-sm">
-            <thead><tr className="text-left text-gray-500 text-xs border-b">
+            <thead><tr className="text-left text-ink-600 text-xs border-b">
               <th className="p-3">Name</th><th>Student ID</th><th>Class</th><th>Status</th><th>Activated</th><th className="text-right pr-3">Actions</th>
             </tr></thead>
             <tbody>
               {pageRows.map((s) => (
-                <tr key={s.id} className="border-b border-gray-100 last:border-0">
+                <tr key={s.id} className="border-b border-ink-200 last:border-0">
                   <td className="p-3 font-medium">{s.first_name} {s.last_name}</td>
                   <td className="font-mono text-xs">{s.student_id_no}</td>
-                  <td>{s.class_name ?? '—'}</td>
+                  <td>{s.class_name ?? 'â€”'}</td>
                   <td><StatusBadge value={s.is_active ? 'active' : 'suspended'} /></td>
                   <td>{s.user_id ? 'Yes' : 'No'}</td>
                   <td className="text-right pr-3 whitespace-nowrap">
-                    <button onClick={() => setEditing(s)} className="text-blue-600 text-xs mr-2 hover:underline">Edit</button>
-                    <button onClick={() => issueCode(s)} className="text-blue-600 text-xs mr-2 hover:underline">Issue code</button>
-                    <button onClick={() => toggleActive(s)} className="text-xs text-gray-600 hover:underline">{s.is_active ? 'Deactivate' : 'Reactivate'}</button>
+                    <button onClick={() => setEditing(s)} className="text-brand-600 text-xs mr-2 hover:underline">Edit</button>
+                    <button onClick={() => issueCode(s)} className="text-brand-600 text-xs mr-2 hover:underline">Issue code</button>
+                    <button onClick={() => toggleActive(s)} className="text-xs text-ink-700 hover:underline">{s.is_active ? 'Deactivate' : 'Reactivate'}</button>
                   </td>
                 </tr>
               ))}
@@ -274,7 +274,7 @@ export default function StudentsPage() {
           </table>
         )}
         <div className="flex justify-between items-center p-3 text-sm">
-          <span className="text-gray-500">Page {page + 1} of {Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))}</span>
+          <span className="text-ink-600">Page {page + 1} of {Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))}</span>
           <div className="flex gap-2">
             <button disabled={page === 0} onClick={() => setPage(page - 1)} className={btnSecondary}>Prev</button>
             <button disabled={(page + 1) * PAGE_SIZE >= filtered.length} onClick={() => setPage(page + 1)} className={btnSecondary}>Next</button>
@@ -304,12 +304,12 @@ export default function StudentsPage() {
 
       {importOpen && (
         <Modal title="Import student roster (CSV)" wide onClose={() => setImportOpen(false)}>
-          <p className="text-xs text-gray-500 mb-2">Columns: first_name,last_name,student_id_no,class_grade,class_section,date_of_birth,gender</p>
-          <button onClick={() => setImportText(STUDENT_CSV_TEMPLATE)} className="text-xs text-blue-600 hover:underline mb-2">Load template</button>
+          <p className="text-xs text-ink-600 mb-2">Columns: first_name,last_name,student_id_no,class_grade,class_section,date_of_birth,gender</p>
+          <button onClick={() => setImportText(STUDENT_CSV_TEMPLATE)} className="text-xs text-brand-600 hover:underline mb-2">Load template</button>
           <textarea className={inputCls} rows={8} value={importText} onChange={(e) => setImportText(e.target.value)} placeholder="Paste CSV here..." />
           {importReport && (
             <div className="mt-2 text-sm">
-              <p className="text-gray-700">{importReport.ok} valid rows.</p>
+              <p className="text-ink-800">{importReport.ok} valid rows.</p>
               {importReport.errors.map((e, i) => <p key={i} className="text-red-600 text-xs">Line {e.line}: {e.message}</p>)}
             </div>
           )}
@@ -322,7 +322,7 @@ export default function StudentsPage() {
 
       {issuedCode && (
         <Modal title="Activation code (show once)" onClose={() => setIssuedCode(null)}>
-          <p className="text-sm text-gray-600">For <b>{issuedCode.name}</b>. Share securely; it expires {new Date(issuedCode.expires).toLocaleDateString()}.</p>
+          <p className="text-sm text-ink-700">For <b>{issuedCode.name}</b>. Share securely; it expires {new Date(issuedCode.expires).toLocaleDateString()}.</p>
           <p className="font-mono text-2xl font-bold tracking-widest text-center my-4">{issuedCode.code}</p>
           <p className="text-xs text-red-600">This code will not be shown again. A new code can be issued if lost.</p>
         </Modal>
