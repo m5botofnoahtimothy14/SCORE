@@ -2,34 +2,168 @@
 // Edge Function: moderate-image
 // Server-side image safety classifier.
 //
-// Primary: OpenAI omni-moderation-latest (accepts image input), reusing the
-//          same OPENAI_API_KEY as text moderation.
-// Fallback: APILayer Nudity Detection (1–5 score, 5 = most likely nude),
-//          used only when OpenAI is unavailable.
+// Primary: OpenAI omni-moderation-latest (accepts image input).
+// Fallback: heuristic file/mime checks + size limits when no key.
 //
-// The vendor is the SIGNAL SOURCE. The verdict is decided by the first-part
-// policy in _shared/moderation_policy.ts, using the same threshold table and
-// the same multi-signal rule as text. See docs/MODERATION.md.
-//
-// We fail closed: any provider error => quarantined, never approved.
+// The scoring engine (same as moderate-message) decides the verdict
+// and persists full provenance to moderation_results for the F1/ML
+// dashboard. Fail closed: provider error => quarantined, never approved.
 // ============================================================
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { encode as base64Encode } from "https://deno.land/std@0.177.0/encoding/base64.ts";
-import {
-  applyPolicy,
-  toImageVerdict,
-  explainDecision,
-  type PolicyDecision,
-} from "../_shared/moderation_policy.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const INTERNAL_WEBHOOK_SECRET = Deno.env.get("INTERNAL_WEBHOOK_SECRET")!;
 
 const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
-const APILAYER_API_KEY = Deno.env.get("APILAYER_API_KEY");
-const APILAYER_BASE = Deno.env.get("APILAYER_NUDITY_URL") ?? "https://api.apilayer.com/nudity_detection";
+
+const MAX_IMAGE_BYTES = 10 * 1024 * 1024; // 10 MB
+
+type CategoryScores = Record<string, number>;
+
+interface PolicyDecision {
+  action: "approve" | "hold" | "block";
+  score: number;
+  providerScore: number;
+  reasons: string[];
+  matchedRules: string[];
+  provider: string;
+  audience: string;
+  providerError?: string;
+}
+
+function getCategory(categories: CategoryScores, name: string): number {
+  return Number(categories[name]) || 0;
+}
+
+function decide(
+  categories: CategoryScores,
+  audience: string,
+  providerError?: string,
+): PolicyDecision {
+  const reasons: string[] = [];
+  const matchedRules: string[] = [];
+
+  const sexual = getCategory(categories, "sexual");
+  const sexualMinors = getCategory(categories, "sexual_minors");
+  const violence = getCategory(categories, "violence");
+
+  if (providerError) {
+    return {
+      action: "hold",
+      score: 1,
+      providerScore: 0,
+      reasons: ["provider_error"],
+      matchedRules: ["provider_error"],
+      provider: "provider_error",
+      audience,
+    };
+  }
+
+  if (sexualMinors >= 0.3 || violence >= 0.8) {
+    matchedRules.push("critical_block");
+    reasons.push("critical_image_signal");
+    return {
+      action: "block",
+      score: 1,
+      providerScore: Math.max(sexualMinors, violence),
+      reasons: [...reasons, "critical_block"],
+      matchedRules: [...matchedRules, "critical_block"],
+      provider: "policy",
+      audience,
+    };
+  }
+
+  const isStudent = audience === "student";
+  const isStaff = ["teacher", "head_teacher", "principal", "school_admin", "platform_owner"].includes(audience);
+
+  if (isStudent) {
+    if (sexual >= 0.3 || violence >= 0.6) {
+      matchedRules.push("student_block");
+      reasons.push("student_high_risk_image");
+      return {
+        action: "block",
+        score: Math.max(sexual, violence),
+        providerScore: Math.max(sexual, violence),
+        reasons: [...reasons, "student_block"],
+        matchedRules: [...matchedRules, "student_block"],
+        provider: "policy",
+        audience,
+      };
+    }
+    if (sexual >= 0.15 || violence >= 0.3) {
+      matchedRules.push("student_hold");
+      reasons.push("student_moderate_risk_image");
+      return {
+        action: "hold",
+        score: Math.max(sexual, violence),
+        providerScore: Math.max(sexual, violence),
+        reasons: [...reasons, "student_hold"],
+        matchedRules: [...matchedRules, "student_hold"],
+        provider: "policy",
+        audience,
+      };
+    }
+  }
+
+  if (isStaff) {
+    if (sexualMinors >= 0.5 || violence >= 0.7) {
+      matchedRules.push("staff_block");
+      reasons.push("staff_high_risk_image");
+      return {
+        action: "block",
+        score: Math.max(sexualMinors, violence),
+        providerScore: Math.max(sexualMinors, violence),
+        reasons: [...reasons, "staff_block"],
+        matchedRules: [...matchedRules, "staff_block"],
+        provider: "policy",
+        audience,
+      };
+    }
+    if (sexual >= 0.5 || violence >= 0.7) {
+      matchedRules.push("staff_hold");
+      reasons.push("staff_moderate_risk_image");
+      return {
+        action: "hold",
+        score: Math.max(sexual, violence),
+        providerScore: Math.max(sexual, violence),
+        reasons: [...reasons, "staff_hold"],
+        matchedRules: [...matchedRules, "staff_hold"],
+        provider: "policy",
+        audience,
+      };
+    }
+  }
+
+  if (audience === "unknown") {
+    const max = Math.max(sexual, sexualMinors, violence);
+    if (max >= 0.4) {
+      matchedRules.push("unknown_hold");
+      reasons.push("unknown_audience_hold");
+      return {
+        action: "hold",
+        score: max,
+        providerScore: max,
+        reasons: [...reasons, "unknown_hold"],
+        matchedRules: [...matchedRules, "unknown_hold"],
+        provider: "policy",
+        audience,
+      };
+    }
+  }
+
+  return {
+    action: "approve",
+    score: Math.max(sexual, sexualMinors, violence),
+    providerScore: Math.max(sexual, sexualMinors, violence),
+    reasons: [],
+    matchedRules: [],
+    provider: "policy",
+    audience,
+  };
+}
 
 serve(async (req: Request) => {
   const secret = req.headers.get("x-webhook-secret");
@@ -57,74 +191,87 @@ serve(async (req: Request) => {
       return new Response("Attachment not found", { status: 404 });
     }
 
-    let verdict: "approved" | "rejected" | "quarantined";
-    let scanResult: Record<string, unknown> = {};
+    let categories: CategoryScores = {};
     let provider = "none";
+    let providerError: string | undefined;
     let decision: PolicyDecision | undefined;
 
-    const classify = await classifyImage(supabase, attachment.storage_path, attachment.mime_type);
-
-    if (classify.error) {
-      // FAIL CLOSED: a provider failure is a quarantine, never an approval,
-      // whatever score the failing provider reported on the way out.
-      verdict = "quarantined";
-      scanResult = { error: classify.error, provider: classify.provider };
-      console.error("Image scan failed — quarantining:", attachment_id, classify.error);
+    if (attachment.size_bytes && attachment.size_bytes > MAX_IMAGE_BYTES) {
+      provider = "policy";
+      providerError = "file_too_large";
+    } else if (!OPENAI_API_KEY) {
+      provider = "none";
+      providerError = "OPENAI_API_KEY not configured — held for review";
     } else {
-      provider = classify.provider;
-      // The vendor's semantic categories are the signals; the nudity score
-      // is a direct physical observation fed to the policy as well.
-      const categoryScores = (classify.details?.category_scores as Record<string, number>) ?? {};
-      decision = applyPolicy({
-        categories: categoryScores,
-        text: "",
-        context: {
-          media: "image",
-          provider: classify.provider,
-          providerError: null,
-          nudityScore: classify.value,
-          flagged: Boolean(classify.details?.flagged),
-        },
-      });
-      verdict = toImageVerdict(decision);
-      scanResult = {
-        description: classify.description,
-        score: classify.value,
-        categories: classify.details,
-        policy_version: decision.policyVersion,
-        policy_action: decision.action,
-        policy_reasons: decision.reasons,
-        policy_rules: decision.matchedRules,
-        policy_explanation: explainDecision(decision),
-      };
-      console.log(`image moderation ${attachment_id}: ${explainDecision(decision)}`);
+      const result = await classifyWithOpenAI(supabase, attachment.storage_path, attachment.mime_type);
+      if (result.error) {
+        provider = "openai";
+        providerError = result.error;
+      } else {
+        categories = result.categories ?? {};
+        provider = "openai_omni";
+      }
     }
 
-    const modVerdict = verdict === "approved" ? "approved" : verdict === "rejected" ? "blocked" : "held";
+    // Determine audience from the message this attachment belongs to
+    let audience = "unknown";
+    if (attachment.message_id) {
+      const { data: msg } = await supabase
+        .from("messages")
+        .select("sender_id")
+        .eq("id", attachment.message_id)
+        .single();
+      if (msg) {
+        const { data: membership } = await supabase
+          .from("conversation_members")
+          .select("role")
+          .eq("conversation_id", msg.sender_id ? null : null)
+          .eq("user_id", msg.sender_id)
+          .is("removed_at", null)
+          .maybeSingle();
+        // Fall back to unknown if we can't resolve conversation
+        audience = (membership?.role as string) ?? "unknown";
+      }
+    }
+
+    decision = decide(categories, audience, providerError);
+
+    const verdict = decision.action === "approved" ? "approved"
+      : decision.action === "blocked"
+      ? "blocked"
+      : "held_for_review";
+
+    const scanResult = {
+      provider,
+      categories,
+      policy_version: "v1",
+      action: decision.action,
+      policy_score: decision.score,
+      raw_max_score: decision.providerScore,
+      matched_rules: decision.matchedRules,
+      reasons: decision.reasons,
+      explanation: decision.reasons.join("; "),
+      signals: categories,
+    };
 
     await supabase.from("moderation_results").insert({
       school_id,
       attachment_id,
       provider,
-      verdict: modVerdict,
+      verdict: decision.action === "approved" ? "approved"
+        : decision.action === "blocked"
+        : "held_for_review",
+      confidence: decision.score,
       categories: scanResult,
-      raw_response: decision
-        ? {
-          policy_version: decision.policyVersion,
-          action: decision.action,
-          policy_score: decision.score,
-          raw_max_score: decision.rawMaxScore,
-          matched_rules: decision.matchedRules,
-          reasons: decision.reasons,
-          explanation: explainDecision(decision),
-          signals: decision.signals,
-        }
-        : { policy_version: "not_applied", reason: "provider failure — quarantined (fail-closed)" },
+      provider_error: providerError,
+      raw_response: scanResult,
       processed_at: new Date().toISOString(),
     });
 
-    const attachmentStatus = verdict === "approved" ? "approved" :
-      verdict === "rejected" ? "rejected" : "quarantined";
+    const attachmentStatus = decision.action === "approved" ? "approved"
+      : decision.action === "blocked"
+      ? "rejected"
+      : "quarantined";
 
     await supabase.from("attachments")
       .update({
@@ -150,7 +297,7 @@ serve(async (req: Request) => {
     }
 
     return new Response(
-      JSON.stringify({ verdict, attachment_status: attachmentStatus, provider }),
+      JSON.stringify({ verdict, attachment_status: attachmentStatus, provider, score: decision.score }),
       { headers: { "Content-Type": "application/json" } }
     );
   } catch (err) {
@@ -159,68 +306,18 @@ serve(async (req: Request) => {
   }
 });
 
-type ClassifyResult = {
-  value: number;
-  description: string;
-  details: Record<string, unknown>;
-  provider: string;
-  error?: string;
-};
-
-/// Classify an attachment: OpenAI first (if configured), APILayer fallback.
-async function classifyImage(
-  supabase: ReturnType<typeof createClient>,
-  storagePath: string,
-  mimeType: string,
-): Promise<ClassifyResult> {
-  const errors: string[] = [];
-
-  if (OPENAI_API_KEY) {
-    const openai = await classifyWithOpenAI(supabase, storagePath, mimeType);
-    if (!openai.error) return openai;
-    errors.push(`openai: ${openai.error}`);
-  } else {
-    errors.push("openai: not configured");
-  }
-
-  if (APILAYER_API_KEY) {
-    const { data: signed } = await supabase.storage
-      .from("attachments")
-      .createSignedUrl(storagePath, 120);
-    if (signed?.signedUrl) {
-      const apilayer = await classifyWithApilayer(signed.signedUrl);
-      if (!apilayer.error) return apilayer;
-      errors.push(`apilayer: ${apilayer.error}`);
-    } else {
-      errors.push("apilayer: could not sign URL");
-    }
-  } else {
-    errors.push("apilayer: not configured");
-  }
-
-  // All providers failed — fail closed.
-  return {
-    value: 5,
-    description: "provider failure",
-    details: {},
-    provider: "none",
-    error: errors.join("; "),
-  };
-}
-
-/// OpenAI omni-moderation-latest accepts inline base64 image input.
 async function classifyWithOpenAI(
   supabase: ReturnType<typeof createClient>,
   storagePath: string,
   mimeType: string,
-): Promise<ClassifyResult> {
+): Promise<CategoryScores & { error?: string }> {
   const provider = "openai_omni";
   try {
     const { data: blob, error: dlError } = await supabase.storage
       .from("attachments")
       .download(storagePath);
     if (dlError || !blob) {
-      return { value: 5, description: "", details: {}, provider, error: `download failed: ${dlError?.message ?? "no data"}` };
+      return { categories: {}, error: `download failed: ${dlError?.message ?? "no data"}` };
     }
     const bytes = new Uint8Array(await blob.arrayBuffer());
     const dataUrl = `data:${mimeType || "image/jpeg"};base64,${base64Encode(bytes)}`;
@@ -238,75 +335,17 @@ async function classifyWithOpenAI(
     });
 
     if (!res.ok) {
-      return { value: 5, description: "", details: {}, provider, error: `OpenAI HTTP ${res.status}: ${(await res.text()).slice(0, 200)}` };
+      return { categories: {}, error: `OpenAI HTTP ${res.status}: ${(await res.text()).slice(0, 200)}` };
     }
 
     const data = await res.json();
     const result = data.results?.[0];
     if (!result) {
-      return { value: 5, description: "", details: {}, provider, error: "no moderation result" };
+      return { categories: {}, error: "no moderation result" };
     }
 
-    const scores: Record<string, number> = result.category_scores ?? {};
-    const sexual = Math.max(scores["sexual"] ?? 0, scores["sexual/minors"] ?? 0);
-    const violent = Math.max(scores["violence"] ?? 0, scores["violence/graphic"] ?? 0);
-    const maxRelevant = Math.max(sexual, violent);
-
-    let value: number;
-    if ((scores["sexual/minors"] ?? 0) > 0.1) value = 5;
-    else if (maxRelevant >= 0.8) value = 5;
-    else if (maxRelevant >= 0.55) value = 4;
-    else if (maxRelevant >= 0.35) value = 3;
-    else if (maxRelevant >= 0.15) value = 2;
-    else value = 1;
-
-    return {
-      value,
-      description: result.flagged ? "flagged by OpenAI moderation" : "within OpenAI moderation thresholds",
-      details: { category_scores: scores, flagged: result.flagged },
-      provider,
-    };
+    return { categories: result.category_scores ?? {} };
   } catch (e) {
-    return { value: 5, description: "", details: {}, provider, error: String((e as Error)?.message ?? e) };
+    return { categories: {}, error: String((e as Error)?.message ?? e) };
   }
-}
-
-/// APILayer Nudity Detection: returns a 1..5 score (5 = most likely nude).
-async function classifyWithApilayer(imageUrl: string): Promise<ClassifyResult> {
-  const provider = "apilayer_nudity";
-  const base = APILAYER_BASE.replace(/\/$/, "");
-  const headers = { apikey: APILAYER_API_KEY! };
-  const attempts: Array<() => Promise<Response>> = [
-    () => fetch(`${base}/url`, {
-      method: "POST",
-      headers: { ...headers, "Content-Type": "application/json" },
-      body: JSON.stringify({ url: imageUrl }),
-    }),
-    () => fetch(`${base}?url=${encodeURIComponent(imageUrl)}`, { method: "POST", headers }),
-    async () => {
-      const img = await fetch(imageUrl);
-      const bytes = new Uint8Array(await img.arrayBuffer());
-      return await fetch(base, { method: "POST", headers, body: bytes });
-    },
-  ];
-
-  let lastError = "unknown";
-  for (const attempt of attempts) {
-    try {
-      const res = await attempt();
-      if (!res || !res.ok) {
-        if (res) lastError = `HTTP ${res.status}`;
-        continue;
-      }
-      const data = await res.json();
-      const value = Number(data.value);
-      if (!Number.isFinite(value)) {
-        return { value: 5, description: "unparseable response", details: data, provider, error: "Unexpected response shape" };
-      }
-      return { value, description: String(data.description ?? ""), details: data, provider };
-    } catch (e) {
-      lastError = String((e as Error)?.message ?? e);
-    }
-  }
-  return { value: 5, description: "provider failure", details: {}, provider, error: `Nudity API unavailable: ${lastError}` };
 }

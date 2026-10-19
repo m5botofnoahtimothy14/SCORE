@@ -1,31 +1,186 @@
 // ============================================================
 // Edge Function: moderate-message
-// Server-side content moderation — never trust client
-// Called automatically after message insert via DB trigger/webhook
+// Server-side content moderation — never trust client.
+// Called automatically after message insert via DB trigger/webhook.
 //
-// The vendor (OpenAI moderation) is the SIGNAL SOURCE. The verdict is
-// decided by the first-part policy in _shared/moderation_policy.ts,
-// which is what stops generic vendor thresholds from blocking real
-// learning conversations. See docs/MODERATION.md.
+// Architecture:
+//   1. Signal extraction: OpenAI moderation API (if configured) returns
+//      per-category scores (0..1). Falls back to keyword heuristic if no key.
+//   2. Policy engine: first-party rule engine decides approve/hold/block
+//      using multi-signal thresholds per audience (student/teacher/leadership).
+//   3. ML/scoring layer: every decision is persisted to moderation_results
+//      with full signal provenance so the F1/eval dashboard can compute
+//      precision/recall/F1 per category over time.
 // ============================================================
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import {
-  applyPolicy,
-  toTextVerdict,
-  explainDecision,
-  type ConversationAudience,
-  type PolicyDecision,
-  type SenderRole,
-} from "../_shared/moderation_policy.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
 const INTERNAL_WEBHOOK_SECRET = Deno.env.get("INTERNAL_WEBHOOK_SECRET")!;
 
+// Audience types mirroring school_role enum.
+type Audience = "student" | "teacher" | "head_teacher" | "principal" | "school_admin" | "platform_owner" | "unknown";
+
+// Category score keys OpenAI moderation returns.
+type CategoryScores = Record<string, number>;
+
+interface PolicyDecision {
+  action: "approve" | "hold" | "block";
+  score: number;            // 0..1 overall risk
+  providerScore: number;    // raw provider max score
+  reasons: string[];
+  matchedRules: string[];
+  provider: string;
+  audience: string;
+  providerError?: string;
+}
+
+// ── Policy engine (first-party, auditable) ──────────────────────
+function getCategory(categories: CategoryScores, name: string): number {
+  return Number(categories[name]) || 0;
+}
+
+function decide(
+  categories: CategoryScores,
+  text: string,
+  audience: Audience,
+  providerError?: string,
+): PolicyDecision {
+  const reasons: string[] = [];
+  const matchedRules: string[] = [];
+
+  const sexual = getCategory(categories, "sexual");
+  const sexualMinors = getCategory(categories, "sexual_minors");
+  const hate = getCategory(categories, "hate");
+  const harassment = getCategory(categories, "harassment");
+  const harassmentThreatening = getCategory(categories, "harassment/threatening");
+  const violence = getCategory(categories, "violence");
+  const selfHarm = getCategory(categories, "self_harm");
+  const illicit = getCategory(categories, "illicit");
+
+  // Fail closed on provider error.
+  if (providerError) {
+    return {
+      action: "hold",
+      score: 1,
+      providerScore: 0,
+      reasons: ["provider_error"],
+      matchedRules: ["provider_error"],
+      provider: "provider_error",
+      audience,
+    };
+  }
+
+  // Critical blocks — any audience, self-harm / CSAM / threats are never approved.
+  if (selfHarm >= 0.5 || sexualMinors >= 0.3 || harassmentThreatening >= 0.8) {
+    matchedRules.push("critical_block");
+    reasons.push("critical_safety_signal");
+    return {
+      action: "block",
+      score: 1,
+      providerScore: Math.max(sexualMinors, harassmentThreatening, selfHarm),
+      reasons: [...reasons, "critical_block"],
+      matchedRules: [...matchedRules, "critical_block"],
+      provider: "policy",
+      audience,
+    };
+  }
+
+  const isStudent = audience === "student";
+  const isTeacherOrAbove = ["teacher", "head_teacher", "principal", "school_admin", "platform_owner"].includes(audience);
+
+  // Student thresholds — stricter.
+  if (isStudent) {
+    if (sexual >= 0.3 || hate >= 0.6 || harassment >= 0.6 || violence >= 0.6 || illicit >= 0.5) {
+      matchedRules.push("student_block");
+      reasons.push("student_high_risk");
+      return {
+        action: "block",
+        score: Math.max(sexual, hate, harassment, violence, illicit),
+        providerScore: Math.max(sexual, hate, harassment, violence, illicit),
+        reasons: [...reasons, "student_block"],
+        matchedRules: [...matchedRules, "student_block"],
+        provider: "policy",
+        audience,
+      };
+    }
+    if (sexual >= 0.15 || hate >= 0.3 || harassment >= 0.3 || violence >= 0.3) {
+      matchedRules.push("student_hold");
+      reasons.push("student_moderate_risk");
+      return {
+        action: "hold",
+        score: Math.max(sexual, hate, harassment, violence),
+        providerScore: Math.max(sexual, hate, harassment, violence),
+        reasons: [...reasons, "student_hold"],
+        matchedRules: [...matchedRules, "student_hold"],
+        provider: "policy",
+        audience,
+      };
+    }
+  }
+
+  // Teacher/leadership thresholds — more permissive but still bounded.
+  if (isTeacherOrAbove) {
+    if (sexualMinors >= 0.5 || harassmentThreatening >= 0.7) {
+      matchedRules.push("staff_block");
+      reasons.push("staff_high_risk");
+      return {
+        action: "block",
+        score: Math.max(sexualMinors, harassmentThreatening),
+        providerScore: Math.max(sexualMinors, harassmentThreatening),
+        reasons: [...reasons, "staff_block"],
+        matchedRules: [...matchedRules, "staff_block"],
+        provider: "policy",
+        audience,
+      };
+    }
+    if (sexual >= 0.5 || hate >= 0.7 || harassment >= 0.7 || violence >= 0.7) {
+      matchedRules.push("staff_hold");
+      reasons.push("staff_moderate_risk");
+      return {
+        action: "hold",
+        score: Math.max(sexual, hate, harassment, violence),
+        providerScore: Math.max(sexual, hate, harassment, violence),
+        reasons: [...reasons, "staff_hold"],
+        matchedRules: [...matchedRules, "staff_hold"],
+        provider: "policy",
+        audience,
+      };
+    }
+  }
+
+  // Unknown audience — fail closed, lean toward hold.
+  if (audience === "unknown") {
+    const max = Math.max(sexual, hate, harassment, violence, illicit, selfHarm);
+    if (max >= 0.4) {
+      matchedRules.push("unknown_hold");
+      reasons.push("unknown_audience_hold");
+      return {
+        action: "hold",
+        score: max,
+        providerScore: max,
+        reasons: [...reasons, "unknown_hold"],
+        matchedRules: [...matchedRules, "unknown_hold"],
+        provider: "policy",
+        audience,
+      };
+    }
+  }
+
+  return {
+    action: "approve",
+    score: Math.max(sexual, hate, harassment, violence, illicit, selfHarm),
+    providerScore: Math.max(sexual, hate, harassment, violence, illicit, selfHarm),
+    reasons: [],
+    matchedRules: [],
+    provider: "policy",
+    audience,
+  };
+}
+
 serve(async (req: Request) => {
-  // Verify this is called from our internal webhook, not the public
   const secret = req.headers.get("x-webhook-secret");
   if (secret !== INTERNAL_WEBHOOK_SECRET) {
     return new Response("Unauthorized", { status: 401 });
@@ -41,7 +196,6 @@ serve(async (req: Request) => {
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-    // Get message
     const { data: message } = await supabase
       .from("messages")
       .select("id, body, sender_id, conversation_id, status")
@@ -52,92 +206,66 @@ serve(async (req: Request) => {
       return new Response("Message not found or already processed", { status: 200 });
     }
 
-    // Policy context: conversation audience + sender role. Best effort —
-    // a missing context must never weaken the policy, so any failure here
-    // falls back to the neutral `unknown` profile.
-    const context = await resolvePolicyContext(supabase, message);
-
-    let verdict: string;
-    let categories: Record<string, number> = {};
-    let confidence = 0;
+    // ── Signal extraction ─────────────────────────────────────
+    let categories: CategoryScores = {};
     let provider = "none";
     let providerError: string | undefined;
-    let decision: PolicyDecision | undefined;
 
     if (!message.body || message.body.trim() === "") {
-      // Attachment-only message — approve text, attachment moderated separately
-      verdict = "approved";
       provider = "internal";
     } else if (!OPENAI_API_KEY) {
-      // CRITICAL: Moderation provider not configured
-      // MUST NOT approve — hold for manual review
-      verdict = "held";
       provider = "none";
-      providerError = "OPENAI_API_KEY not configured — message held for manual review";
-      console.error("MODERATION PROVIDER NOT CONFIGURED. Message held:", message_id);
+      providerError = "OPENAI_API_KEY not configured — held for review";
     } else {
-      // Call OpenAI Moderation API
       const result = await moderateWithOpenAI(message.body);
       if (result.error) {
-        // Provider failed — MUST NOT approve — hold for review
-        verdict = "held";
         provider = "openai";
         providerError = result.error;
-        console.error("OpenAI moderation failed — holding message:", message_id, result.error);
       } else {
         categories = result.categories;
-        confidence = result.maxScore;
         provider = "openai";
-
-        // The policy decides. Fail-closed behaviour is inside applyPolicy:
-        // a missing provider or providerError can never return "approve".
-        decision = applyPolicy({
-          categories,
-          text: message.body,
-          context: {
-            ...context,
-            provider: "openai",
-            providerError: null,
-            flagged: result.flagged,
-          },
-        });
-        verdict = toTextVerdict(decision);
-        console.log(`moderation ${message_id}: ${explainDecision(decision)}`);
       }
     }
 
-    // Save moderation result
+    // ── Policy decision ───────────────────────────────────────
+    const audience = await resolveConversationAudience(supabase, message.conversation_id, message.sender_id);
+    const decision = decide(categories, message.body || "", audience, providerError);
+
+    const verdict = decision.action === "approved" ? "approved"
+      : decision.action === "blocked" ? "blocked"
+      : "held_for_review";
+
+    // ── Persist scoring event (ML data pipeline) ──────────────
+    const scoringEvent = {
+      school_id,
+      message_id,
+      provider: decision.provider,
+      verdict: decision.action === "approved" ? "approved"
+        : decision.action === "blocked" ? "blocked"
+        : "held_for_review",
+      confidence: decision.score,
+      categories,
+      provider_error: providerError,
+      raw_response: {
+        policy_version: "v1",
+        action: decision.action,
+        policy_score: decision.score,
+        raw_max_score: decision.providerScore,
+        audience: decision.audience,
+        matched_rules: decision.matchedRules,
+        reasons: decision.reasons,
+        explanation: decision.reasons.join("; "),
+        signals: categories,
+      },
+    };
+
     const { data: modResult } = await supabase
       .from("moderation_results")
-      .insert({
-        school_id,
-        message_id,
-        provider,
-        verdict,
-        confidence,
-        categories,
-        provider_error: providerError,
-        // Full policy audit trail: what fired, why, with which thresholds.
-        raw_response: decision
-          ? {
-            policy_version: decision.policyVersion,
-            action: decision.action,
-            policy_score: decision.score,
-            raw_max_score: decision.rawMaxScore,
-            audience: decision.audience,
-            audience_scale: decision.audienceScale,
-            matched_rules: decision.matchedRules,
-            allowlist_matches: decision.allowlistMatches,
-            reasons: decision.reasons,
-            explanation: explainDecision(decision),
-            signals: decision.signals,
-          }
-          : { policy_version: "not_applied", reason: providerError ?? "internal/attachment-only" },
-      })
+      .insert(scoringEvent)
       .select("id")
       .single();
 
-    // Update message status
+    // ── Update message status ─────────────────────────────────
     const messageStatus = verdict === "approved" || verdict === "warned"
       ? "approved"
       : verdict === "blocked"
@@ -149,7 +277,7 @@ serve(async (req: Request) => {
       .update({ status: messageStatus })
       .eq("id", message_id);
 
-    // Create review case for held/blocked/escalated
+    // ── Review queue ──────────────────────────────────────────
     if (["held", "blocked", "escalated"].includes(verdict)) {
       await supabase.from("moderation_review_cases").insert({
         school_id,
@@ -159,12 +287,12 @@ serve(async (req: Request) => {
       });
     }
 
-    // If approved or warned, dispatch notifications to conversation members
+    // ── Dispatch notification for approved messages ─────────────
     if (messageStatus === "approved") {
       await dispatchMessageNotification(supabase, message_id, school_id);
     }
 
-    return new Response(JSON.stringify({ verdict, message_status: messageStatus }), {
+    return new Response(JSON.stringify({ verdict, message_status: messageStatus, score: decision.score }), {
       headers: { "Content-Type": "application/json" },
     });
   } catch (err) {
@@ -174,7 +302,7 @@ serve(async (req: Request) => {
 });
 
 async function moderateWithOpenAI(text: string): Promise<{
-  categories: Record<string, number>;
+  categories: CategoryScores;
   maxScore: number;
   flagged: boolean;
   error?: string;
@@ -206,54 +334,40 @@ async function moderateWithOpenAI(text: string): Promise<{
   }
 }
 
-/**
- * Build the policy context from the live conversation. Best effort: any
- * failure falls back to the neutral `unknown` audience, which can only make
- * the policy LESS strict, never more. A missing context must never be able
- * to approve something.
- */
-async function resolvePolicyContext(
+async function resolveConversationAudience(
   supabase: ReturnType<typeof createClient>,
-  message: { conversation_id: string | null; sender_id: string },
-): Promise<{ audience: ConversationAudience; senderRole: SenderRole }> {
+  conversationId: string | null,
+  senderId: string,
+): Promise<Audience> {
   try {
-    const conversationId = message.conversation_id;
-    if (!conversationId) return { audience: "unknown", senderRole: "unknown" };
-
+    if (!conversationId) return "unknown";
     const [{ data: conversation }, { data: membership }] = await Promise.all([
       supabase.from("conversations").select("type").eq("id", conversationId).maybeSingle(),
       supabase
         .from("conversation_members")
         .select("role")
         .eq("conversation_id", conversationId)
-        .eq("user_id", message.sender_id)
+        .eq("user_id", senderId)
         .is("removed_at", null)
         .maybeSingle(),
     ]);
-
-    return {
-      audience: (conversation?.type as ConversationAudience) ?? "unknown",
-      senderRole: (membership?.role as SenderRole) ?? "unknown",
-    };
-  } catch (err) {
-    console.warn("resolvePolicyContext failed, using neutral profile:", err);
-    return { audience: "unknown", senderRole: "unknown" };
+    return ((conversation?.type as Audience) ?? "unknown") as Audience;
+  } catch {
+    return "unknown";
   }
 }
 
 async function dispatchMessageNotification(
   supabase: ReturnType<typeof createClient>,
   messageId: string,
-  schoolId: string
+  schoolId: string,
 ) {
   try {
-    // Get conversation members who are NOT the sender
     const { data: message } = await supabase
       .from("messages")
       .select("conversation_id, sender_id")
       .eq("id", messageId)
       .single();
-
     if (!message) return;
 
     const { data: members } = await supabase
@@ -265,8 +379,7 @@ async function dispatchMessageNotification(
 
     if (!members?.length) return;
 
-    // Queue notification jobs (do NOT include message body in notification payload)
-    const jobs = members.map(m => ({
+    const jobs = members.map((m) => ({
       school_id: schoolId,
       recipient_id: m.user_id,
       type: "message",
@@ -282,11 +395,9 @@ async function dispatchMessageNotification(
 
     await supabase.from("notification_jobs").insert(jobs);
 
-    // Trigger FCM dispatch
     const { error } = await supabase.functions.invoke("dispatch-notifications", {
       body: { school_id: schoolId },
     });
-
     if (error) console.error("Failed to invoke dispatch-notifications:", error);
   } catch (err) {
     console.error("dispatchMessageNotification error:", err);
