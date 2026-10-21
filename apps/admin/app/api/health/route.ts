@@ -69,6 +69,7 @@ export async function GET() {
 
     const openAi = Boolean(process.env.OPENAI_API_KEY)
     const apilayer = Boolean(process.env.APILAYER_API_KEY)
+    const vision = Boolean(process.env.GOOGLE_CLOUD_VISION_API_KEY)
 
     return NextResponse.json({
       db: { ok: Object.values(tableStatus).every((t) => t.ok) },
@@ -79,9 +80,18 @@ export async function GET() {
         // (omni-moderation for images); APILayer is a fallback.
         fcmConfigured: Boolean(process.env.FCM_PROJECT_ID && process.env.FCM_CLIENT_EMAIL),
         textModerationConfigured: openAi || apilayer,
-        imageSafetyConfigured: openAi || apilayer,
+        imageSafetyConfigured: openAi || apilayer || vision,
         moderationPrimary: openAi ? 'openai' : apilayer ? 'apilayer' : null,
-        imageSafetyPrimary: openAi ? 'openai-omni' : apilayer ? 'apilayer' : null,
+        imageSafetyPrimary: vision
+          ? 'google_vision'
+          : openAi
+            ? 'openai-omni'
+            : apilayer
+              ? 'apilayer'
+              : null,
+        // Google Cloud Vision SafeSearch is the primary image classifier
+        // once it is configured; OpenAI omni-moderation covers the rest.
+        cloudVisionConfigured: vision,
         aiInsightsConfigured: Boolean(process.env.GOOGLE_API_KEY || openAi),
         smsConfigured: Boolean(process.env.TEXTBEE_API_KEY),
       },

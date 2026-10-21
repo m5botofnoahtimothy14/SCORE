@@ -14,214 +14,41 @@
 // ============================================================
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import {
+  applyPolicy,
+  explainDecision,
+  toTextVerdict,
+} from "../_shared/moderation_policy.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
 const INTERNAL_WEBHOOK_SECRET = Deno.env.get("INTERNAL_WEBHOOK_SECRET")!;
 
-// Audience types mirroring school_role enum.
-type Audience = "student" | "teacher" | "head_teacher" | "principal" | "school_admin" | "platform_owner" | "unknown";
+// The policy engine now lives in the shared module (see the import above).
+// The thresholds, the allowlist and the fail-closed rule are evaluated
+// there, against the same labelled dataset the test suite uses.
 
-// Category score keys OpenAI moderation returns.
+// Audience types mirroring the school_role enum.
+type SenderRole =
+  | "student"
+  | "teacher"
+  | "head_teacher"
+  | "principal"
+  | "school_admin"
+  | "platform_owner"
+  | "unknown";
+
+// Category score keys the vendor returns (OpenAI omni-moderation).
 type CategoryScores = Record<string, number>;
 
-interface PolicyDecision {
-  action: "approve" | "hold" | "block";
-  score: number;            // 0..1 overall risk
-  providerScore: number;    // raw provider max score
-  reasons: string[];
-  matchedRules: string[];
-  provider: string;
-  audience: string;
-  providerError?: string;
-}
-
-/**
- * Map a policy action onto the `moderation_verdict` enum.
- * DB enum: approved | warned | held | blocked | escalated
- */
-function verdictFor(action: PolicyDecision["action"]): "approved" | "held" | "blocked" {
-  switch (action) {
-    case "approve": return "approved";
-    case "block": return "blocked";
-    default: return "held";
-  }
-}
-
 /** Map a policy action onto the `messages.status` enum. */
-function messageStatusFor(action: PolicyDecision["action"]): "approved" | "blocked" | "held_for_review" {
+function messageStatusFor(action: string): "approved" | "blocked" | "held_for_review" {
   switch (action) {
     case "approve": return "approved";
     case "block": return "blocked";
     default: return "held_for_review";
   }
-}
-
-/**
- * Normalise OpenAI moderation category keys to the names the policy engine
- * uses. OpenAI returns e.g. "sexual/minors", "harassment/threatening",
- * "self-harm" — the engine expects "sexual_minors", "harassment/threatening",
- * "self_harm".
- */
-function normaliseCategories(raw: Record<string, unknown>): CategoryScores {
-  const out: CategoryScores = {};
-  for (const [key, value] of Object.entries(raw ?? {})) {
-    const score = Number(value);
-    if (!Number.isFinite(score)) continue;
-    const name = key
-      .replace(/\//g, "_")
-      .replace(/-/g, "_")
-      .toLowerCase();
-    out[name] = score;
-  }
-  // OpenAI's "sexual/minors" maps to sexual_minors; keep the canonical alias.
-  if (out.sexual_minors === undefined && out.sexual_minor !== undefined) {
-    out.sexual_minors = out.sexual_minor;
-  }
-  return out;
-}
-
-// ── Policy engine (first-party, auditable) ──────────────────────
-function getCategory(categories: CategoryScores, name: string): number {
-  return Number(categories[name]) || 0;
-}
-
-function decide(
-  categories: CategoryScores,
-  audience: Audience,
-  providerError?: string,
-): PolicyDecision {
-  const reasons: string[] = [];
-  const matchedRules: string[] = [];
-
-  const sexual = getCategory(categories, "sexual");
-  const sexualMinors = getCategory(categories, "sexual_minors");
-  const hate = getCategory(categories, "hate");
-  const harassment = getCategory(categories, "harassment");
-  const harassmentThreatening = getCategory(categories, "harassment_threatening");
-  const violence = getCategory(categories, "violence");
-  const selfHarm = getCategory(categories, "self_harm");
-  const illicit = getCategory(categories, "illicit");
-
-  // Fail closed on provider error.
-  if (providerError) {
-    return {
-      action: "hold",
-      score: 1,
-      providerScore: 0,
-      reasons: ["provider_error"],
-      matchedRules: ["provider_error"],
-      provider: "provider_error",
-      audience,
-    };
-  }
-
-  // Critical blocks — any audience, self-harm / CSAM / threats are never approved.
-  if (selfHarm >= 0.5 || sexualMinors >= 0.3 || harassmentThreatening >= 0.8) {
-    matchedRules.push("critical_block");
-    reasons.push("critical_safety_signal");
-    return {
-      action: "block",
-      score: 1,
-      providerScore: Math.max(sexualMinors, harassmentThreatening, selfHarm),
-      reasons: [...reasons, "critical_block"],
-      matchedRules: [...matchedRules, "critical_block"],
-      provider: "policy",
-      audience,
-    };
-  }
-
-  const isStudent = audience === "student";
-  const isTeacherOrAbove = ["teacher", "head_teacher", "principal", "school_admin", "platform_owner"].includes(audience);
-
-  // Student thresholds — stricter.
-  if (isStudent) {
-    if (sexual >= 0.3 || hate >= 0.6 || harassment >= 0.6 || violence >= 0.6 || illicit >= 0.5) {
-      matchedRules.push("student_block");
-      reasons.push("student_high_risk");
-      return {
-        action: "block",
-        score: Math.max(sexual, hate, harassment, violence, illicit),
-        providerScore: Math.max(sexual, hate, harassment, violence, illicit),
-        reasons: [...reasons, "student_block"],
-        matchedRules: [...matchedRules, "student_block"],
-        provider: "policy",
-        audience,
-      };
-    }
-    if (sexual >= 0.15 || hate >= 0.3 || harassment >= 0.3 || violence >= 0.3) {
-      matchedRules.push("student_hold");
-      reasons.push("student_moderate_risk");
-      return {
-        action: "hold",
-        score: Math.max(sexual, hate, harassment, violence),
-        providerScore: Math.max(sexual, hate, harassment, violence),
-        reasons: [...reasons, "student_hold"],
-        matchedRules: [...matchedRules, "student_hold"],
-        provider: "policy",
-        audience,
-      };
-    }
-  }
-
-  // Teacher/leadership thresholds — more permissive but still bounded.
-  if (isTeacherOrAbove) {
-    if (sexualMinors >= 0.5 || harassmentThreatening >= 0.7) {
-      matchedRules.push("staff_block");
-      reasons.push("staff_high_risk");
-      return {
-        action: "block",
-        score: Math.max(sexualMinors, harassmentThreatening),
-        providerScore: Math.max(sexualMinors, harassmentThreatening),
-        reasons: [...reasons, "staff_block"],
-        matchedRules: [...matchedRules, "staff_block"],
-        provider: "policy",
-        audience,
-      };
-    }
-    if (sexual >= 0.5 || hate >= 0.7 || harassment >= 0.7 || violence >= 0.7) {
-      matchedRules.push("staff_hold");
-      reasons.push("staff_moderate_risk");
-      return {
-        action: "hold",
-        score: Math.max(sexual, hate, harassment, violence),
-        providerScore: Math.max(sexual, hate, harassment, violence),
-        reasons: [...reasons, "staff_hold"],
-        matchedRules: [...matchedRules, "staff_hold"],
-        provider: "policy",
-        audience,
-      };
-    }
-  }
-
-  // Unknown audience — fail closed, lean toward hold.
-  if (audience === "unknown") {
-    const max = Math.max(sexual, hate, harassment, violence, illicit, selfHarm);
-    if (max >= 0.4) {
-      matchedRules.push("unknown_hold");
-      reasons.push("unknown_audience_hold");
-      return {
-        action: "hold",
-        score: max,
-        providerScore: max,
-        reasons: [...reasons, "unknown_hold"],
-        matchedRules: [...matchedRules, "unknown_hold"],
-        provider: "policy",
-        audience,
-      };
-    }
-  }
-
-  return {
-    action: "approve",
-    score: Math.max(sexual, hate, harassment, violence, illicit, selfHarm),
-    providerScore: Math.max(sexual, hate, harassment, violence, illicit, selfHarm),
-    reasons: [],
-    matchedRules: [],
-    provider: "policy",
-    audience,
-  };
 }
 
 serve(async (req: Request) => {
@@ -272,17 +99,33 @@ serve(async (req: Request) => {
     }
 
     // ── Policy decision ───────────────────────────────────────
-    const audience = await resolveSenderAudience(supabase, message.conversation_id, message.sender_id);
-    const decision = decide(categories, audience, providerError);
+    // The shared policy module owns the thresholds, the allowlist and the
+    // fail-closed rule. This function only supplies the signals.
+    const audience = await resolveSenderAudience(
+      supabase,
+      message.conversation_id,
+      message.sender_id,
+    );
+    const decision = applyPolicy({
+      categories,
+      text: message.body ?? "",
+      context: {
+        media: "text",
+        audience: "unknown",
+        senderRole: audience,
+        provider,
+        providerError: providerError ?? null,
+      },
+    });
 
-    const verdict = verdictFor(decision.action);
+    const verdict = toTextVerdict(decision);
     const messageStatus = messageStatusFor(decision.action);
 
     // ── Persist scoring event (ML data pipeline) ──────────────
     const scoringEvent = {
       school_id,
       message_id,
-      provider: decision.provider,
+      provider,
       verdict,
       // Confidence = how sure we are of the verdict. For an approval that
       // is the inverse of the risk score; for a hold/block it is the score.
@@ -293,12 +136,13 @@ serve(async (req: Request) => {
         policy_version: "v1",
         action: decision.action,
         policy_score: decision.score,
-        raw_max_score: decision.providerScore,
         audience: decision.audience,
         matched_rules: decision.matchedRules,
         reasons: decision.reasons,
-        explanation: decision.reasons.join("; "),
-        signals: categories,
+        explanation: explainDecision(decision),
+        escalate: decision.escalate,
+        signals: decision.signals,
+        allowlist: decision.allowlistMatches,
       },
     };
 
@@ -321,7 +165,9 @@ serve(async (req: Request) => {
     if (msgErr) console.error("message status update failed:", msgErr.message);
 
     // ── Review queue ──────────────────────────────────────────
-    if (verdict !== "approved") {
+    // An allowlist approval ("warned") is deliverable, so it does not
+    // reach a human. A hold or a block always does.
+    if (decision.action !== "approve") {
       const { error: caseErr } = await supabase.from("moderation_review_cases").insert({
         school_id,
         moderation_result_id: modResult?.id ?? null,
@@ -369,7 +215,10 @@ async function moderateWithOpenAI(text: string): Promise<{
     const result = data.results?.[0];
     if (!result) return { categories: {}, maxScore: 0, flagged: false, error: "No moderation result" };
 
-    const categories = normaliseCategories(result.category_scores ?? {});
+    // The RAW vendor vector is stored, exactly as the vendor produced it.
+    // The policy module owns the mapping from these keys onto its own
+    // categories, and the scoring pipeline reads the same shape.
+    const categories = (result.category_scores ?? {}) as CategoryScores;
     const maxScore = Math.max(...Object.values(categories), 0);
 
     return { categories, maxScore, flagged: Boolean(result.flagged) };
@@ -390,7 +239,7 @@ async function resolveSenderAudience(
   supabase: ReturnType<typeof createClient>,
   conversationId: string | null,
   senderId: string,
-): Promise<Audience> {
+): Promise<SenderRole> {
   try {
     const { data: membership } = await supabase
       .from("school_memberships")
@@ -401,7 +250,7 @@ async function resolveSenderAudience(
       .limit(1)
       .maybeSingle();
 
-    const role = membership?.role as Audience | undefined;
+    const role = membership?.role as SenderRole | undefined;
     if (role && role !== "unknown") return role;
 
     if (!conversationId) return "unknown";
@@ -413,7 +262,7 @@ async function resolveSenderAudience(
       .is("removed_at", null)
       .maybeSingle();
 
-    const memberRole = member?.role as Audience | undefined;
+    const memberRole = member?.role as SenderRole | undefined;
     return memberRole && memberRole !== "unknown" ? memberRole : "unknown";
   } catch {
     return "unknown";

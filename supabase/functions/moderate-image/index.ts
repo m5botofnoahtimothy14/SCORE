@@ -12,6 +12,11 @@
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { encode as base64Encode } from "https://deno.land/std@0.177.0/encoding/base64.ts";
+import {
+  applyPolicy,
+  explainDecision,
+  toImageVerdict,
+} from "../_shared/moderation_policy.ts";
 import { detectSafeSearch } from "./vision.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -30,185 +35,11 @@ const MAX_IMAGE_BYTES = 10 * 1024 * 1024; // 10 MB
 
 type CategoryScores = Record<string, number>;
 
-interface PolicyDecision {
-  action: "approve" | "hold" | "block";
-  score: number;
-  providerScore: number;
-  reasons: string[];
-  matchedRules: string[];
-  provider: string;
-  audience: string;
-  providerError?: string;
-}
+// The policy engine now lives in the shared module (see the import above).
+// For an image the decision is driven by the nudity observation, and it
+// fails closed when the classifier could not answer.
 
-/** Map a policy action onto the `moderation_verdict` enum. */
-function verdictFor(action: PolicyDecision["action"]): "approved" | "held" | "blocked" {
-  switch (action) {
-    case "approve": return "approved";
-    case "block": return "blocked";
-    default: return "held";
-  }
-}
-
-/** Map a policy action onto the `attachments.status` enum. */
-function attachmentStatusFor(action: PolicyDecision["action"]): "approved" | "quarantined" | "rejected" {
-  switch (action) {
-    case "approve": return "approved";
-    case "block": return "rejected";
-    default: return "quarantined";
-  }
-}
-
-/**
- * Normalise OpenAI moderation category keys to the names the policy engine
- * uses ("sexual/minors" -> "sexual_minors", "self-harm" -> "self_harm").
- */
-function normaliseCategories(raw: Record<string, unknown>): CategoryScores {
-  const out: CategoryScores = {};
-  for (const [key, value] of Object.entries(raw ?? {})) {
-    const score = Number(value);
-    if (!Number.isFinite(score)) continue;
-    out[key.replace(/\//g, "_").replace(/-/g, "_").toLowerCase()] = score;
-  }
-  if (out.sexual_minors === undefined && out.sexual_minor !== undefined) {
-    out.sexual_minors = out.sexual_minor;
-  }
-  return out;
-}
-
-function getCategory(categories: CategoryScores, name: string): number {
-  return Number(categories[name]) || 0;
-}
-
-function decide(
-  categories: CategoryScores,
-  audience: string,
-  providerError?: string,
-): PolicyDecision {
-  const reasons: string[] = [];
-  const matchedRules: string[] = [];
-
-  const sexual = getCategory(categories, "sexual");
-  const sexualMinors = getCategory(categories, "sexual_minors");
-  const violence = getCategory(categories, "violence");
-
-  if (providerError) {
-    return {
-      action: "hold",
-      score: 1,
-      providerScore: 0,
-      reasons: ["provider_error"],
-      matchedRules: ["provider_error"],
-      provider: "provider_error",
-      audience,
-    };
-  }
-
-  if (sexualMinors >= 0.3 || violence >= 0.8) {
-    matchedRules.push("critical_block");
-    reasons.push("critical_image_signal");
-    return {
-      action: "block",
-      score: 1,
-      providerScore: Math.max(sexualMinors, violence),
-      reasons: [...reasons, "critical_block"],
-      matchedRules: [...matchedRules, "critical_block"],
-      provider: "policy",
-      audience,
-    };
-  }
-
-  const isStudent = audience === "student";
-  const isStaff = ["teacher", "head_teacher", "principal", "school_admin", "platform_owner"].includes(audience);
-
-  if (isStudent) {
-    if (sexual >= 0.3 || violence >= 0.6) {
-      matchedRules.push("student_block");
-      reasons.push("student_high_risk_image");
-      return {
-        action: "block",
-        score: Math.max(sexual, violence),
-        providerScore: Math.max(sexual, violence),
-        reasons: [...reasons, "student_block"],
-        matchedRules: [...matchedRules, "student_block"],
-        provider: "policy",
-        audience,
-      };
-    }
-    if (sexual >= 0.15 || violence >= 0.3) {
-      matchedRules.push("student_hold");
-      reasons.push("student_moderate_risk_image");
-      return {
-        action: "hold",
-        score: Math.max(sexual, violence),
-        providerScore: Math.max(sexual, violence),
-        reasons: [...reasons, "student_hold"],
-        matchedRules: [...matchedRules, "student_hold"],
-        provider: "policy",
-        audience,
-      };
-    }
-  }
-
-  if (isStaff) {
-    if (sexualMinors >= 0.5 || violence >= 0.7) {
-      matchedRules.push("staff_block");
-      reasons.push("staff_high_risk_image");
-      return {
-        action: "block",
-        score: Math.max(sexualMinors, violence),
-        providerScore: Math.max(sexualMinors, violence),
-        reasons: [...reasons, "staff_block"],
-        matchedRules: [...matchedRules, "staff_block"],
-        provider: "policy",
-        audience,
-      };
-    }
-    if (sexual >= 0.5 || violence >= 0.7) {
-      matchedRules.push("staff_hold");
-      reasons.push("staff_moderate_risk_image");
-      return {
-        action: "hold",
-        score: Math.max(sexual, violence),
-        providerScore: Math.max(sexual, violence),
-        reasons: [...reasons, "staff_hold"],
-        matchedRules: [...matchedRules, "staff_hold"],
-        provider: "policy",
-        audience,
-      };
-    }
-  }
-
-  if (audience === "unknown") {
-    const max = Math.max(sexual, sexualMinors, violence);
-    if (max >= 0.4) {
-      matchedRules.push("unknown_hold");
-      reasons.push("unknown_audience_hold");
-      return {
-        action: "hold",
-        score: max,
-        providerScore: max,
-        reasons: [...reasons, "unknown_hold"],
-        matchedRules: [...matchedRules, "unknown_hold"],
-        provider: "policy",
-        audience,
-      };
-    }
-  }
-
-  return {
-    action: "approve",
-    score: Math.max(sexual, sexualMinors, violence),
-    providerScore: Math.max(sexual, sexualMinors, violence),
-    reasons: [],
-    matchedRules: [],
-    provider: "policy",
-    audience,
-  };
-}
-
-serve(async (req: Request) => {
-  const secret = req.headers.get("x-webhook-secret");
+serve(async (req: Request) => {  const secret = req.headers.get("x-webhook-secret");
   if (secret !== INTERNAL_WEBHOOK_SECRET) {
     return new Response("Unauthorized", { status: 401 });
   }
@@ -236,7 +67,8 @@ serve(async (req: Request) => {
     let categories: CategoryScores = {};
     let provider = "none";
     let providerError: string | undefined;
-    let decision: PolicyDecision | undefined;
+    let nudityScore: number | null = null;
+    let visionError: string | undefined;
 
     if (attachment.size_bytes && attachment.size_bytes > MAX_IMAGE_BYTES) {
       provider = "policy";
@@ -251,9 +83,13 @@ serve(async (req: Request) => {
       } else {
         // 1. Google Cloud Vision SafeSearch — the primary image classifier.
         const vision = await classifyWithVision(bytes);
+        visionError = vision.error;
         if (vision.categories && Object.keys(vision.categories).length > 0) {
           categories = vision.categories;
           provider = vision.provider;
+          // Vision reports a 0..1 probability per category; the policy works
+          // in the 1..5 nudity bands, so the worst category is mapped onto it.
+          nudityScore = nudityBandFromCategories(vision.categories);
         } else {
           // 2. OpenAI omni-moderation — the fallback.
           if (!OPENAI_API_KEY) {
@@ -265,10 +101,15 @@ serve(async (req: Request) => {
             const result = await classifyWithOpenAI(bytes, attachment.mime_type);
             if (result.error) {
               provider = "openai";
-              providerError = result.error;
+              // Keep both failures: the Vision error is usually the more
+              // actionable one (a revoked key, an API not enabled).
+              providerError = vision.error
+                ? `${result.error} | vision: ${vision.error}`
+                : result.error;
             } else {
               categories = result.categories ?? {};
               provider = "openai_omni";
+              nudityScore = nudityBandFromCategories(categories);
             }
           }
         }
@@ -297,9 +138,27 @@ serve(async (req: Request) => {
       }
     }
 
-    decision = decide(categories, audience, providerError);
+    // The shared policy owns the decision. An image with no usable
+    // observation fails closed and is quarantined for a human.
+    const decision = applyPolicy({
+      categories,
+      text: "",
+      context: {
+        media: "image",
+        audience: "unknown",
+        senderRole: audience,
+        provider,
+        providerError: providerError ?? null,
+        nudityScore,
+      },
+    });
 
-    const verdict = verdictFor(decision.action);
+    const verdict = toImageVerdict(decision);
+    const attachmentStatus = verdict === "rejected"
+      ? "rejected"
+      : verdict === "approved"
+        ? "approved"
+        : "quarantined";
 
     const scanResult = {
       provider,
@@ -307,11 +166,14 @@ serve(async (req: Request) => {
       policy_version: "v1",
       action: decision.action,
       policy_score: decision.score,
-      raw_max_score: decision.providerScore,
       matched_rules: decision.matchedRules,
       reasons: decision.reasons,
-      explanation: decision.reasons.join("; "),
-      signals: categories,
+      explanation: explainDecision(decision),
+      signals: decision.signals,
+      nudity_band: nudityScore,
+      // The Vision failure, when there was one: it is the difference
+      // between "the image is safe" and "the classifier was unavailable".
+      vision_error: visionError ?? null,
     };
 
     const { data: modResult, error: modErr } = await supabase
@@ -332,8 +194,6 @@ serve(async (req: Request) => {
       .select("id")
       .single();
     if (modErr) console.error("moderation_results insert failed:", modErr.message);
-
-    const attachmentStatus = attachmentStatusFor(decision.action);
 
     const { error: attachErr } = await supabase
       .from("attachments")
@@ -371,6 +231,25 @@ serve(async (req: Request) => {
     return new Response("Server error", { status: 500 });
   }
 });
+
+/**
+ * Maps a classifier's category probabilities onto the 1..5 nudity band the
+ * policy works in:
+ *   1-2 safe, 3 borderline, 4-5 explicit.
+ *
+ * The band is driven by the worst sexual signal, so a single strong
+ * category is enough to move the image out of the "safe" band.
+ */
+function nudityBandFromCategories(categories: CategoryScores): number {
+  const sexual = Number(categories.sexual ?? categories.sexual_minors ?? 0);
+  const minors = Number(categories.sexual_minors ?? 0);
+  const worst = Math.max(sexual, minors);
+  if (worst >= 0.9) return 5;
+  if (worst >= 0.75) return 4;
+  if (worst >= 0.45) return 3;
+  if (worst >= 0.2) return 2;
+  return 1;
+}
 
 async function downloadImage(
   supabase: ReturnType<typeof createClient>,
@@ -434,7 +313,9 @@ async function classifyWithOpenAI(
       return { categories: {}, error: "no moderation result" };
     }
 
-    return { categories: normaliseCategories(result.category_scores ?? {}) };
+    // The RAW vendor vector is kept; the policy and the nudity band both
+    // read the vendor's own category names.
+    return { categories: (result.category_scores ?? {}) as CategoryScores };
   } catch (e) {
     return { categories: {}, error: String((e as Error)?.message ?? e) };
   }
