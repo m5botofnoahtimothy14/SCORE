@@ -6,6 +6,7 @@
 import 'package:flutter/material.dart';
 
 import '../config/app_config.dart';
+import '../theme/app_theme.dart';
 
 class DeveloperSignature extends StatelessWidget {
   /// Condensed form for tight spaces (EULA footer, profile bottom).
@@ -35,15 +36,46 @@ class DeveloperSignature extends StatelessWidget {
             compact ? CrossAxisAlignment.center : CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
+          // The lockup is stacked the same way it is on the splash: CRIMSON
+          // above the cross, the name below it. The name scales down so it
+          // never wraps, however narrow the block is.
           Text(
-            AppConfig.signatureLine,
+            AppConfig.signatureTop,
             textAlign: compact ? TextAlign.center : TextAlign.start,
             style: TextStyle(
               color: onSurface,
               fontSize: compact ? 11.5 : 14,
               fontWeight: FontWeight.w700,
-              letterSpacing: compact ? 1.5 : 1.1,
+              letterSpacing: compact ? 3.0 : 2.2,
               height: 1.3,
+            ),
+          ),
+          SizedBox(height: compact ? 2 : 3),
+          Text(
+            AppConfig.signatureCross,
+            textAlign: compact ? TextAlign.center : TextAlign.start,
+            style: TextStyle(
+              color: AppColors.brand,
+              fontSize: compact ? 10 : 12,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 1.6,
+              height: 1.2,
+            ),
+          ),
+          SizedBox(height: compact ? 2 : 3),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: compact ? Alignment.center : Alignment.centerLeft,
+            child: Text(
+              AppConfig.signatureName,
+              textAlign: compact ? TextAlign.center : TextAlign.start,
+              style: TextStyle(
+                color: onSurface,
+                fontSize: compact ? 10.5 : 12.5,
+                fontWeight: FontWeight.w700,
+                letterSpacing: compact ? 1.4 : 1.2,
+                height: 1.3,
+              ),
             ),
           ),
           SizedBox(height: compact ? 6 : 8),

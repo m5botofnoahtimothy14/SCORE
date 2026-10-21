@@ -1,8 +1,12 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { RefreshCw, Sigma } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
-import { PageHeader, Card, StatusBadge, LoadingState, ErrorState, MetricTile, SectionHeader } from '@/components/ui'
+import {
+  PageHeader, Card, LoadingState, ErrorState, EmptyState, MetricTile,
+  SectionHeader, btnSecondary, useToast,
+} from '@/components/ui'
 
 interface SchoolMetric {
   category: string
@@ -36,8 +40,11 @@ export default function MlScoringPage() {
   const [latest, setLatest] = useState<Snapshot | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [scope, setScope] = useState<'school' | 'platform'>('school')
+  const [isOwner, setIsOwner] = useState(false)
+  const { show, node } = useToast()
 
-  async function load() {
+  async function load(target: 'school' | 'platform' = scope) {
     setLoading(true)
     setError(null)
     try {
@@ -47,20 +54,30 @@ export default function MlScoringPage() {
 
       const { data: membership } = await supabase
         .from('school_memberships')
-        .select('school_id')
+        .select('school_id, role')
         .eq('user_id', user.id).eq('is_active', true).limit(1).maybeSingle()
-      const sid = (membership as { school_id: string } | null)?.school_id
-      if (!sid) throw new Error('No school scope.')
+      const m = membership as { school_id: string; role: string } | null
+      if (!m) throw new Error('No school scope.')
 
-      const { data: s, error: sErr } = await supabase
+      const owner = m.role === 'platform_owner'
+      setIsOwner(owner)
+
+      // Platform owners may review the whole platform; everyone else is
+      // pinned to their own school (RLS enforces the same boundary).
+      const effective: 'school' | 'platform' = owner && target === 'platform' ? 'platform' : 'school'
+
+      let query = supabase
         .from('moderation_score_snapshots')
         .select('*')
-        .eq('school_id', sid)
         .order('computed_at', { ascending: false })
         .limit(50)
+      if (effective === 'school') query = query.eq('school_id', m.school_id)
+
+      const { data: s, error: sErr } = await query
       if (sErr) throw sErr
       setSnapshots(((s ?? []) as unknown) as Snapshot[])
       setLatest(s?.[0] ?? null)
+      setScope(effective)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load ML scoring metrics.')
     } finally {
@@ -68,10 +85,35 @@ export default function MlScoringPage() {
     }
   }
 
-  useEffect(() => { load() }, [])
+  useEffect(() => { load('school') }, [])
 
-  if (loading) return <LoadingState />
-  if (error) return <ErrorState message={error} onRetry={load} />
+  function switchScope(next: 'school' | 'platform') {
+    if (next === 'platform' && !isOwner) {
+      show(false, 'Only a Super Admin can view platform-wide scoring.')
+      return
+    }
+    load(next)
+  }
+
+  async function runScoring() {
+    try {
+      const res = await fetch('/api/ml-scoring/run', { method: 'POST' })
+      const body = await res.json().catch(() => null)
+      if (!res.ok) {
+        throw new Error(body?.detail || body?.error || `Scoring failed (${res.status}).`)
+      }
+      const scored = body?.result?.schools_scored ?? 0
+      show(true, scored > 0
+        ? `Scoring complete — ${scored} school snapshot(s) written.`
+        : 'Scoring complete — no reviewed content to score yet.')
+      load(scope)
+    } catch (e) {
+      show(false, e instanceof Error ? e.message : 'Scoring failed.')
+    }
+  }
+
+  if (loading) return <LoadingState message="Loading scoring metrics…" />
+  if (error) return <ErrorState message={error} onRetry={() => load(scope)} />
 
   const latestMetrics = latest?.metrics ?? []
 
@@ -82,23 +124,60 @@ export default function MlScoringPage() {
   const totalTP = latestMetrics.reduce((a, m) => a + m.tp, 0)
   const totalFP = latestMetrics.reduce((a, m) => a + m.fp, 0)
   const totalFN = latestMetrics.reduce((a, m) => a + m.fn, 0)
+  const totalSupport = latestMetrics.reduce((a, m) => a + m.support, 0)
+
+  const precision = totalTP + totalFP > 0 ? (totalTP / (totalTP + totalFP)) * 100 : 0
+  const recall = totalTP + totalFN > 0 ? (totalTP / (totalTP + totalFN)) * 100 : 0
 
   return (
     <div>
       {node}
-      <PageHeader title="ML Scoring & Moderation Quality" subtitle="F1 / precision / recall per category per audience, computed from moderation verdicts vs human review." />
+      <PageHeader
+        title="ML Scoring & Moderation Quality"
+        subtitle="F1 / precision / recall per category per audience, computed from moderation verdicts vs human review."
+        action={
+          <div className="flex items-center gap-2">
+            {isOwner && (
+              <div className="flex rounded-xl bg-ink-100 p-1">
+                {(['school', 'platform'] as const).map((s) => (
+                  <button
+                    key={s}
+                    onClick={() => switchScope(s)}
+                    className={[
+                      'rounded-lg px-3 py-1.5 text-xs font-semibold capitalize transition-colors',
+                      scope === s ? 'bg-white text-ink-900 shadow-soft' : 'text-ink-500 hover:text-ink-700',
+                    ].join(' ')}
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+            )}
+            <button onClick={runScoring} className={btnSecondary}>
+              <Sigma className="mr-1.5 h-3.5 w-3.5" />
+              Run scoring
+            </button>
+            <button onClick={() => load(scope)} className={btnSecondary}>
+              <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
+              Refresh
+            </button>
+          </div>
+        }
+      />
 
-      <div className="grid grid-cols-2 gap-4 mb-6">
-        <MetricTile icon="CheckCircle2" label="Precision" value={latest ? ((latestMetrics.reduce((a,m)=>a+m.tp,0) / (latestMetrics.reduce((a,m)=>a+m.tp+m.fp,0) || 1)) * 100).toFixed(1) + '%' : '–'} accent={{ solid: '#1f47eb', soft: '#eef6ff', onSoft: '#1f47eb' }} />
-        <MetricTile icon="Archive" label="Recall" value={latest ? ((latestMetrics.reduce((a,m)=>a+m.tp,0) / (latestMetrics.reduce((a,m)=>a+m.tp+m.fn,0) || 1)) * 100).toFixed(1) + '%' : '–'} accent={{ solid: '#1f47eb', soft: '#eef6ff', onSoft: '#1f47eb' }} />
+      <div className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-4">
+        <MetricTile icon="CheckCircle2" label="Precision" value={latest ? `${precision.toFixed(1)}%` : '–'} accent={{ solid: '#1f47eb', soft: '#eef6ff', onSoft: '#1f47eb' }} />
+        <MetricTile icon="Archive" label="Recall" value={latest ? `${recall.toFixed(1)}%` : '–'} accent={{ solid: '#1f47eb', soft: '#eef6ff', onSoft: '#1f47eb' }} />
         <MetricTile icon="BarChart" label="F1 Score" value={latest ? avgF1.toFixed(2) : '–'} accent={{ solid: '#0e9f6e', soft: '#eef9f5', onSoft: '#0e9f6e' }} />
-        <MetricTile icon="ShieldCheck" label="Reviewed Cases" value={latest?.total_reviews ?? 0} accent={{ solid: '#1a56db', soft: '#eef6ff', onSoft: '#1a56db' }} />
+        <MetricTile icon="ShieldCheck" label="Scored Predictions" value={latest?.total_predictions ?? 0} hint={latest ? `${totalSupport} scored across ${latestMetrics.length} categories` : undefined} accent={{ solid: '#1a56db', soft: '#eef6ff', onSoft: '#1a56db' }} />
       </div>
 
       <Card className="animate-fade-up">
-        <div className="flex items-center justify-between border-b border-ink-200/70 px-5 py-4">
-          <h2 className="text-sm font-semibold text-ink-900">Per-category scores (latest snapshot)</h2>
-          <span className="text-xs text-ink-500">{latest?.computed_at ? new Date(latest.computed_at).toLocaleString() : '–'}</span>
+        <div className="border-b border-ink-200/70 px-5 py-4">
+          <SectionHeader
+            title="Per-category scores (latest snapshot)"
+            subtitle={latest?.computed_at ? new Date(latest.computed_at).toLocaleString() : 'No snapshot yet'}
+          />
         </div>
         {latestMetrics.length === 0 ? (
           <EmptyState title="No scoring data yet" subtitle="Run the score-moderation edge function to compute F1 metrics from moderation results vs human review cases." />
@@ -128,9 +207,11 @@ export default function MlScoringPage() {
       </Card>
 
       <Card className="animate-fade-up">
-        <div className="flex items-center justify-between border-b border-ink-200/70 px-5 py-4">
-          <h2 className="text-sm font-semibold text-ink-900">Snapshots history</h2>
-          <p className="text-xs text-ink-500">Each snapshot is one scoring run over moderation results vs review cases.</p>
+        <div className="border-b border-ink-200/70 px-5 py-4">
+          <SectionHeader
+            title="Snapshots history"
+            subtitle="Each snapshot is one scoring run over moderation results vs review cases."
+          />
         </div>
         {snapshots.length === 0 ? (
           <EmptyState title="No snapshots yet" subtitle="Snapshots are created each time the score-moderation edge function runs." />
@@ -158,8 +239,8 @@ export default function MlScoringPage() {
       </Card>
 
       <Card className="animate-fade-up">
-        <div className="flex items-center justify-between border-b border-ink-200/70 px-5 py-4">
-          <h2 className="text-sm font-semibold text-ink-900">About the scoring</h2>
+        <div className="border-b border-ink-200/70 px-5 py-4">
+          <SectionHeader title="About the scoring" />
         </div>
         <div className="px-5 py-4 space-y-3">
           <p className="text-sm text-ink-700">

@@ -9,6 +9,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const SUPABASE_SECRET_KEY = Deno.env.get("SUPABASE_SECRET_KEYS") ?? "";
 const FCM_PROJECT_ID = Deno.env.get("FCM_PROJECT_ID");
 const FCM_CLIENT_EMAIL = Deno.env.get("FCM_CLIENT_EMAIL");
 const FCM_PRIVATE_KEY = Deno.env.get("FCM_PRIVATE_KEY");
@@ -26,8 +27,14 @@ serve(async (req: Request) => {
   const isInternal = secret === INTERNAL_WEBHOOK_SECRET;
   const isScheduled = req.headers.get("x-scheduled") === "true";
   // Service-role callers (e.g. the DMS server) are trusted implicitly.
+  // Supabase issues two shapes of service credential — the legacy
+  // `role=service_role` JWT and the newer `sb_secret_…` key — so accept
+  // whichever this project is configured with.
   const auth = req.headers.get("authorization") ?? "";
-  const isServiceRole = auth === `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`;
+  const bearer = auth.startsWith("Bearer ") ? auth.slice(7) : "";
+  const isServiceRole =
+    bearer !== "" &&
+    (bearer === SUPABASE_SERVICE_ROLE_KEY || bearer === SUPABASE_SECRET_KEY);
 
   if (!isInternal && !isScheduled && !isServiceRole) {
     return new Response("Unauthorized", { status: 401 });
@@ -68,9 +75,10 @@ serve(async (req: Request) => {
   try {
     accessToken = await getAccessToken();
   } catch (e) {
-    console.error("FCM token error:", e);
+    const detail = e instanceof Error ? e.message : String(e);
+    console.error("FCM token error:", detail);
     return new Response(
-      JSON.stringify({ error: "FCM auth failed", sent: 0 }),
+      JSON.stringify({ error: "FCM auth failed", detail, sent: 0 }),
       { status: 502, headers: { "Content-Type": "application/json" } }
     );
   }
@@ -93,20 +101,26 @@ serve(async (req: Request) => {
     }
 
     let jobSent = false;
+    let lastError = "All device tokens failed or inactive";
     for (const device of devices) {
-      const success = await sendFcmNotification(
+      const result = await sendFcmNotification(
         accessToken,
         device.fcm_token,
         { title: job.title, body: job.body },
         job.data
       );
 
-      if (success) {
+      if (result.ok) {
         jobSent = true;
       } else {
-        await supabase.from("notification_devices")
-          .update({ is_active: false })
-          .eq("id", device.id);
+        lastError = result.error;
+        // An invalid/unregistered token will never work again — retire it.
+        // Transient failures keep the device so it can receive later pushes.
+        if (result.permanent) {
+          await supabase.from("notification_devices")
+            .update({ is_active: false })
+            .eq("id", device.id);
+        }
       }
     }
 
@@ -120,7 +134,7 @@ serve(async (req: Request) => {
         .update({
           status: "failed",
           failed_at: new Date().toISOString(),
-          failure_reason: "All device tokens failed or inactive",
+          failure_reason: lastError,
         })
         .eq("id", job.id);
       failed++;
@@ -138,7 +152,7 @@ async function sendFcmNotification(
   token: string,
   notification: { title: string; body: string },
   data: Record<string, unknown>
-): Promise<boolean> {
+): Promise<{ ok: boolean; error: string; permanent: boolean }> {
   try {
     const payload = {
       message: {
@@ -176,12 +190,26 @@ async function sendFcmNotification(
     if (response.status === 401) {
       // Token may have expired mid-batch — refresh once.
       cachedToken = null;
-      return false;
+      console.error("FCM 401 — access token rejected; will refresh on next run.");
+      return { ok: false, error: "FCM auth failed (401)", permanent: false };
     }
-    return response.ok;
+    if (!response.ok) {
+      const body = await response.text();
+      console.error(`FCM HTTP ${response.status}: ${body.slice(0, 300)}`);
+      // 404/403 UNREGISTERED means the token is dead for good.
+      const permanent = response.status === 404 ||
+        body.includes('UNREGISTERED') ||
+        body.includes('INVALID_ARGUMENT');
+      return {
+        ok: false,
+        error: `FCM ${response.status}: ${body.slice(0, 200)}`,
+        permanent,
+      };
+    }
+    return { ok: true, error: '', permanent: false };
   } catch (err) {
     console.error("FCM send error:", err);
-    return false;
+    return { ok: false, error: `FCM network error: ${String(err)}`, permanent: false };
   }
 }
 

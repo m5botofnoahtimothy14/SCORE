@@ -122,8 +122,51 @@ serve(async (req: Request) => {
       ip_address: ip,
     });
 
+    // Turn the anonymous session into a permanent account.
+    //
+    // Supabase anonymous sessions expire after roughly an hour, which would
+    // sign every student out mid-lesson. The device secret is generated on
+    // the handset and becomes the account's credential, so the session
+    // refreshes indefinitely.
+    let email: string | null = null;
+    const deviceSecret = typeof body.device_secret === "string" ? body.device_secret : "";
+    if (deviceSecret.length >= 16) {
+      // The synthetic address is built from the roster id, so it has to be
+      // read back from the students table — the RPC does not return it.
+      let rosterId = "";
+      try {
+        const { data: student } = await supabase
+          .from("students")
+          .select("student_id_no")
+          .eq("id", data.student_id)
+          .eq("school_id", school_id)
+          .maybeSingle();
+        rosterId = String(student?.student_id_no ?? "");
+      } catch (e) {
+        console.error("could not read the roster id:", e);
+      }
+
+      if (rosterId) {
+        email = await upgradeToPermanentAccount(
+          supabase,
+          user.id,
+          "s",
+          rosterId,
+          school_id,
+          deviceSecret,
+        );
+      } else {
+        console.error("no roster id — leaving the account anonymous");
+      }
+    }
+
     return new Response(
-      JSON.stringify({ success: true, student_id: data.student_id, class_id: data.class_id }),
+      JSON.stringify({
+        success: true,
+        student_id: data.student_id,
+        class_id: data.class_id,
+        email,
+      }),
       { headers: { "Content-Type": "application/json" } }
     );
   } catch (err) {
@@ -131,6 +174,59 @@ serve(async (req: Request) => {
     return jsonError("server_error", 500);
   }
 });
+
+/**
+ * Gives the freshly activated account a permanent credential.
+ *
+ * The synthetic address is derived from the school code and the roster id,
+ * so it is unique per school and never collides with a real mailbox.
+ */
+async function upgradeToPermanentAccount(
+  supabase: ReturnType<typeof createClient>,
+  userId: string,
+  prefix: "s" | "t",
+  rosterId: string,
+  schoolId: string,
+  secret: string,
+): Promise<string | null> {
+  try {
+    const { data: school } = await supabase
+      .from("schools")
+      .select("code")
+      .eq("id", schoolId)
+      .maybeSingle();
+    const schoolCode = String(school?.code ?? "school")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-");
+    const local = rosterId.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+    const email = `${prefix}-${local}@${schoolCode}.teachcross.app`;
+
+    // Never take over an address that already belongs to somebody else.
+    const { data: existing } = await supabase.auth.admin.listUsers({
+      page: 1,
+      perPage: 1000,
+    });
+    const clash = existing?.users?.find((u) => u.email === email);
+    if (clash && clash.id !== userId) {
+      console.error(`synthetic address ${email} is already in use — not upgrading`);
+      return null;
+    }
+
+    const { error } = await supabase.auth.admin.updateUserById(userId, {
+      email,
+      password: secret,
+      email_confirm: true,
+    });
+    if (error) {
+      console.error("could not upgrade the account to a permanent one:", error.message);
+      return null;
+    }
+    return email;
+  } catch (e) {
+    console.error("upgradeToPermanentAccount failed:", e);
+    return null;
+  }
+}
 
 function jsonError(error: string, status: number) {
   return new Response(JSON.stringify({ success: false, error }), {

@@ -1,7 +1,10 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { AlertTriangle, CheckCircle2, Inbox, Loader2, X } from 'lucide-react'
+import {
+  Activity, AlertTriangle, Archive, BarChart, CheckCircle2, CircleCheck, Inbox,
+  Loader2, ShieldCheck, X, type LucideIcon,
+} from 'lucide-react'
 
 // ── Shared UI primitives for the DMS ─────────────────────────
 // One design language for every screen: gloss, depth, calm motion.
@@ -51,6 +54,91 @@ export function Card({
       ].join(' ')}
     >
       {children}
+    </div>
+  )
+}
+
+/**
+ * Named icon registry for MetricTile. Callers pass a string so that data-driven
+ * screens (ML scoring, health) can render a metric without importing an icon
+ * component on every row.
+ */
+const METRIC_ICONS: Record<string, LucideIcon> = {
+  Activity,
+  AlertTriangle,
+  Archive,
+  BarChart,
+  CheckCircle2,
+  CircleCheck,
+  ShieldCheck,
+}
+
+export interface MetricAccent {
+  solid: string
+  soft: string
+  onSoft: string
+}
+
+export function MetricTile({
+  icon,
+  label,
+  value,
+  accent,
+  hint,
+  className = '',
+}: {
+  icon: string | LucideIcon
+  label: string
+  value: React.ReactNode
+  accent?: MetricAccent
+  hint?: string
+  className?: string
+}) {
+  const Icon = typeof icon === 'string' ? (METRIC_ICONS[icon] ?? Activity) : icon
+  const a = accent ?? {
+    solid: 'var(--brand-600, #1a56db)',
+    soft: '#eef6ff',
+    onSoft: '#1a56db',
+  }
+
+  return (
+    <div className={`surface-card animate-fade-up p-4 ${className}`}>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-[26px] font-bold leading-none tracking-tight text-ink-950 tabular-nums">
+            {value}
+          </p>
+          <p className="mt-2 text-xs font-medium text-ink-500">{label}</p>
+          {hint && <p className="mt-1 text-[11px] text-ink-400">{hint}</p>}
+        </div>
+        <span
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ring-1 ring-inset ring-black/[0.03]"
+          style={{ backgroundColor: a.soft, color: a.onSoft }}
+        >
+          <Icon className="h-[18px] w-[18px]" strokeWidth={2} />
+        </span>
+      </div>
+    </div>
+  )
+}
+
+/** Section heading used inside cards and detail panels. */
+export function SectionHeader({
+  title,
+  subtitle,
+  action,
+}: {
+  title: string
+  subtitle?: string
+  action?: React.ReactNode
+}) {
+  return (
+    <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+      <div className="min-w-0">
+        <h2 className="text-sm font-semibold text-ink-900">{title}</h2>
+        {subtitle && <p className="mt-1 text-xs text-ink-500">{subtitle}</p>}
+      </div>
+      {action && <div className="flex shrink-0 items-center gap-2">{action}</div>}
     </div>
   )
 }

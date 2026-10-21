@@ -1,5 +1,6 @@
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:flutter/foundation.dart' show defaultTargetPlatform, TargetPlatform;
+import 'package:flutter/foundation.dart'
+    show debugPrint, defaultTargetPlatform, TargetPlatform;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -20,11 +21,13 @@ class NotificationService {
 
   /// Value stored in `notification_devices.platform`. iOS and macOS both
   /// receive push through APNs, Android through FCM.
-  static String get _devicePlatform =>
+  static String get devicePlatform =>
       (defaultTargetPlatform == TargetPlatform.iOS ||
               defaultTargetPlatform == TargetPlatform.macOS)
           ? 'ios'
           : 'android';
+
+  static String get _devicePlatform => devicePlatform;
 
   static Future<void> initialize(
     FlutterLocalNotificationsPlugin localNotifications, {
@@ -119,17 +122,27 @@ class NotificationService {
     }
   }
 
-  /// Register or refresh FCM token with Supabase
+  /// Register or refresh FCM token with Supabase.
+  ///
+  /// Called at boot, after enrollment, and whenever the app returns to the
+  /// foreground — a device that was retired by a failed delivery must be
+  /// able to come back.
   static Future<void> registerToken() async {
     if (!available) return;
     try {
       final supabase = Supabase.instance.client;
       final user = supabase.auth.currentUser;
-      if (user == null) return;
+      if (user == null) {
+        debugPrint('[CRIMSON] push: no signed-in user, skipping registration');
+        return;
+      }
 
       final messaging = FirebaseMessaging.instance;
       final token = await messaging.getToken();
-      if (token == null) return;
+      if (token == null) {
+        debugPrint('[CRIMSON] push: FCM returned no token');
+        return;
+      }
 
       // Get school_id for user
       final membership = await supabase
@@ -140,30 +153,40 @@ class NotificationService {
           .limit(1)
           .maybeSingle();
 
-      if (membership == null) return;
+      if (membership == null) {
+        debugPrint('[CRIMSON] push: no active membership, cannot register device');
+        return;
+      }
 
-      await supabase.from('notification_devices').upsert({
-        'user_id': user.id,
-        'school_id': membership['school_id'],
-        'fcm_token': token,
-        'platform': _devicePlatform,
-        'is_active': true,
-        'last_seen_at': DateTime.now().toIso8601String(),
-      }, onConflict: 'fcm_token');
+      // Register the device. The server owns the write: when the token is
+      // already on file it belongs to the previous account on this handset,
+      // and only the server may re-point it at the caller.
+      //
+      // An RPC returns its value (and throws on failure) — it does not
+      // return a response object with an `error` field.
+      await supabase.rpc('register_notification_device', params: {
+        'p_school_id': membership['school_id'],
+        'p_fcm_token': token,
+        'p_platform': _devicePlatform,
+      });
+
+      debugPrint('[CRIMSON] push: device registered for ${user.id}');
 
       // Listen for token refresh
       messaging.onTokenRefresh.listen((newToken) async {
         try {
-          await supabase.from('notification_devices').upsert({
-            'user_id': user.id,
-            'school_id': membership['school_id'],
-            'fcm_token': newToken,
-            'platform': _devicePlatform,
-            'is_active': true,
-          }, onConflict: 'fcm_token');
-        } catch (_) {}
+          await supabase.rpc('register_notification_device', params: {
+            'p_school_id': membership['school_id'],
+            'p_fcm_token': newToken,
+            'p_platform': _devicePlatform,
+          });
+        } catch (e) {
+          debugPrint('[CRIMSON] push: token refresh registration failed: $e');
+        }
       });
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('[CRIMSON] push: registration failed: $e');
+    }
   }
 
   /// Deactivate tokens on logout
@@ -177,10 +200,11 @@ class NotificationService {
       final token = await FirebaseMessaging.instance.getToken();
       if (token == null) return;
 
-      await supabase
-          .from('notification_devices')
-          .update({'is_active': false})
-          .eq('fcm_token', token);
+      // The server owns the write: only the row that belongs to this user
+      // is retired.
+      await supabase.rpc('deactivate_notification_device', params: {
+        'p_fcm_token': token,
+      });
     } catch (_) {}
   }
 

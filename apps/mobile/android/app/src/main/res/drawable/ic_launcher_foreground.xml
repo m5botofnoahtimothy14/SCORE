@@ -1,0 +1,12 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<!-- TeachCross adaptive-icon foreground: the "T" with the cross bar.
+     Artwork sits inside the 66dp safe zone of the 108dp canvas. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+  <path android:fillColor="#FFFFFFFF" android:pathData="M25.9,31.3 H82.1 V43.7 H25.9 Z" />
+  <path android:fillColor="#FFFFFFFF" android:pathData="M46.7,31.3 H61.3 V76.7 H46.7 Z" />
+  <path android:fillColor="#FFFFFFFF" android:pathData="M37.8,54 H70.2 V66.4 H37.8 Z" />
+</vector>

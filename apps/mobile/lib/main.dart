@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -9,7 +11,7 @@ import 'core/config/app_config.dart';
 import 'core/config/router.dart';
 import 'core/legal/eula_gate.dart';
 import 'core/notifications/notification_service.dart';
-import 'core/services/presence_service.dart';
+import 'core/startup/startup_coordinator.dart';
 import 'core/theme/app_theme.dart';
 import 'firebase_options.dart';
 
@@ -65,6 +67,7 @@ Future<void> main() async {
     authOptions: const FlutterAuthClientOptions(
       authFlowType: AuthFlowType.pkce,
       autoRefreshToken: true,
+      persistSession: true,
     ),
     realtimeClientOptions: const RealtimeClientOptions(
       logLevel: RealtimeLogLevel.info,
@@ -77,14 +80,12 @@ Future<void> main() async {
     ),
   );
 
-  // Teacher presence heartbeat. Fire-and-forget: it never gates startup, and
-  // it re-pings itself whenever the app comes back to the foreground.
-  PresenceService.start();
-
-  // Returning session: refresh push registration in the background.
-  if (Supabase.instance.client.auth.currentSession != null) {
-    NotificationService.registerToken();
-  }
+  // The splash screen owns the boot sequence: it restores the session,
+  // resolves the identity, registers the push token and starts the presence
+  // heartbeat while the brand moment is on screen, so the first real screen
+  // is already populated. The coordinator is idempotent, so calling it here
+  // as well only matters if the splash is skipped.
+  StartupCoordinator.ensureStarted();
 }
 
 class _ConfigErrorApp extends StatelessWidget {

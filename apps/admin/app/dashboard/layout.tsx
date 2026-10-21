@@ -1,9 +1,5 @@
 import { redirect } from 'next/navigation'
-import {
-  LayoutDashboard, School, Users, GraduationCap, BookOpen,
-  Megaphone, ShieldAlert, ClipboardList, Settings, Bell,
-  Activity, TicketIcon, UserCog, ShieldCheck,
-} from 'lucide-react'
+import { ShieldCheck } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { ADMIN_ROLES, roleLabel } from '@/lib/auth'
 import { Footer } from '@/components/footer'
@@ -51,25 +47,28 @@ export default async function DashboardLayout({
   )
 }
 
+// Icons are referenced by name — the layout is a Server Component and
+// component functions cannot cross the server/client boundary.
 const operationsNav: NavEntry[] = [
-  { href: '/dashboard', icon: LayoutDashboard, label: 'Overview' },
-  { href: '/dashboard/students', icon: GraduationCap, label: 'Students' },
-  { href: '/dashboard/teachers', icon: Users, label: 'Teachers' },
-  { href: '/dashboard/classes', icon: BookOpen, label: 'Classes' },
-  { href: '/dashboard/announcements', icon: Megaphone, label: 'Announcements' },
-  { href: '/dashboard/moderation', icon: ShieldAlert, label: 'Moderation' },
-  { href: '/dashboard/incidents', icon: ShieldAlert, label: 'Incidents' },
-  { href: '/dashboard/audit', icon: ClipboardList, label: 'Audit Trail' },
-  { href: '/dashboard/notifications', icon: Bell, label: 'Notifications' },
-  { href: '/dashboard/tickets', icon: TicketIcon, label: 'Support' },
-  { href: '/dashboard/settings', icon: Settings, label: 'Settings' },
+  { href: '/dashboard', icon: 'LayoutDashboard', label: 'Overview' },
+  { href: '/dashboard/students', icon: 'GraduationCap', label: 'Students' },
+  { href: '/dashboard/teachers', icon: 'Users', label: 'Teachers' },
+  { href: '/dashboard/classes', icon: 'BookOpen', label: 'Classes' },
+  { href: '/dashboard/announcements', icon: 'Megaphone', label: 'Announcements' },
+  { href: '/dashboard/moderation', icon: 'ShieldAlert', label: 'Moderation' },
+  { href: '/dashboard/ml-scoring', icon: 'Sigma', label: 'ML Scoring' },
+  { href: '/dashboard/incidents', icon: 'ShieldAlert', label: 'Incidents' },
+  { href: '/dashboard/audit', icon: 'ClipboardList', label: 'Audit Trail' },
+  { href: '/dashboard/notifications', icon: 'Bell', label: 'Notifications' },
+  { href: '/dashboard/tickets', icon: 'TicketIcon', label: 'Support' },
+  { href: '/dashboard/settings', icon: 'Settings', label: 'Settings' },
 ]
 
 // Super-Admin-only: platform-wide data and control.
 const platformNav: NavEntry[] = [
-  { href: '/dashboard/schools', icon: School, label: 'All Schools' },
-  { href: '/dashboard/admins', icon: UserCog, label: 'Administrators' },
-  { href: '/dashboard/health', icon: Activity, label: 'System Health' },
+  { href: '/dashboard/schools', icon: 'School', label: 'All Schools' },
+  { href: '/dashboard/admins', icon: 'UserCog', label: 'Administrators' },
+  { href: '/dashboard/health', icon: 'Activity', label: 'System Health' },
 ]
 
 interface SidebarProps {
@@ -91,7 +90,7 @@ function Sidebar({ user, membership }: SidebarProps) {
         { section: 'Operations', items: operationsNav },
       ]
     : [
-        { section: 'My School', items: [{ href: '/dashboard/schools', icon: School, label: 'School Profile' }] },
+        { section: 'My School', items: [{ href: '/dashboard/schools', icon: 'School', label: 'School Profile' }] },
         { section: 'Operations', items: operationsNav },
       ]
 

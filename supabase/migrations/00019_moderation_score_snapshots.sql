@@ -19,6 +19,7 @@ CREATE TABLE IF NOT EXISTS public.moderation_score_snapshots (
 ALTER TABLE public.moderation_score_snapshots ENABLE ROW LEVEL SECURITY;
 
 -- Leadership + admins can read snapshots for their school.
+DROP POLICY IF EXISTS score_snapshots_read ON public.moderation_score_snapshots;
 CREATE POLICY score_snapshots_read ON public.moderation_score_snapshots FOR SELECT
   USING (
     public.tc_is_platform_owner()
@@ -27,6 +28,7 @@ CREATE POLICY score_snapshots_read ON public.moderation_score_snapshots FOR SELE
   );
 
 -- Service role (edge function) inserts snapshots.
+DROP POLICY IF EXISTS score_snapshots_service_insert ON public.moderation_score_snapshots;
 CREATE POLICY score_snapshots_service_insert ON public.moderation_score_snapshots FOR INSERT
   WITH CHECK (true);
 

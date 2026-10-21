@@ -77,6 +77,10 @@ class PresenceDot extends StatelessWidget {
 
     final text = Text(
       presenceLabel(lastSeen),
+      // A single line with an ellipsis: in a narrow row the label must
+      // shorten, never wrap into a vertical column of single characters.
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
       style: labelStyle ??
           TextStyle(
             fontSize: 12.5,

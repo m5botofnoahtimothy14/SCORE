@@ -54,3 +54,11 @@ android/.kotlin/
 android/app/google-services.json
 android/*firebase-adminsdk*.json
 android/google-services.json
+
+# Release signing (secrets) — never commit these.
+# See docs/RELEASE.md for how to regenerate an equivalent key.
+android/key.properties
+android/app/*.p12
+android/app/*.jks
+android/app/*.keystore
+

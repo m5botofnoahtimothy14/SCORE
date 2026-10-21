@@ -2,17 +2,49 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import type { LucideIcon } from 'lucide-react'
+import {
+  Activity, Bell, BookOpen, ClipboardList, GraduationCap, LayoutDashboard,
+  Megaphone, School, Settings, ShieldAlert, ShieldCheck, Sigma, TicketIcon,
+  UserCog, Users, type LucideIcon,
+} from 'lucide-react'
+
+/**
+ * Icons are referenced by NAME, not by component.
+ *
+ * The dashboard layout is a Server Component, and the App Router cannot
+ * serialise a function across the server/client boundary — passing a
+ * LucideIcon component as a prop crashes every page with a 500. A plain
+ * string survives the boundary and is resolved here, on the client.
+ */
+const NAV_ICONS: Record<string, LucideIcon> = {
+  Activity,
+  Bell,
+  BookOpen,
+  ClipboardList,
+  GraduationCap,
+  LayoutDashboard,
+  Megaphone,
+  School,
+  Settings,
+  ShieldAlert,
+  ShieldCheck,
+  Sigma,
+  TicketIcon,
+  UserCog,
+  Users,
+}
 
 export interface NavEntry {
   href: string
-  icon: LucideIcon
+  icon: string
   label: string
 }
 
-export function NavItem({ href, icon: Icon, label }: NavEntry) {
+export function NavItem({ href, icon, label }: NavEntry) {
   const pathname = usePathname()
   const isActive = pathname === href
+  const Icon = NAV_ICONS[icon] ?? LayoutDashboard
+
   return (
     <Link
       href={href}

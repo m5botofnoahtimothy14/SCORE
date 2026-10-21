@@ -4,8 +4,10 @@
 // server-side; nothing trusted from the client).
 // Teachers: OTP request + verification via `send-otp` / `verify-otp`
 // edge functions (real SMS provider required).
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../core/auth/credential_store.dart';
 import '../../../core/notifications/notification_service.dart';
 
 class AuthException implements Exception {
@@ -58,26 +60,74 @@ class AuthService {
 
   /// Student enrollment: verifies school-issued ID + activation code.
   /// Returns (studentId, classId). Never reveals whether an ID exists.
+  ///
+  /// The activation also turns the anonymous session into a permanent
+  /// account: the device secret is handed to the edge function, which sets
+  /// it as the account's credential. Anonymous Supabase sessions expire
+  /// after about an hour, which would log every student out mid-lesson.
   Future<({String studentId, String? classId})> activateStudent({
     required String schoolId,
     required String studentIdNo,
     required String activationCode,
   }) async {
     await ensureSession();
+    final secret = CredentialStore.generateSecret();
     final data = await _invoke('activate-student', {
       'school_id': schoolId,
       'student_id_no': studentIdNo.trim(),
       'activation_code': activationCode.trim(),
+      'device_secret': secret,
     });
     if (data == null || data['success'] != true) {
       final err = data?['error']?.toString();
       throw AuthException(err ?? 'invalid_credentials', _activationErrorMessage(err));
     }
+    await _adoptPermanentAccount(data, secret);
     NotificationService.registerToken();
     return (
       studentId: data['student_id'] as String,
       classId: data['class_id'] as String?,
     );
+  }
+
+  /// Signs the device in with the account the activation created and keeps
+  /// the credential for the next launch.
+  Future<void> _adoptPermanentAccount(
+    Map<String, dynamic> data,
+    String secret,
+  ) async {
+    final email = data['email'] as String?;
+    if (email == null || email.isEmpty) return;
+    try {
+      await _client.auth.signInWithPassword(email: email, password: secret);
+      await CredentialStore.save(StoredCredential(email: email, secret: secret));
+      debugPrint('[CRIMSON] auth: permanent session established for $email');
+    } catch (e) {
+      // The account was upgraded server-side; a local sign-in hiccup must
+      // not fail the enrollment. The next launch re-signs in.
+      debugPrint('[CRIMSON] auth: permanent sign-in failed: $e');
+    }
+  }
+
+  /// Signs in with the credential stored on this device, if there is one.
+  ///
+  /// Called at startup when no valid session could be restored — the user
+  /// closed the app for longer than the session lifetime.
+  Future<bool> signInWithStoredCredential() async {
+    final stored = await CredentialStore.read();
+    if (stored == null) return false;
+    try {
+      await _client.auth.signInWithPassword(
+        email: stored.email,
+        password: stored.secret,
+      );
+      debugPrint('[CRIMSON] auth: signed in with the stored credential');
+      return true;
+    } catch (e) {
+      debugPrint('[CRIMSON] auth: stored credential rejected: $e');
+      await CredentialStore.clear();
+      return false;
+    }
   }
 
   String _activationErrorMessage(String? code) {
@@ -128,11 +178,13 @@ class AuthService {
     required String staffIdNo,
   }) async {
     await ensureSession();
+    final secret = CredentialStore.generateSecret();
     final data = await _invoke('verify-otp', {
       'phone': phone.trim(),
       'otp': otp.trim(),
       'school_id': schoolId,
       'staff_id_no': staffIdNo.trim(),
+      'device_secret': secret,
     });
     if (data == null || data['success'] != true) {
       final err = data?['error']?.toString();
@@ -149,6 +201,7 @@ class AuthService {
           throw const AuthException('invalid_credentials', 'Verification failed. Request a new code and try again.');
       }
     }
+    await _adoptPermanentAccount(data, secret);
     NotificationService.registerToken();
   }
 
@@ -161,5 +214,6 @@ class AuthService {
       // Best effort — still sign out locally.
     }
     await _client.auth.signOut();
+    await CredentialStore.clear();
   }
 }

@@ -137,8 +137,23 @@ serve(async (req: Request) => {
       ip_address: ip,
     });
 
+    // Turn the anonymous session into a permanent account so the teacher's
+    // session survives past the anonymous-session lifetime.
+    let email: string | null = null;
+    const deviceSecret = typeof body.device_secret === "string" ? body.device_secret : "";
+    if (deviceSecret.length >= 16) {
+      email = await upgradeToPermanentAccount(
+        supabase,
+        user.id,
+        "t",
+        staff_id_no,
+        school_id,
+        deviceSecret,
+      );
+    }
+
     return new Response(
-      JSON.stringify({ success: true, teacher_id: activationResult.teacher_id }),
+      JSON.stringify({ success: true, teacher_id: activationResult.teacher_id, email }),
       { headers: { "Content-Type": "application/json" } }
     );
   } catch (err) {
@@ -146,6 +161,46 @@ serve(async (req: Request) => {
     return jsonError("server_error", 500);
   }
 });
+
+/**
+ * Gives the freshly activated account a permanent credential.
+ * The synthetic address is derived from the school code and the staff id.
+ */
+async function upgradeToPermanentAccount(
+  supabase: ReturnType<typeof createClient>,
+  userId: string,
+  prefix: "s" | "t",
+  rosterId: string,
+  schoolId: string,
+  secret: string,
+): Promise<string | null> {
+  try {
+    const { data: school } = await supabase
+      .from("schools")
+      .select("code")
+      .eq("id", schoolId)
+      .maybeSingle();
+    const schoolCode = String(school?.code ?? "school")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-");
+    const local = rosterId.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+    const email = `${prefix}-${local}@${schoolCode}.teachcross.app`;
+
+    const { error } = await supabase.auth.admin.updateUserById(userId, {
+      email,
+      password: secret,
+      email_confirm: true,
+    });
+    if (error) {
+      console.error("could not upgrade the account to a permanent one:", error.message);
+      return null;
+    }
+    return email;
+  } catch (e) {
+    console.error("upgradeToPermanentAccount failed:", e);
+    return null;
+  }
+}
 
 function jsonError(error: string, status: number) {
   return new Response(JSON.stringify({ success: false, error }), {

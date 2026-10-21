@@ -4,6 +4,7 @@
 // a student, teacher and leader can tell at a glance which surface they are in.
 import 'package:flutter/material.dart';
 
+import '../config/app_config.dart';
 import '../models/identity.dart';
 
 class AppColors {
@@ -103,6 +104,11 @@ class AppTheme {
       canvasColor: canvas,
       splashFactory: InkSparkle.splashFactory,
       visualDensity: VisualDensity.standard,
+      // The house typeface. "Times New Roman" ships with both Android and
+      // iOS, so no font asset has to be bundled; when the platform cannot
+      // resolve it the engine falls back to the system serif.
+      fontFamily: AppConfig.fontFamily,
+      fontFamilyFallback: AppConfig.fontFamilyFallback,
       textTheme: _textTheme(onSurface, muted),
 
       // Surfaces get a soft edge + shadow rather than a hard border.

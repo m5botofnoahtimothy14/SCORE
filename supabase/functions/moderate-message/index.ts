@@ -37,6 +37,51 @@ interface PolicyDecision {
   providerError?: string;
 }
 
+/**
+ * Map a policy action onto the `moderation_verdict` enum.
+ * DB enum: approved | warned | held | blocked | escalated
+ */
+function verdictFor(action: PolicyDecision["action"]): "approved" | "held" | "blocked" {
+  switch (action) {
+    case "approve": return "approved";
+    case "block": return "blocked";
+    default: return "held";
+  }
+}
+
+/** Map a policy action onto the `messages.status` enum. */
+function messageStatusFor(action: PolicyDecision["action"]): "approved" | "blocked" | "held_for_review" {
+  switch (action) {
+    case "approve": return "approved";
+    case "block": return "blocked";
+    default: return "held_for_review";
+  }
+}
+
+/**
+ * Normalise OpenAI moderation category keys to the names the policy engine
+ * uses. OpenAI returns e.g. "sexual/minors", "harassment/threatening",
+ * "self-harm" — the engine expects "sexual_minors", "harassment/threatening",
+ * "self_harm".
+ */
+function normaliseCategories(raw: Record<string, unknown>): CategoryScores {
+  const out: CategoryScores = {};
+  for (const [key, value] of Object.entries(raw ?? {})) {
+    const score = Number(value);
+    if (!Number.isFinite(score)) continue;
+    const name = key
+      .replace(/\//g, "_")
+      .replace(/-/g, "_")
+      .toLowerCase();
+    out[name] = score;
+  }
+  // OpenAI's "sexual/minors" maps to sexual_minors; keep the canonical alias.
+  if (out.sexual_minors === undefined && out.sexual_minor !== undefined) {
+    out.sexual_minors = out.sexual_minor;
+  }
+  return out;
+}
+
 // ── Policy engine (first-party, auditable) ──────────────────────
 function getCategory(categories: CategoryScores, name: string): number {
   return Number(categories[name]) || 0;
@@ -44,7 +89,6 @@ function getCategory(categories: CategoryScores, name: string): number {
 
 function decide(
   categories: CategoryScores,
-  text: string,
   audience: Audience,
   providerError?: string,
 ): PolicyDecision {
@@ -55,7 +99,7 @@ function decide(
   const sexualMinors = getCategory(categories, "sexual_minors");
   const hate = getCategory(categories, "hate");
   const harassment = getCategory(categories, "harassment");
-  const harassmentThreatening = getCategory(categories, "harassment/threatening");
+  const harassmentThreatening = getCategory(categories, "harassment_threatening");
   const violence = getCategory(categories, "violence");
   const selfHarm = getCategory(categories, "self_harm");
   const illicit = getCategory(categories, "illicit");
@@ -228,22 +272,21 @@ serve(async (req: Request) => {
     }
 
     // ── Policy decision ───────────────────────────────────────
-    const audience = await resolveConversationAudience(supabase, message.conversation_id, message.sender_id);
-    const decision = decide(categories, message.body || "", audience, providerError);
+    const audience = await resolveSenderAudience(supabase, message.conversation_id, message.sender_id);
+    const decision = decide(categories, audience, providerError);
 
-    const verdict = decision.action === "approved" ? "approved"
-      : decision.action === "blocked" ? "blocked"
-      : "held_for_review";
+    const verdict = verdictFor(decision.action);
+    const messageStatus = messageStatusFor(decision.action);
 
     // ── Persist scoring event (ML data pipeline) ──────────────
     const scoringEvent = {
       school_id,
       message_id,
       provider: decision.provider,
-      verdict: decision.action === "approved" ? "approved"
-        : decision.action === "blocked" ? "blocked"
-        : "held_for_review",
-      confidence: decision.score,
+      verdict,
+      // Confidence = how sure we are of the verdict. For an approval that
+      // is the inverse of the risk score; for a hold/block it is the score.
+      confidence: verdict === "approved" ? 1 - decision.score : decision.score,
       categories,
       provider_error: providerError,
       raw_response: {
@@ -259,32 +302,33 @@ serve(async (req: Request) => {
       },
     };
 
-    const { data: modResult } = await supabase
+    const { data: modResult, error: modErr } = await supabase
       .from("moderation_results")
       .insert(scoringEvent)
       .select("id")
       .single();
+    if (modErr) {
+      // The verdict must still be applied even if provenance could not be
+      // stored — but the review case would be unlinkable, so log loudly.
+      console.error("moderation_results insert failed:", modErr.message);
+    }
 
     // ── Update message status ─────────────────────────────────
-    const messageStatus = verdict === "approved" || verdict === "warned"
-      ? "approved"
-      : verdict === "blocked"
-      ? "blocked"
-      : "held_for_review";
-
-    await supabase
+    const { error: msgErr } = await supabase
       .from("messages")
       .update({ status: messageStatus })
       .eq("id", message_id);
+    if (msgErr) console.error("message status update failed:", msgErr.message);
 
     // ── Review queue ──────────────────────────────────────────
-    if (["held", "blocked", "escalated"].includes(verdict)) {
-      await supabase.from("moderation_review_cases").insert({
+    if (verdict !== "approved") {
+      const { error: caseErr } = await supabase.from("moderation_review_cases").insert({
         school_id,
-        moderation_result_id: modResult?.id,
-        status: verdict === "escalated" ? "escalated" : "pending",
+        moderation_result_id: modResult?.id ?? null,
+        status: "pending",
         reason_code: verdict,
       });
+      if (caseErr) console.error("moderation_review_cases insert failed:", caseErr.message);
     }
 
     // ── Dispatch notification for approved messages ─────────────
@@ -325,8 +369,8 @@ async function moderateWithOpenAI(text: string): Promise<{
     const result = data.results?.[0];
     if (!result) return { categories: {}, maxScore: 0, flagged: false, error: "No moderation result" };
 
-    const categories: Record<string, number> = result.category_scores ?? {};
-    const maxScore = Math.max(...Object.values(categories) as number[], 0);
+    const categories = normaliseCategories(result.category_scores ?? {});
+    const maxScore = Math.max(...Object.values(categories), 0);
 
     return { categories, maxScore, flagged: Boolean(result.flagged) };
   } catch (err) {
@@ -334,24 +378,43 @@ async function moderateWithOpenAI(text: string): Promise<{
   }
 }
 
-async function resolveConversationAudience(
+/**
+ * Resolve the audience tier of the SENDER so the policy engine can apply the
+ * right thresholds (students are held to stricter limits than staff).
+ *
+ * The conversation *type* is not an audience — "student_teacher" is a channel
+ * shape, not a role — so the tier is taken from the sender's school
+ * membership role, falling back to the conversation member role.
+ */
+async function resolveSenderAudience(
   supabase: ReturnType<typeof createClient>,
   conversationId: string | null,
   senderId: string,
 ): Promise<Audience> {
   try {
+    const { data: membership } = await supabase
+      .from("school_memberships")
+      .select("role")
+      .eq("user_id", senderId)
+      .eq("is_active", true)
+      .order("joined_at", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+
+    const role = membership?.role as Audience | undefined;
+    if (role && role !== "unknown") return role;
+
     if (!conversationId) return "unknown";
-    const [{ data: conversation }, { data: membership }] = await Promise.all([
-      supabase.from("conversations").select("type").eq("id", conversationId).maybeSingle(),
-      supabase
-        .from("conversation_members")
-        .select("role")
-        .eq("conversation_id", conversationId)
-        .eq("user_id", senderId)
-        .is("removed_at", null)
-        .maybeSingle(),
-    ]);
-    return ((conversation?.type as Audience) ?? "unknown") as Audience;
+    const { data: member } = await supabase
+      .from("conversation_members")
+      .select("role")
+      .eq("conversation_id", conversationId)
+      .eq("user_id", senderId)
+      .is("removed_at", null)
+      .maybeSingle();
+
+    const memberRole = member?.role as Audience | undefined;
+    return memberRole && memberRole !== "unknown" ? memberRole : "unknown";
   } catch {
     return "unknown";
   }

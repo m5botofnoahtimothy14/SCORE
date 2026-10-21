@@ -54,13 +54,20 @@ export async function POST(req: Request) {
   )
   if (error) return NextResponse.json({ success: false, error: 'issue_failed' }, { status: 500 })
 
-  await logAudit(admin, user.id, {
-    schoolId: (student as { school_id: string }).school_id,
-    action: 'enrollment.code.issued',
-    targetType: 'student',
-    targetId: studentId,
-    outcome: 'success',
-  })
+  // The code is already valid at this point. An audit failure must not turn
+  // a working code into a client-visible error, so it is reported but not
+  // fatal.
+  try {
+    await logAudit(admin, user.id, {
+      schoolId: (student as { school_id: string }).school_id,
+      action: 'enrollment.code.issued',
+      targetType: 'student',
+      targetId: studentId,
+      outcome: 'success',
+    })
+  } catch (e) {
+    console.error('audit write failed for enrollment.code.issued:', e)
+  }
 
   return NextResponse.json({ success: true, code, expires_at: expiresAt })
 }

@@ -192,7 +192,10 @@ void main() {
       }
 
       await scrollTo(tester, find.byType(DeveloperSignature));
-      expect(find.text(AppConfig.signatureLine), findsWidgets);
+      // The lockup is stacked: CRIMSON above the cross, the name below it.
+      expect(find.text(AppConfig.signatureTop), findsWidgets);
+      expect(find.text(AppConfig.signatureCross), findsWidgets);
+      expect(find.text(AppConfig.signatureName), findsWidgets);
     });
 
     testWidgets('consent starts unticked and accept is disabled', (tester) async {
@@ -269,7 +272,9 @@ void main() {
         (tester) async {
       await tester.pumpWidget(_app(const DeveloperSignature()));
 
-      expect(find.text('CRIMSON X NOAH TIMOTHY KEBA'), findsOneWidget);
+      expect(find.text(AppConfig.signatureTop), findsOneWidget);
+      expect(find.text(AppConfig.signatureCross), findsOneWidget);
+      expect(find.text(AppConfig.signatureName), findsOneWidget);
       expect(find.text('Developed by Noah Timothy Keba Joseph'), findsOneWidget);
       expect(find.text('support@teachcross.app'), findsOneWidget);
       expect(find.text('+91 90000 00000'), findsOneWidget);

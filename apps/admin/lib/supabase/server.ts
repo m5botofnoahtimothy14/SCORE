@@ -37,3 +37,65 @@ export function createServiceClient() {
     { auth: { persistSession: false } }
   )
 }
+
+/**
+ * Every service credential this deployment knows about.
+ *
+ * Supabase issues two shapes of service credential: the legacy
+ * `role=service_role` JWT and the newer `sb_secret_…` key. Edge functions
+ * are configured with one of them, so server-side calls try each in turn
+ * rather than assuming a single format.
+ */
+export function serviceCredentials(): string[] {
+  return [
+    process.env.SUPABASE_SERVICE_ROLE_KEY,
+    process.env.SUPABASE_SECRET_KEY_API,
+  ].filter((v): v is string => Boolean(v && v.length > 0))
+}
+
+/**
+ * Invoke an edge function as the platform service account.
+ * Tries each known service credential until one is accepted.
+ */
+export async function invokeAsService(
+  fn: string,
+  body: Record<string, unknown>,
+): Promise<{ data: unknown; error: Error | null }> {
+  const url = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/${fn}`
+  const payload = JSON.stringify(body)
+
+  let lastError: Error | null = null
+  for (const credential of serviceCredentials()) {
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          apikey: credential,
+          Authorization: `Bearer ${credential}`,
+        },
+        body: payload,
+        cache: 'no-store',
+      })
+      const text = await res.text()
+      let parsed: unknown = null
+      try {
+        parsed = text ? JSON.parse(text) : null
+      } catch {
+        parsed = { raw: text }
+      }
+      if (res.ok) return { data: parsed, error: null }
+      lastError = new Error(
+        (parsed as { error?: string; detail?: string })?.detail ??
+          (parsed as { error?: string })?.error ??
+          `Edge function ${fn} returned ${res.status}`,
+      )
+    } catch (e) {
+      lastError = e instanceof Error ? e : new Error(String(e))
+    }
+  }
+  return {
+    data: null,
+    error: lastError ?? new Error(`Edge function ${fn} could not be reached.`),
+  }
+}

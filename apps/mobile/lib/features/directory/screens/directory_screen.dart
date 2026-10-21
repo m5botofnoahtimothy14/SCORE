@@ -113,31 +113,75 @@ class _DirectoryScreenState extends ConsumerState<DirectoryScreen> {
                                 final id = t['id'] as String?;
                                 final opening = id != null && _openingTeacherId == id;
                                 return Card(
-                                  child: ListTile(
-                                    leading: CircleAvatar(
-                                      backgroundColor: const Color(0xFFEBF5FF),
-                                      child: Text(
-                                        _initialOf(t['first_name']),
-                                        style: const TextStyle(
-                                            color: Color(0xFF1A56DB), fontWeight: FontWeight.bold),
-                                      ),
-                                    ),
-                                    title: Text('${t['first_name']} ${t['last_name']}',
-                                        style: const TextStyle(fontWeight: FontWeight.w600)),
-                                    subtitle: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      mainAxisSize: MainAxisSize.min,
+                                  margin: const EdgeInsets.only(bottom: 10),
+                                  child: Padding(
+                                    padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+                                    child: Row(
+                                      crossAxisAlignment: CrossAxisAlignment.center,
                                       children: [
-                                        PresenceDot(lastSeen: _lastSeenOf(t)),
-                                        if (t['is_leadership'] == true)
-                                          Text(
-                                            'School leadership',
-                                            style: Theme.of(context).textTheme.bodySmall,
+                                        CircleAvatar(
+                                          backgroundColor: const Color(0xFFEBF5FF),
+                                          child: Text(
+                                            _initialOf(t['first_name']),
+                                            style: const TextStyle(
+                                                color: Color(0xFF1A56DB), fontWeight: FontWeight.bold),
                                           ),
-                                      ],
-                                    ),
-                                    trailing: isStudent
-                                        ? OutlinedButton(
+                                        ),
+                                        const SizedBox(width: 12),
+                                        // The name and the presence line share
+                                        // one flexible column, so the text always
+                                        // wraps horizontally inside the space the
+                                        // row leaves for it — never one letter
+                                        // per line.
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Text(
+                                                '${t['first_name'] ?? ''} ${t['last_name'] ?? ''}'.trim(),
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: const TextStyle(
+                                                    fontWeight: FontWeight.w600, fontSize: 15),
+                                              ),
+                                              const SizedBox(height: 4),
+                                              Row(
+                                                children: [
+                                                  Flexible(
+                                                    child: PresenceDot(
+                                                      lastSeen: _lastSeenOf(t),
+                                                      labelStyle: TextStyle(
+                                                        fontSize: 12.5,
+                                                        fontWeight: FontWeight.w600,
+                                                        color: Theme.of(context)
+                                                            .colorScheme
+                                                            .onSurface
+                                                            .withValues(alpha: 0.75),
+                                                      ),
+                                                    ),
+                                                  ),
+                                                  if (t['is_leadership'] == true) ...[
+                                                    const SizedBox(width: 8),
+                                                    Flexible(
+                                                      child: Text(
+                                                        'School leadership',
+                                                        maxLines: 1,
+                                                        overflow: TextOverflow.ellipsis,
+                                                        style: Theme.of(context)
+                                                            .textTheme
+                                                            .bodySmall,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ],
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        if (isStudent) ...[
+                                          const SizedBox(width: 8),
+                                          OutlinedButton(
                                             onPressed: opening || id == null
                                                 ? null
                                                 : () => _openDirectChat(t),
@@ -148,8 +192,10 @@ class _DirectoryScreenState extends ConsumerState<DirectoryScreen> {
                                                     child: CircularProgressIndicator(strokeWidth: 2),
                                                   )
                                                 : const Text('Message'),
-                                          )
-                                        : null,
+                                          ),
+                                        ],
+                                      ],
+                                    ),
                                   ),
                                 );
                               },

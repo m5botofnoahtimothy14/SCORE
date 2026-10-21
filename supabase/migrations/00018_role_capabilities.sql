@@ -121,6 +121,7 @@ CREATE TABLE IF NOT EXISTS public.staff_add_requests (
 ALTER TABLE public.staff_add_requests ENABLE ROW LEVEL SECURITY;
 
 -- Leadership may raise and track requests; only admins may decide.
+DROP POLICY IF EXISTS staff_requests_read ON public.staff_add_requests;
 CREATE POLICY staff_requests_read ON public.staff_add_requests FOR SELECT
   USING (
     requested_by = auth.uid()
@@ -129,6 +130,7 @@ CREATE POLICY staff_requests_read ON public.staff_add_requests FOR SELECT
     OR public.tc_is_school_admin(school_id)
   );
 
+DROP POLICY IF EXISTS staff_requests_create ON public.staff_add_requests;
 CREATE POLICY staff_requests_create ON public.staff_add_requests FOR INSERT
   WITH CHECK (
     requested_by = auth.uid()
@@ -244,20 +246,24 @@ CREATE TABLE IF NOT EXISTS public.conversation_scores (
 
 ALTER TABLE public.conversation_scores ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS conversation_scores_admin_read ON public.conversation_scores;
 CREATE POLICY conversation_scores_admin_read ON public.conversation_scores FOR SELECT
   USING (public.tc_is_platform_owner() OR public.tc_is_school_admin(school_id));
 
 -- Leadership read access mirroring admin scope.
+DROP POLICY IF EXISTS conversation_scores_leadership_read ON public.conversation_scores;
 CREATE POLICY conversation_scores_leadership_read ON public.conversation_scores FOR SELECT
   USING (public.tc_has_school_role(school_id, 'head_teacher'));
 
 -- A participant can read the score for their own conversation.
+DROP POLICY IF EXISTS conversation_scores_member_read ON public.conversation_scores;
 CREATE POLICY conversation_scores_member_read ON public.conversation_scores FOR SELECT
   USING (public.tc_is_conversation_member(conversation_id));
 
 -- ------------------------------------------------------------
 -- 6. Leadership needs to see staff activity + school files.
 -- ------------------------------------------------------------
+DROP POLICY IF EXISTS teachers_leadership_update ON public.teachers;
 CREATE POLICY teachers_leadership_update ON public.teachers FOR UPDATE
   USING (
     public.tc_is_platform_owner()
@@ -266,6 +272,7 @@ CREATE POLICY teachers_leadership_update ON public.teachers FOR UPDATE
   );
 
 -- students read own attachment metadata
+DROP POLICY IF EXISTS attachments_own_list ON public.attachments;
 CREATE POLICY attachments_own_list ON public.attachments FOR SELECT
   USING (uploader_id = auth.uid());
 

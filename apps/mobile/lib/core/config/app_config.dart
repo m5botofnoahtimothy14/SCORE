@@ -27,6 +27,16 @@ class AppConfig {
 
   // Edge function base URL
   static String get edgeFunctionsUrl => '$supabaseUrl/functions/v1';
+
+  // House typeface. Times New Roman ships with Android and iOS, so it needs
+  // no bundled font asset. The fallbacks cover devices that only expose the
+  // generic serif family.
+  static const String fontFamily = 'Times New Roman';
+  static const List<String> fontFamilyFallback = <String>[
+    'Times New Roman',
+    'Times',
+    'serif',
+  ];
   
   // Rate limit configuration
   static const int maxLoginAttempts = 5;
@@ -43,7 +53,17 @@ class AppConfig {
   static const String developerName = 'Noah Timothy Keba Joseph';
 
   /// The collaboration lockup shown on the splash and in the signature block.
-  static const String signatureLine = 'CRIMSON X NOAH TIMOTHY KEBA';
+  ///
+  /// It is set as three parts because the splash stacks them — CRIMSON above
+  /// the cross, the name below it — so the name can be sized to fit the
+  /// narrowest phone without wrapping.
+  static const String signatureTop = 'CRIMSON';
+  static const String signatureCross = 'X';
+  static const String signatureName = 'NOAH TIMOTHY KEBA';
+
+  /// The lockup as one line, for semantics and for the signature block.
+  static const String signatureLine =
+      '$signatureTop $signatureCross $signatureName';
 
   // Support placeholders — replace with the live desk before shipping.
   static const String supportEmail = 'support@teachcross.app';

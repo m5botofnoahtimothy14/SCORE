@@ -70,3 +70,6 @@ verify_jwt = false
 
 [functions.publish-announcement]
 verify_jwt = false
+
+[functions.score-moderation]
+verify_jwt = false

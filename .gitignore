@@ -1,0 +1,38 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build output
+.next/
+out/
+build/
+dist/
+*.tsbuildinfo
+
+# Supabase CLI scratch (project link state, caches)
+supabase/.temp/
+
+# Local environment — never commit real keys
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Signing material — never commit
+*.p12
+*.jks
+*.keystore
+key.properties
+
+# Firebase Admin SDK keys — never commit
+**/*firebase-adminsdk*.json
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
+*.log
+
+# Screenshots captured during manual QA
+app_screen.png
+phone_screen*.png

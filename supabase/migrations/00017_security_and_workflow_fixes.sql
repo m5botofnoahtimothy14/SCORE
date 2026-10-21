@@ -64,9 +64,11 @@ $$;
 GRANT EXECUTE ON FUNCTION public.mark_conversation_read(uuid) TO authenticated;
 
 -- message_receipts: owner may read their own receipts; school admins manage all.
+DROP POLICY IF EXISTS receipts_own_read ON message_receipts;
 CREATE POLICY receipts_own_read ON message_receipts FOR SELECT
   USING (user_id = auth.uid());
 
+DROP POLICY IF EXISTS receipts_admin ON message_receipts;
 CREATE POLICY receipts_admin ON message_receipts FOR ALL
   USING (
     EXISTS (
@@ -83,6 +85,7 @@ CREATE POLICY receipts_admin ON message_receipts FOR ALL
 -- ------------------------------------------------------------
 DROP POLICY IF EXISTS attachments_insert ON attachments;
 
+DROP POLICY IF EXISTS attachments_insert ON attachments;
 CREATE POLICY attachments_insert ON attachments FOR INSERT
   WITH CHECK (
     uploader_id = auth.uid()
@@ -91,6 +94,7 @@ CREATE POLICY attachments_insert ON attachments FOR INSERT
   );
 
 -- Owner may still update their own (not-yet-approved) attachment row.
+DROP POLICY IF EXISTS attachments_owner_update ON attachments;
 CREATE POLICY attachments_owner_update ON attachments FOR UPDATE
   USING (uploader_id = auth.uid() AND status IN ('uploading', 'pending_scan'))
   WITH CHECK (uploader_id = auth.uid() AND status IN ('uploading', 'pending_scan'));
@@ -99,6 +103,7 @@ CREATE POLICY attachments_owner_update ON attachments FOR UPDATE
 -- 5. schools UPDATE was platform-owner only, so a school admin
 --    could never edit their own school profile from the DMS.
 -- ------------------------------------------------------------
+DROP POLICY IF EXISTS schools_admin_update ON schools;
 CREATE POLICY schools_admin_update ON schools FOR UPDATE
   USING (public.tc_is_school_admin(id))
   WITH CHECK (public.tc_is_school_admin(id));
@@ -107,9 +112,11 @@ CREATE POLICY schools_admin_update ON schools FOR UPDATE
 -- 6. data_retention_policies had RLS enabled with no read policy,
 --    so the Settings page could never load retention config.
 -- ------------------------------------------------------------
+DROP POLICY IF EXISTS retention_admin_read ON data_retention_policies;
 CREATE POLICY retention_admin_read ON data_retention_policies FOR SELECT
   USING (public.tc_is_school_admin(school_id));
 
+DROP POLICY IF EXISTS retention_admin_write ON data_retention_policies;
 CREATE POLICY retention_admin_write ON data_retention_policies FOR ALL
   USING (public.tc_is_school_admin(school_id));
 
@@ -117,9 +124,11 @@ CREATE POLICY retention_admin_write ON data_retention_policies FOR ALL
 -- 7. support_questions: teachers (conversation members) could read
 --    but never update status; support_question_history had no INSERT.
 -- ------------------------------------------------------------
+DROP POLICY IF EXISTS support_questions_teacher_update ON support_questions;
 CREATE POLICY support_questions_teacher_update ON support_questions FOR UPDATE
   USING (public.tc_is_conversation_member(conversation_id));
 
+DROP POLICY IF EXISTS support_q_history_insert ON support_question_history;
 CREATE POLICY support_q_history_insert ON support_question_history FOR INSERT
   WITH CHECK (
     changed_by = auth.uid()
@@ -135,6 +144,7 @@ CREATE POLICY support_q_history_insert ON support_question_history FOR INSERT
 --    should see all teachers; students should be able to see school
 --    leadership so they can start a conversation with them.
 -- ------------------------------------------------------------
+DROP POLICY IF EXISTS teachers_leadership ON teachers;
 CREATE POLICY teachers_leadership ON teachers FOR SELECT
   USING (
     school_id = ANY(public.tc_user_school_ids())
@@ -147,6 +157,7 @@ CREATE POLICY teachers_leadership ON teachers FOR SELECT
     )
   );
 
+DROP POLICY IF EXISTS teachers_student_leadership ON teachers;
 CREATE POLICY teachers_student_leadership ON teachers FOR SELECT
   USING (
     is_leadership = TRUE

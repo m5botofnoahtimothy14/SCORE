@@ -80,7 +80,9 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
             'user_id': user.id,
             'school_id': (membership as Map)['school_id'],
             'fcm_token': token,
-            'platform': 'android',
+            // Must match the platform the token was issued for — a device
+            // registered as "android" would never receive an iOS push.
+            'platform': NotificationService.devicePlatform,
             'is_active': true,
             'last_seen_at': DateTime.now().toIso8601String(),
           }, onConflict: 'fcm_token');

@@ -15,6 +15,7 @@
 -- own school, and only as themselves (actor_id must be the caller).
 -- tc_is_school_admin() implicitly allows platform_owner for every school.
 DROP POLICY IF EXISTS audit_events_insert ON audit_events;
+DROP POLICY IF EXISTS audit_events_insert ON audit_events;
 CREATE POLICY audit_events_insert ON audit_events FOR INSERT
   WITH CHECK (
     actor_id = auth.uid()
@@ -22,6 +23,7 @@ CREATE POLICY audit_events_insert ON audit_events FOR INSERT
   );
 
 -- SCHOOL_SETTINGS - admins of the school may create the settings row.
+DROP POLICY IF EXISTS school_settings_insert ON school_settings;
 DROP POLICY IF EXISTS school_settings_insert ON school_settings;
 CREATE POLICY school_settings_insert ON school_settings FOR INSERT
   WITH CHECK (public.tc_is_school_admin(school_id));

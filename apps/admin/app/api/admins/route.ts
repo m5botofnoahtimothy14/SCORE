@@ -30,17 +30,35 @@ export async function GET() {
   if ('error' in gate) return gate.error
 
   const admin = createServiceClient()
-  const [{ data: memberships, error }, { data: usersPage }] = await Promise.all([
-    admin
-      .from('school_memberships')
-      .select('id, role, is_active, user_id, school_id, user_profiles(display_name), schools(name, code)')
-      .in('role', ADMIN_ROLES)
-      .order('joined_at', { ascending: false }),
-    admin.auth.admin.listUsers({ page: 1, perPage: 1000 }),
-  ])
+  const { data: memberships, error } = await admin
+    .from('school_memberships')
+    .select('id, role, is_active, user_id, school_id, user_profiles(display_name), schools(name, code)')
+    .in('role', ADMIN_ROLES)
+    .order('joined_at', { ascending: false })
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  const emailById = new Map((usersPage?.users ?? []).map((u) => [u.id, u.email ?? '']))
+  // Map user ids to emails. If the auth listing fails the rows are still
+  // returned — the failure is reported instead of silently blanking emails.
+  const emailById = new Map<string, string>()
+  let emailLookupFailed = false
+  try {
+    let page = 1
+    for (;;) {
+      const { data: usersPage, error: usersErr } = await admin.auth.admin.listUsers({
+        page,
+        perPage: 1000,
+      })
+      if (usersErr) throw new Error(usersErr.message)
+      for (const u of usersPage?.users ?? []) emailById.set(u.id, u.email ?? '')
+      const total = usersPage?.total ?? 0
+      if ((usersPage?.users?.length ?? 0) === 0 || page * 1000 >= total) break
+      page += 1
+    }
+  } catch (e) {
+    emailLookupFailed = true
+    console.error('admin listUsers failed:', e)
+  }
+
   const list = (memberships ?? []).map((m) => {
     const profile = m.user_profiles as unknown as { display_name: string } | { display_name: string }[] | null
     const school = m.schools as unknown as { name: string; code: string } | { name: string; code: string }[] | null
@@ -58,7 +76,7 @@ export async function GET() {
       email: emailById.get(m.user_id as string) ?? '',
     }
   })
-  return NextResponse.json({ admins: list })
+  return NextResponse.json({ admins: list, email_lookup_failed: emailLookupFailed })
 }
 
 // POST /api/admins — create a school Admin (auth user + profile + membership).
@@ -101,24 +119,38 @@ export async function POST(request: Request) {
   }
   const userId = created.user.id
 
+  // From here on a failure must not leave an orphaned auth user behind —
+  // the address would be taken with no admin provisioned.
   const { error: profileErr } = await admin
     .from('user_profiles')
     .upsert({ id: userId, display_name: displayName || email.split('@')[0], is_active: true }, { onConflict: 'id' })
-  if (profileErr) return NextResponse.json({ error: profileErr.message }, { status: 500 })
+  if (profileErr) {
+    await admin.auth.admin.deleteUser(userId).catch(() => undefined)
+    return NextResponse.json({ error: profileErr.message }, { status: 500 })
+  }
 
   const { error: memberErr } = await admin
     .from('school_memberships')
     .insert({ user_id: userId, school_id: schoolId, role, is_active: true })
-  if (memberErr) return NextResponse.json({ error: memberErr.message }, { status: 500 })
+  if (memberErr) {
+    // Roll back the profile and the auth user so the admin can be retried.
+    await admin.from('user_profiles').delete().eq('id', userId)
+    await admin.auth.admin.deleteUser(userId).catch(() => undefined)
+    return NextResponse.json({ error: memberErr.message }, { status: 500 })
+  }
 
-  await logAudit(admin, actor.id, {
-    schoolId,
-    action: 'admin.create',
-    targetType: 'user',
-    targetId: userId,
-    outcome: 'success',
-    metadata: { email, role, school: school.name },
-  })
+  try {
+    await logAudit(admin, actor.id, {
+      schoolId,
+      action: 'admin.create',
+      targetType: 'user',
+      targetId: userId,
+      outcome: 'success',
+      metadata: { email, role, school: school.name },
+    })
+  } catch (e) {
+    console.error('audit write failed for admin.create:', e)
+  }
 
   return NextResponse.json({ success: true, user_id: userId })
 }
@@ -148,13 +180,36 @@ export async function PATCH(request: Request) {
   const { error } = await admin.from('school_memberships').update({ is_active: isActive }).eq('id', id)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  await logAudit(admin, actor.id, {
-    schoolId: target.school_id as string,
-    action: isActive ? 'admin.reactivate' : 'admin.deactivate',
-    targetType: 'user',
-    targetId: target.user_id as string,
-    outcome: 'success',
-  })
+  // Suspending an admin must also lock them out of Supabase Auth, otherwise
+  // the account stays live (the membership check would reject them, but the
+  // credential would still be valid).
+  if (!isActive) {
+    try {
+      await admin.auth.admin.updateUserById(target.user_id as string, {
+        ban_duration: '876000h',
+      })
+    } catch (e) {
+      console.error('failed to ban auth user:', e)
+    }
+  } else {
+    try {
+      await admin.auth.admin.updateUserById(target.user_id as string, { ban_duration: 'none' })
+    } catch (e) {
+      console.error('failed to unban auth user:', e)
+    }
+  }
+
+  try {
+    await logAudit(admin, actor.id, {
+      schoolId: target.school_id as string,
+      action: isActive ? 'admin.reactivate' : 'admin.deactivate',
+      targetType: 'user',
+      targetId: target.user_id as string,
+      outcome: 'success',
+    })
+  } catch (e) {
+    console.error('audit write failed for admin.deactivate:', e)
+  }
 
   return NextResponse.json({ success: true, is_active: isActive })
 }
