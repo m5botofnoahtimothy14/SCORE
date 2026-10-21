@@ -18,6 +18,12 @@ const TEXTBEE_BASE_URL = Deno.env.get("TEXTBEE_BASE_URL") ?? "https://api.textbe
 // SMS delivery is skipped. MUST be unset (or empty) in production.
 const DEMO_OTP = Deno.env.get("DEMO_OTP");
 
+// Narrower demo mode: a FIXED code for ONE nominated staff id, used for
+// the investor demo account. The global DEMO_OTP stays unset in
+// production, so every real teacher still gets a real SMS.
+const DEMO_OTP_STAFF_ID = Deno.env.get("DEMO_OTP_STAFF_ID");
+const DEMO_OTP_VALUE = Deno.env.get("DEMO_OTP_VALUE");
+
 const OTP_LENGTH = 6;
 const OTP_EXPIRY_MINUTES = 10;
 const RATE_LIMIT_MAX_OTP = 3; // max OTPs per phone per hour
@@ -79,7 +85,15 @@ serve(async (req: Request) => {
     }
 
     // Generate OTP (fixed value in demo mode)
-    const otp = DEMO_OTP ? DEMO_OTP : generateOtp(OTP_LENGTH);
+    const isDemoStaff =
+      Boolean(DEMO_OTP_STAFF_ID) &&
+      Boolean(DEMO_OTP_VALUE) &&
+      staff_id_no.trim().toUpperCase() === DEMO_OTP_STAFF_ID!.trim().toUpperCase();
+    const otp = DEMO_OTP
+      ? DEMO_OTP
+      : isDemoStaff
+      ? DEMO_OTP_VALUE!
+      : generateOtp(OTP_LENGTH);
     const otpHash = await hashOtp(otp);
     const expiresAt = new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000).toISOString();
 
@@ -98,7 +112,9 @@ serve(async (req: Request) => {
     await supabase.from("rate_limit_events").insert({ key: rateKey, action: "send_otp" });
 
     // Send OTP via configured provider (skipped in demo mode)
-    const sent = DEMO_OTP ? true : await sendOtp(phone, otp);
+    const sent = (DEMO_OTP || isDemoStaff)
+      ? true
+      : await sendOtp(phone, otp);
 
     if (!sent) {
       // If SMS fails, we cannot claim OTP was sent
@@ -115,7 +131,11 @@ serve(async (req: Request) => {
     });
 
     return new Response(
-      JSON.stringify({ success: true, expires_in_minutes: OTP_EXPIRY_MINUTES, demo: DEMO_OTP ? true : undefined }),
+      JSON.stringify({
+        success: true,
+        expires_in_minutes: OTP_EXPIRY_MINUTES,
+        demo: DEMO_OTP || isDemoStaff ? true : undefined,
+      }),
       { headers: { "Content-Type": "application/json" } }
     );
   } catch (err) {

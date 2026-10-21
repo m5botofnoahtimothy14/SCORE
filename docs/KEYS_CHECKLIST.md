@@ -24,6 +24,9 @@ FCM_PROJECT_ID=...                   # push dispatch (Firebase project id)
 FCM_CLIENT_EMAIL=...                 # service-account email (FCM HTTP v1)
 FCM_PRIVATE_KEY=...                  # service-account private key (PEM)
 DEMO_OTP=123456                      # DEV ONLY — skips real SMS. UNSET for production.
+DEMO_OTP_STAFF_ID=T900               # OPTIONAL — one demo teacher account.
+DEMO_OTP_VALUE=482913                #   Its fixed code; SMS is skipped for it.
+GOOGLE_CLOUD_VISION_API_KEY=...       # OPTIONAL — Vision SafeSearch image classifier.
 ```
 > Moderation and dispatch are triggered by Postgres (`supabase/migrations/00015`)
 > via `pg_net`; the shared secret must also be stored in Supabase Vault as
@@ -102,8 +105,24 @@ SUPABASE_ANON_KEY=...                # anon key only — never service_role
 | Supabase URL/anon/service_role | yes | yes | n/a (core) |
 | Firebase app + FCM | optional | yes (push) | push disabled, truthful status |
 | OpenAI | optional | yes (text + image mod) | held / quarantined |
+| Google Cloud Vision | optional | yes (image mod) | falls back to OpenAI omni |
 | APILayer (image fallback) | optional | optional | quarantined |
 | TextBee | optional | yes (teacher OTP) | explicit error (or DEMO_OTP) |
+
+## Demo accounts (investor walkthrough)
+
+Both live in `Demo Public School`. The student code is issued from the DMS
+(Students -> Issue code) and is valid for seven days; the teacher code is
+fixed for the demo teacher only, so no SMS is needed on stage.
+
+| Role | School | Identifier | Secret |
+|---|---|---|---|
+| Student | Demo Public School | `S1001` | activation code from the DMS |
+| Teacher | Demo Public School | `T900` | OTP `482913` (demo teacher only) |
+
+The teacher code is set through `DEMO_OTP_STAFF_ID` / `DEMO_OTP_VALUE`.
+It applies to that ONE staff id: every other teacher still receives a real
+SMS, and the global `DEMO_OTP` stays unset in production.
 
 Until keys arrive, the app and DMS run in degraded-but-honest modes and
 `/dashboard/health` shows exactly what is configured.

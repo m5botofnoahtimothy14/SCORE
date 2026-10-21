@@ -436,7 +436,20 @@ class AppShell extends ConsumerWidget {
     }
 
     return Scaffold(
-      body: child,
+      body: MediaQuery(
+        // The shell's own Scaffold consumes the bottom inset for its body, so
+        // a nested screen cannot tell that the navigation bar is there — and
+        // the last item of a long list ends up under it (the "Sign out"
+        // button was sitting half-hidden behind the bar). Restoring the
+        // inset, plus the height of the bar itself, lets every screen scroll
+        // its last row clear.
+        data: MediaQuery.of(context).copyWith(
+          padding: MediaQuery.of(context).padding.copyWith(
+            bottom: MediaQuery.of(context).padding.bottom + 88,
+          ),
+        ),
+        child: child,
+      ),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
           border: Border(
