@@ -3,24 +3,39 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../../conversations/services/chat_service.dart';
-import '../../../core/models/models.dart';
+import '../../../core/layout/responsive.dart';
+import '../../../core/models/identity.dart';
+import '../../../core/providers/identity_provider.dart';
+import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/states.dart';
 
-final _chatProvider = Provider<ChatService>(
-  (ref) => ChatService(Supabase.instance.client),
-);
-
-/// Search within the user's own authorized conversations and notices.
+/// Search across the user's own Mentor Desk doubts and sessions.
 /// Never queries outside RLS-visible rows.
 class SearchScreen extends ConsumerStatefulWidget {
   const SearchScreen({super.key});
+
   @override
   ConsumerState<SearchScreen> createState() => _SearchScreenState();
 }
 
+class _SearchResult {
+  final String type; // 'doubt' | 'session'
+  final String id;
+  final String title;
+  final String subtitle;
+  final String route;
+  const _SearchResult({
+    required this.type,
+    required this.id,
+    required this.title,
+    required this.subtitle,
+    required this.route,
+  });
+}
+
 class _SearchScreenState extends ConsumerState<SearchScreen> {
   final _query = TextEditingController();
-  List<MessageRecord> _results = [];
+  List<_SearchResult> _results = [];
   bool _searching = false;
   String? _error;
   bool _searched = false;
@@ -39,7 +54,50 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       _error = null;
     });
     try {
-      final results = await ref.read(_chatProvider).searchMessages(q);
+      final identity = await ref.read(identityProvider.future);
+      final client = Supabase.instance.client;
+      final me = identity.userId;
+
+      final List<_SearchResult> results = [];
+
+      // Search doubts.
+      final doubtRows = await client
+          .from('doubt_requests')
+          .select('id, question, status, created_at')
+          .eq('student_id', me)
+          .ilike('question', '%$q%')
+          .order('created_at', ascending: false);
+      for (final r in (doubtRows as List)) {
+        final m = Map<String, dynamic>.from(r as Map);
+        results.add(_SearchResult(
+          type: 'doubt',
+          id: m['id'] as String,
+          title: (m['question'] as String?) ?? 'Doubt',
+          subtitle: 'Doubt · ${(m['status'] as String?) ?? ''}',
+          route: '/mentor-desk/doubt/${m['id']}',
+        ));
+      }
+
+      // Search sessions.
+      final sessionRows = await client
+          .from('session_bookings')
+          .select('id, topic, status, created_at')
+          .eq('student_id', me)
+          .ilike('topic', '%$q%')
+          .order('created_at', ascending: false);
+      for (final r in (sessionRows as List)) {
+        final m = Map<String, dynamic>.from(r as Map);
+        results.add(_SearchResult(
+          type: 'session',
+          id: m['id'] as String,
+          title: (m['topic'] as String?) ?? 'Session',
+          subtitle: 'Session · ${(m['status'] as String?) ?? ''}',
+          route: '/mentor-desk/session/${m['id']}',
+        ));
+      }
+
+      results.sort((a, b) => a.title.compareTo(b.title));
+
       if (!mounted) return;
       setState(() {
         _results = results;
@@ -75,7 +133,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                   child: TextField(
                     controller: _query,
                     decoration: const InputDecoration(
-                      hintText: 'Search your messages...',
+                      hintText: 'Search your doubts & sessions...',
                       prefixIcon: Icon(Icons.search),
                     ),
                     onSubmitted: (_) => _run(),
@@ -92,12 +150,12 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                 ? Center(child: Text(_error!, style: const TextStyle(color: Color(0xFF6B7280))))
                 : !_searched
                     ? const Center(
-                        child: Text('Search across your conversations.',
+                        child: Text('Search across your doubts and sessions.',
                             style: TextStyle(color: Color(0xFF9CA3AF))),
                       )
                     : _results.isEmpty
                         ? const Center(
-                            child: Text('No messages found.',
+                            child: Text('No matches found.',
                                 style: TextStyle(color: Color(0xFF9CA3AF))),
                           )
                         : ListView.builder(
@@ -106,13 +164,12 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                               final m = _results[i];
                               return Card(
                                 margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                                child: ListTile(
-                                  title: Text(m.body ?? '(attachment)',
-                                      maxLines: 2, overflow: TextOverflow.ellipsis),
-                                  subtitle: Text(m.createdAt.toLocal().toString().split('.').first,
+                    child: ListTile(
+                                  title: Text(m.title, maxLines: 2, overflow: TextOverflow.ellipsis),
+                                  subtitle: Text(m.subtitle,
                                       style: const TextStyle(fontSize: 12)),
                                   trailing: const Icon(Icons.chevron_right),
-                                  onTap: () => context.go('/conversations/${m.conversationId}'),
+                                  onTap: () => context.go(m.route),
                                 ),
                               );
                             },

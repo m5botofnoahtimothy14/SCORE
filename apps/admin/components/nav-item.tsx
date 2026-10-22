@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation'
 import {
   Activity, Bell, BookOpen, ClipboardList, GraduationCap, LayoutDashboard,
   Megaphone, School, Settings, ShieldAlert, ShieldCheck, Sigma, TicketIcon,
-  UserCog, Users, type LucideIcon,
+  UserCog, Users, HelpCircle, Clock, Percent, AlertCircle, type LucideIcon,
 } from 'lucide-react'
 
 /**
@@ -32,6 +32,10 @@ const NAV_ICONS: Record<string, LucideIcon> = {
   TicketIcon,
   UserCog,
   Users,
+  HelpCircle,
+  Clock,
+  Percent,
+  AlertCircle,
 }
 
 export interface NavEntry {

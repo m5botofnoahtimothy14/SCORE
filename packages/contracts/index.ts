@@ -17,6 +17,14 @@ export type IncidentSeverity = 'low' | 'medium' | 'high' | 'critical';
 export type IncidentStatus = 'open' | 'investigating' | 'escalated_external' | 'resolved' | 'closed';
 export type QuestionStatus = 'open' | 'in_progress' | 'answered' | 'resolved';
 export type InvestigationStatus = 'requested' | 'approved' | 'active' | 'expired' | 'revoked' | 'closed';
+export type DoubtStatus = 'waiting' | 'assigned' | 'resolved' | 'closed';
+export type BookingStatus = 'requested' | 'confirmed' | 'cancelled_by_student' | 'cancelled_by_mentor' | 'completed' | 'no_show_student' | 'no_show_mentor' | 'unverified_closed';
+export type NoShowType = 'student_no_show' | 'mentor_no_show';
+export type EngagementScale = 'unprepared' | 'needs_improvement' | 'satisfactory' | 'good' | 'outstanding';
+export type AllowanceAction = 'deduct' | 'refund';
+export type MentorApprovalStatus = 'pending' | 'approved' | 'rejected';
+export type AvailabilityStatus = 'available' | 'away';
+export type SltScopeType = 'program' | 'batch' | 'campus' | 'organisation';
 
 // ── Core entities ───────────────────────────────────────────
 export interface School {
@@ -189,6 +197,158 @@ export interface Announcement {
   published_at?: string;
   expires_at?: string;
   created_at: string;
+}
+
+export interface DoubtRequest {
+  id: string;
+  school_id: string;
+  conversation_id: string;
+  student_id: string;
+  student_record_id: string;
+  subject_id: string;
+  question: string;
+  chapter?: string;
+  question_number?: string;
+  explanation?: string;
+  previous_attempts?: string;
+  urgent: boolean;
+  urgent_reason?: string;
+  urgent_pass_used: boolean;
+  status: DoubtStatus;
+  assigned_mentor_id?: string;
+  assigned_teacher_id?: string;
+  named_mentor: boolean;
+  first_reply_at?: string;
+  resolved_at?: string;
+  closed_at?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SessionBooking {
+  id: string;
+  school_id: string;
+  student_id: string;
+  student_record_id: string;
+  mentor_id: string;
+  mentor_record_id: string;
+  subject_id: string;
+  duration_minutes: number;
+  topic: string;
+  preparation?: string;
+  requested_at: string;
+  scheduled_at?: string;
+  confirmed_at?: string;
+  meeting_link?: string;
+  meeting_room?: string;
+  status: BookingStatus;
+  allowance_minutes_used: number;
+  cancelled_at?: string;
+  cancelled_by?: string;
+  refunded: boolean;
+  verification_code?: string;
+  code_expires_at?: string;
+  code_attempts: number;
+  code_locked_at?: string;
+  code_visible_at?: string;
+  verified_at?: string;
+  closed_without_code: boolean;
+  close_reason?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Rating {
+  id: string;
+  school_id: string;
+  request_id: string;
+  student_id: string;
+  mentor_id: string;
+  rating: number;
+  comment?: string;
+  created_at: string;
+}
+
+export interface MentorAssessment {
+  id: string;
+  school_id: string;
+  request_id: string;
+  mentor_id: string;
+  student_id: string;
+  preparation: EngagementScale;
+  engagement: EngagementScale;
+  private_note?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface MentorDeskSettings {
+  id: string;
+  school_id: string;
+  open_doubt_limit: number;
+  session_allowance_minutes: number;
+  urgent_passes_per_week: number;
+  escalation_threshold_minutes: number;
+  week_start_day: number;
+  session_lengths: number[];
+  verification_code_digits: number;
+  code_visible_minutes_before: number;
+  max_verification_attempts: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface MentorSubjectApproval {
+  id: string;
+  school_id: string;
+  teacher_id: string;
+  subject_id: string;
+  status: MentorApprovalStatus;
+  approved_by?: string;
+  approved_at?: string;
+  created_at: string;
+}
+
+export interface MentorAvailability {
+  id: string;
+  school_id: string;
+  teacher_id: string;
+  status: AvailabilityStatus;
+  updated_at: string;
+}
+
+export interface AllowanceTransaction {
+  id: string;
+  school_id: string;
+  student_id: string;
+  subject_id: string;
+  booking_id?: string;
+  week_start: string;
+  action: AllowanceAction;
+  minutes: number;
+  reason?: string;
+  created_at: string;
+}
+
+export interface UrgentPassUsage {
+  id: string;
+  school_id: string;
+  student_id: string;
+  subject_id: string;
+  request_id: string;
+  week_start: string;
+  consumed_at: string;
+}
+
+export interface SltAccessGrant {
+  id: string;
+  school_id: string;
+  user_id: string;
+  granted_by: string;
+  scope_type: SltScopeType;
+  scope_value: string;
+  created_at: string;
+  revoked_at?: string;
 }
 
 // ── Edge Function request/response types ────────────────────

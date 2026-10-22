@@ -520,3 +520,317 @@ class SectionHeader extends StatelessWidget {
     );
   }
 }
+
+/// Frosted-glass card decoration for Mentor Desk surfaces.
+BoxDecoration glassCard({
+  Color? color,
+  double radius = 18,
+}) {
+  return BoxDecoration(
+    color: color ?? Colors.white.withValues(alpha: 0.6),
+    borderRadius: BorderRadius.circular(radius),
+    border: Border.all(color: Colors.white.withValues(alpha: 0.5), width: 1.2),
+    boxShadow: [
+      BoxShadow(
+        color: Colors.black.withValues(alpha: 0.06),
+        blurRadius: 20,
+        offset: const Offset(0, 10),
+      ),
+    ],
+  );
+}
+
+/// A glossy, bloom-lit hero header for Mentor Desk dashboards.
+class GlossHeroMentor extends StatelessWidget {
+  final TierAccent accent;
+  final String eyebrow;
+  final String title;
+  final String? subtitle;
+  final List<Widget> trailing;
+  final Widget? child;
+
+  const GlossHeroMentor({
+    super.key,
+    required this.accent,
+    required this.eyebrow,
+    required this.title,
+    this.subtitle,
+    this.trailing = const [],
+    this.child,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(26),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: accent.gradient,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: accent.solid.withValues(alpha: 0.35),
+            blurRadius: 34,
+            offset: const Offset(0, 14),
+          ),
+        ],
+      ),
+      child: Stack(
+        children: [
+          Positioned(
+            right: -60,
+            top: -70,
+            child: Container(
+              width: 220,
+              height: 220,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.white.withValues(alpha: 0.18),
+              ),
+            ),
+          ),
+          Positioned(
+            left: -40,
+            bottom: -80,
+            child: Container(
+              width: 170,
+              height: 170,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.black.withValues(alpha: 0.08),
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(22, 22, 22, 22),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            eyebrow.toUpperCase(),
+                            style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.85),
+                              fontSize: 11,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 1.4,
+                            ),
+                          ),
+                          const SizedBox(height: 7),
+                          Text(
+                            title,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 26,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: -0.5,
+                              height: 1.12,
+                            ),
+                          ),
+                          if (subtitle != null) ...[
+                            const SizedBox(height: 6),
+                            Text(
+                              subtitle!,
+                              style: TextStyle(
+                                color: Colors.white.withValues(alpha: 0.9),
+                                fontSize: 14,
+                                height: 1.4,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    if (trailing.isNotEmpty) ...[
+                      const SizedBox(width: 14),
+                      Row(mainAxisSize: MainAxisSize.min, children: trailing),
+                    ],
+                  ],
+                ),
+                if (child != null) ...[const SizedBox(height: 22), child!],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Glossy metric tile with glass card + tier glow.
+class GlossMetricTile extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+  final TierAccent accent;
+  final VoidCallback? onTap;
+
+  const GlossMetricTile({
+    super.key,
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.accent,
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(20),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(20),
+        child: Container(
+          decoration: glassCard(color: scheme.surface.withValues(alpha: 0.55)),
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(14),
+                  gradient: LinearGradient(
+                    colors: [accent.start.withValues(alpha: 0.9), accent.end.withValues(alpha: 0.9)],
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: accent.solid.withValues(alpha: 0.45),
+                      blurRadius: 16,
+                      offset: const Offset(0, 6),
+                    ),
+                  ],
+                ),
+                child: Icon(icon, size: 20, color: Colors.white),
+              ),
+              const SizedBox(height: 14),
+              Text(
+                value,
+                style: TextStyle(
+                  fontSize: 26,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.8,
+                  color: scheme.onSurface,
+                  height: 1,
+                ),
+              ),
+              const SizedBox(height: 5),
+              Text(
+                label,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w600,
+                  color: scheme.onSurface.withValues(alpha: 0.7),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Glossy action tile for role dashboards.
+class GlossActionTile extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String subtitle;
+  final TierAccent accent;
+  final VoidCallback onTap;
+
+  const GlossActionTile({
+    super.key,
+    required this.icon,
+    required this.label,
+    required this.subtitle,
+    required this.accent,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(20),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(20),
+        child: Container(
+          decoration: glassCard(color: scheme.surface.withValues(alpha: 0.55)),
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                  gradient: LinearGradient(
+                    colors: [accent.start.withValues(alpha: 0.9), accent.end.withValues(alpha: 0.9)],
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: accent.solid.withValues(alpha: 0.45),
+                      blurRadius: 16,
+                      offset: const Offset(0, 6),
+                    ),
+                  ],
+                ),
+                child: Icon(icon, size: 24, color: Colors.white),
+              ),
+              const SizedBox(height: 14),
+              Text(
+                label,
+                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 5),
+              Text(
+                subtitle,
+                style: TextStyle(fontSize: 11.5, color: scheme.onSurface.withValues(alpha: 0.65)),
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Glossy rounded button.
+ButtonStyle glossyElevatedButton(BuildContext context) {
+  final scheme = Theme.of(context).colorScheme;
+  return ElevatedButton.styleFrom(
+    backgroundColor: scheme.primary,
+    foregroundColor: Colors.white,
+    elevation: 0,
+    minimumSize: const Size.fromHeight(56),
+    padding: const EdgeInsets.symmetric(horizontal: 24),
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+    textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+  );
+}

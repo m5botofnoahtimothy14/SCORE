@@ -37,18 +37,13 @@ Future<GoRouter> _bootShell(
         builder: (context, state, child) => AppShell(child: child),
         routes: [
           GoRoute(path: '/home', builder: (_, __) => const _Stub()),
-          GoRoute(path: '/my-class', builder: (_, __) => const _Stub()),
-          GoRoute(path: '/conversations', builder: (_, __) => const _Stub()),
-          GoRoute(
-            path: '/conversations/:id',
-            builder: (_, __) => const _Stub(),
-          ),
+          GoRoute(path: '/mentor-desk', builder: (_, __) => const _Stub()),
+          GoRoute(path: '/mentor-desk/doubt/:id', builder: (_, __) => const _Stub()),
           GoRoute(path: '/announcements', builder: (_, __) => const _Stub()),
           GoRoute(path: '/profile', builder: (_, __) => const _Stub()),
-          GoRoute(path: '/my-students', builder: (_, __) => const _Stub()),
-          GoRoute(path: '/support-queue', builder: (_, __) => const _Stub()),
-          GoRoute(path: '/insights', builder: (_, __) => const _Stub()),
-          GoRoute(path: '/staff', builder: (_, __) => const _Stub()),
+          GoRoute(path: '/mentor-desk/queue', builder: (_, __) => const _Stub()),
+          GoRoute(path: '/mentor-desk/availability', builder: (_, __) => const _Stub()),
+          GoRoute(path: '/mentor-desk/slt', builder: (_, __) => const _Stub()),
         ],
       ),
     ],
@@ -81,47 +76,46 @@ void main() {
     test('student sees exactly the student surface', () {
       expect(
         destinationsFor(AppTier.student).map((d) => d.label),
-        ['Home', 'My Class', 'Messages', 'Notices', 'Profile'],
+        ['Mentor Desk', 'Notices', 'Profile'],
       );
       expect(
         destinationsFor(AppTier.student).map((d) => d.route),
-        ['/home', '/my-class', '/conversations', '/announcements', '/profile'],
+        ['/mentor-desk', '/announcements', '/profile'],
       );
     });
 
-    test('teacher never sees school-wide management', () {
+    test('teacher sees mentor desk surfaces only', () {
       final routes = destinationsFor(AppTier.teacher).map((d) => d.route).toList();
-      expect(routes, ['/home', '/my-students', '/support-queue', '/announcements', '/profile']);
+      expect(routes, ['/mentor-desk/queue', '/mentor-desk/availability', '/announcements', '/profile']);
       expect(routes, isNot(contains('/staff')));
       expect(routes, isNot(contains('/insights')));
     });
 
-    test('leadership sees staff and insights', () {
+    test('leadership sees oversight and notices', () {
       expect(
         destinationsFor(AppTier.leadership).map((d) => d.label),
-        ['Home', 'Insights', 'Staff', 'Notices', 'Profile'],
+        ['Oversight', 'Notices', 'Profile'],
       );
     });
   });
 
   group('route guard', () {
-    test('students cannot open staff or leadership surfaces', () {
-      expect(canAccessRoute(AppTier.student, '/staff'), isFalse);
-      expect(canAccessRoute(AppTier.student, '/insights'), isFalse);
-      expect(canAccessRoute(AppTier.student, '/my-students'), isFalse);
-      expect(canAccessRoute(AppTier.student, '/conversations'), isTrue);
+    test('students cannot open mentor or leadership surfaces', () {
+      expect(canAccessRoute(AppTier.student, '/mentor-desk/slt'), isFalse);
+      expect(canAccessRoute(AppTier.student, '/mentor-desk/queue'), isFalse);
+      expect(canAccessRoute(AppTier.student, '/mentor-desk/availability'), isFalse);
+      expect(canAccessRoute(AppTier.student, '/mentor-desk'), isTrue);
     });
 
     test('teachers are blocked from leadership-only surfaces', () {
-      expect(canAccessRoute(AppTier.teacher, '/staff'), isFalse);
-      expect(canAccessRoute(AppTier.teacher, '/insights'), isFalse);
-      expect(canAccessRoute(AppTier.teacher, '/support-queue'), isTrue);
+      expect(canAccessRoute(AppTier.teacher, '/mentor-desk/slt'), isFalse);
+      expect(canAccessRoute(AppTier.teacher, '/mentor-desk/queue'), isTrue);
     });
 
     test('leadership can open everything', () {
-      expect(canAccessRoute(AppTier.leadership, '/staff'), isTrue);
-      expect(canAccessRoute(AppTier.leadership, '/insights'), isTrue);
-      expect(canAccessRoute(AppTier.leadership, '/support-queue'), isTrue);
+      expect(canAccessRoute(AppTier.leadership, '/mentor-desk/slt'), isTrue);
+      expect(canAccessRoute(AppTier.leadership, '/mentor-desk/queue'), isTrue);
+      expect(canAccessRoute(AppTier.leadership, '/announcements'), isTrue);
     });
   });
 
@@ -131,7 +125,7 @@ void main() {
 
       expect(find.byType(NavigationBar), findsOneWidget);
       expect(find.byType(NavigationRail), findsNothing);
-      expect(find.text('My Class'), findsOneWidget);
+      expect(find.text('Mentor Desk'), findsOneWidget);
     });
 
     testWidgets('tablet swaps to a side rail with the same destinations',
@@ -143,7 +137,7 @@ void main() {
       expect(rail.extended, isFalse, reason: 'a tablet keeps the compact rail');
       expect(
         rail.destinations.map((d) => (d.label as Text).data),
-        ['Home', 'My Class', 'Messages', 'Notices', 'Profile'],
+        ['Mentor Desk', 'Notices', 'Profile'],
       );
     });
 
@@ -155,31 +149,31 @@ void main() {
       expect(rail.selectedIndex, 0);
       expect(
         rail.destinations.map((d) => (d.label as Text).data),
-        ['Home', 'Insights', 'Staff', 'Notices', 'Profile'],
+        ['Oversight', 'Notices', 'Profile'],
       );
     });
 
-    testWidgets('rail index still maps nested routes to Messages', (tester) async {
+    testWidgets('rail index still maps nested routes to Mentor Desk', (tester) async {
       await _bootShell(
         tester,
         AppTier.student,
         size: const Size(820, 1180),
-        location: '/conversations/abc123',
+        location: '/mentor-desk/doubt/abc123',
       );
 
       final rail = tester.widget<NavigationRail>(find.byType(NavigationRail));
-      expect(rail.selectedIndex, 2);
+      expect(rail.selectedIndex, 0);
     });
 
-    testWidgets('bottom bar index still maps nested routes to Messages', (tester) async {
+    testWidgets('bottom bar index still maps nested routes to Mentor Desk', (tester) async {
       await _bootShell(
         tester,
         AppTier.student,
         size: const Size(400, 800),
-        location: '/conversations/abc123',
+        location: '/mentor-desk/doubt/abc123',
       );
 
-      expect(tester.widget<NavigationBar>(find.byType(NavigationBar)).selectedIndex, 2);
+      expect(tester.widget<NavigationBar>(find.byType(NavigationBar)).selectedIndex, 0);
     });
 
     testWidgets('tapping a rail destination navigates', (tester) async {
@@ -189,15 +183,15 @@ void main() {
       await tester.tap(
         find.descendant(
           of: find.byType(NavigationRail),
-          matching: find.byIcon(Icons.inbox_outlined),
+          matching: find.byIcon(Icons.accessibility_outlined),
         ),
       );
       await tester.pumpAndSettle();
 
-      expect(router.routerDelegate.currentConfiguration.uri.path, '/support-queue');
+      expect(router.routerDelegate.currentConfiguration.uri.path, '/mentor-desk/availability');
       expect(
         tester.widget<NavigationRail>(find.byType(NavigationRail)).selectedIndex,
-        2,
+        1,
       );
     });
 

@@ -7,25 +7,24 @@ import '../../features/auth/screens/school_select_screen.dart';
 import '../../features/auth/screens/student_enrollment_screen.dart';
 import '../../features/auth/screens/teacher_enrollment_screen.dart';
 import '../../features/home/screens/home_screen.dart';
-import '../../features/conversations/screens/conversation_list_screen.dart';
-import '../../features/conversations/screens/conversation_screen.dart';
 import '../../features/announcements/screens/announcements_screen.dart';
 import '../../features/announcements/screens/announcement_detail_screen.dart';
 import '../../features/announcements/screens/compose_announcement_screen.dart';
 import '../../features/profile/screens/profile_screen.dart';
 import '../../features/auth/screens/account_states_screen.dart';
-import '../../features/directory/screens/directory_screen.dart';
-import '../../features/directory/screens/leadership_screen.dart';
 import '../../features/search/screens/search_screen.dart';
 import '../../features/profile/screens/notification_settings_screen.dart';
-import '../../features/class/screens/my_class_screen.dart';
-import '../../features/staff/screens/my_students_screen.dart';
-import '../../features/staff/screens/support_queue_screen.dart';
-import '../../features/staff/screens/staff_directory_screen.dart';
-import '../../features/staff/screens/staff_request_screen.dart';
-import '../../features/staff/screens/roster_manage_screen.dart';
-import '../../features/staff/screens/school_files_screen.dart';
-import '../../features/staff/screens/insights_screen.dart';
+import '../../features/mentor_desk/screens/book_session_screen.dart';
+import '../../features/mentor_desk/screens/doubt_conversation_screen.dart';
+import '../../features/mentor_desk/screens/mentor_assessment_screen.dart';
+import '../../features/mentor_desk/screens/mentor_availability_screen.dart';
+import '../../features/mentor_desk/screens/mentor_queue_screen.dart';
+import '../../features/mentor_desk/screens/mentor_session_detail_screen.dart';
+import '../../features/mentor_desk/screens/rating_screen.dart';
+import '../../features/mentor_desk/screens/session_detail_screen.dart';
+import '../../features/mentor_desk/screens/slt_dashboard_screen.dart';
+import '../../features/mentor_desk/screens/submit_doubt_screen.dart';
+import '../../features/mentor_desk/screens/mentor_desk_home_screen.dart';
 import '../../features/legal/screens/eula_screen.dart';
 import '../../features/legal/screens/eula_declined_screen.dart';
 import '../../core/models/identity.dart';
@@ -42,7 +41,7 @@ String? _routeForPayload(String payload) {
   if (payload == 'home') return '/home';
   if (payload.startsWith('conversation:')) {
     final id = payload.substring('conversation:'.length);
-    return id.isEmpty ? '/conversations' : '/conversations/$id';
+    return id.isEmpty ? '/mentor-desk' : '/mentor-desk/doubt/$id';
   }
   if (payload.startsWith('announcement:')) {
     final id = payload.substring('announcement:'.length);
@@ -51,16 +50,16 @@ String? _routeForPayload(String payload) {
   return null;
 }
 
-/// Routes that only staff (teacher/leadership) may open.
+/// Routes that only staff (mentor/leadership) may open.
 const _staffOnlyPrefixes = <String>[
-  '/my-students',
-  '/support-queue',
-  '/staff',
-  '/insights',
+  '/mentor-desk/queue',
+  '/mentor-desk/availability',
+  '/mentor-desk/session/',
+  '/mentor-desk/assessment',
 ];
 
 /// Routes only leadership may open.
-const _leadershipOnlyPrefixes = <String>['/staff', '/insights'];
+const _leadershipOnlyPrefixes = <String>['/mentor-desk/slt'];
 
 /// Cache of whether an (anonymous) user has completed onboarding, i.e. holds
 /// an active school membership. Avoids a DB round-trip on every navigation.
@@ -93,8 +92,6 @@ Future<bool> _isOnboarded(String userId) async {
   }
 }
 
-/// Consent accepted: record it and drop the user at the normal entry point.
-/// The auth guard upgrades this to /home for anyone already signed in.
 Future<void> _acceptTerms(BuildContext context) async {
   String? userId;
   try {
@@ -107,8 +104,6 @@ Future<void> _acceptTerms(BuildContext context) async {
   context.go('/auth/school-select');
 }
 
-/// Consent declined: the app is unusable without acceptance, so the session is
-/// closed and the user lands on the plain explanation screen.
 Future<void> _declineTerms(BuildContext context) async {
   try {
     await Supabase.instance.client.auth.signOut();
@@ -120,39 +115,24 @@ Future<void> _declineTerms(BuildContext context) async {
   context.go('/legal/declined');
 }
 
-/// The whole redirect policy in one place, consent gate first.
-///
-/// Split out from the router so the ordering of the two gates is testable
-/// without a live Supabase client. The auth/onboarding half is unchanged:
-/// anonymous and incomplete users still fail closed onto the auth flow.
 Future<String?> resolveRedirect({
   required String location,
   required bool signedIn,
   required bool anonymous,
   required Future<bool> Function() isOnboarded,
 }) async {
-  // Reading the flag here keeps the guard correct even on the very first
-  // navigation of the process, before main() has finished preloading it.
   if (!EulaStore.isLoaded) await EulaStore.load();
   final consent = EulaGate.guard(location);
   if (consent != null) return consent;
 
   final isAuthRoute = location.startsWith('/auth');
-  // The splash always plays: it hands off to the right destination itself,
-  // once it has finished, so the auth gate must not skip past it.
   final isSplash = location == '/';
-  // Legal screens must survive the auth gate: without this, an anonymous
-  // visitor would be bounced off /legal/eula to /auth/school-select, which
-  // redirects straight back — an unbreakable loop.
   final isOpenRoute = isSplash || isAuthRoute || location.startsWith('/legal');
 
   if (!signedIn) {
     return isOpenRoute ? null : '/auth/school-select';
   }
 
-  // Anonymous sessions exist for the student/teacher activation flow.
-  // They must not enter the app until activation grants a membership,
-  // otherwise a failed activation strands the user inside /home.
   if (anonymous && !await isOnboarded()) {
     return isOpenRoute ? null : '/auth/school-select';
   }
@@ -214,13 +194,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state, child) => AppShell(child: child),
         routes: [
           GoRoute(path: '/home', builder: (_, __) => const HomeScreen()),
-          GoRoute(path: '/conversations', builder: (_, __) => const ConversationListScreen()),
-          GoRoute(
-            path: '/conversations/:id',
-            builder: (_, state) => ConversationScreen(
-              conversationId: state.pathParameters['id']!,
-            ),
-          ),
           GoRoute(path: '/announcements', builder: (_, __) => const AnnouncementsScreen()),
           GoRoute(path: '/announcements/compose', builder: (_, __) => const ComposeAnnouncementScreen()),
           GoRoute(
@@ -230,24 +203,40 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             ),
           ),
 
-          // Student surface
-          GoRoute(path: '/my-class', builder: (_, __) => const MyClassScreen()),
+          // Mentor Desk — student
+          GoRoute(path: '/mentor-desk', builder: (_, __) => const MentorDeskHomeScreen()),
+          GoRoute(path: '/mentor-desk/doubt/submit', builder: (_, __) => const SubmitDoubtScreen()),
+          GoRoute(
+            path: '/mentor-desk/doubt/:id',
+            builder: (_, state) => MentorDoubtConversationScreen(requestId: state.pathParameters['id']!),
+          ),
+          GoRoute(path: '/mentor-desk/session/book', builder: (_, __) => const BookSessionScreen()),
+          GoRoute(
+            path: '/mentor-desk/session/:id',
+            builder: (_, state) => SessionDetailScreen(bookingId: state.pathParameters['id']!),
+          ),
+          GoRoute(
+            path: '/mentor-desk/rating/:id',
+            builder: (_, state) => RatingScreen(requestId: state.pathParameters['id']!),
+          ),
 
-          // Teacher surface
-          GoRoute(path: '/my-students', builder: (_, __) => const MyStudentsScreen()),
-          GoRoute(path: '/support-queue', builder: (_, __) => const SupportQueueScreen()),
+          // Mentor Desk — teacher/mentor
+          GoRoute(path: '/mentor-desk/queue', builder: (_, __) => const MentorQueueScreen()),
+          GoRoute(path: '/mentor-desk/availability', builder: (_, __) => const MentorAvailabilityScreen()),
+          GoRoute(
+            path: '/mentor-desk/session/:id/mentor',
+            builder: (_, state) => MentorSessionDetailScreen(bookingId: state.pathParameters['id']!),
+          ),
+          GoRoute(
+            path: '/mentor-desk/assessment/:id',
+            builder: (_, state) => MentorAssessmentScreen(requestId: state.pathParameters['id']!),
+          ),
 
-          // Leadership surface
-          GoRoute(path: '/staff', builder: (_, __) => const StaffDirectoryScreen()),
-          GoRoute(path: '/staff/request', builder: (_, __) => const StaffRequestScreen()),
-          GoRoute(path: '/staff/roster', builder: (_, __) => const RosterManageScreen()),
-          GoRoute(path: '/staff/files', builder: (_, __) => const SchoolFilesScreen()),
-          GoRoute(path: '/insights', builder: (_, __) => const InsightsScreen()),
+          // Mentor Desk — SLT oversight
+          GoRoute(path: '/mentor-desk/slt', builder: (_, __) => const SLTDashboardScreen()),
 
           // Shared
           GoRoute(path: '/profile', builder: (_, __) => const ProfileScreen()),
-          GoRoute(path: '/directory', builder: (_, __) => const DirectoryScreen()),
-          GoRoute(path: '/leadership', builder: (_, __) => const LeadershipScreen()),
           GoRoute(path: '/search', builder: (_, __) => const SearchScreen()),
           GoRoute(path: '/notification-settings', builder: (_, __) => const NotificationSettingsScreen()),
         ],
@@ -260,7 +249,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     errorBuilder: (context, state) => Scaffold(
       body: Center(
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
           children: [
             const Icon(Icons.error_outline, size: 64, color: Colors.red),
             const SizedBox(height: 16),
@@ -316,35 +305,28 @@ class NavDest {
   const NavDest(this.route, this.icon, this.activeIcon, this.label);
 }
 
-/// Navigation is role-specific: a student never sees staff controls and
-/// a teacher never sees school-wide management.
+/// Navigation is role-specific: every tier lands on Mentor Desk first.
 List<NavDest> destinationsFor(AppTier tier) => switch (tier) {
       AppTier.student => const [
-          NavDest('/home', Icons.home_outlined, Icons.home, 'Home'),
-          NavDest('/my-class', Icons.groups_outlined, Icons.groups, 'My Class'),
-          NavDest('/conversations', Icons.forum_outlined, Icons.forum, 'Messages'),
+          NavDest('/mentor-desk', Icons.support_agent_outlined, Icons.support_agent, 'Mentor Desk'),
           NavDest('/announcements', Icons.campaign_outlined, Icons.campaign, 'Notices'),
           NavDest('/profile', Icons.person_outline, Icons.person, 'Profile'),
         ],
       AppTier.teacher => const [
-          NavDest('/home', Icons.home_outlined, Icons.home, 'Home'),
-          NavDest('/my-students', Icons.people_alt_outlined, Icons.people_alt, 'My Students'),
-          NavDest('/support-queue', Icons.inbox_outlined, Icons.inbox, 'Requests'),
+          NavDest('/mentor-desk/queue', Icons.list_outlined, Icons.list, 'Queue'),
+          NavDest('/mentor-desk/availability', Icons.accessibility_outlined, Icons.accessibility, 'Availability'),
           NavDest('/announcements', Icons.campaign_outlined, Icons.campaign, 'Notices'),
           NavDest('/profile', Icons.person_outline, Icons.person, 'Profile'),
         ],
       AppTier.leadership => const [
-          NavDest('/home', Icons.home_outlined, Icons.home, 'Home'),
-          NavDest('/insights', Icons.insights_outlined, Icons.insights, 'Insights'),
-          NavDest('/staff', Icons.apartment_outlined, Icons.apartment, 'Staff'),
+          NavDest('/mentor-desk/slt', Icons.insights_outlined, Icons.insights, 'Oversight'),
           NavDest('/announcements', Icons.campaign_outlined, Icons.campaign, 'Notices'),
           NavDest('/profile', Icons.person_outline, Icons.person, 'Profile'),
         ],
     };
 
 /// Shell with role-aware navigation: a bottom bar on phones, a side rail from
-/// tablet width up. The destinations, the role guard and the index mapping are
-/// identical either way — only the shape of the chrome changes.
+/// tablet width up.
 class AppShell extends ConsumerWidget {
   final Widget child;
   const AppShell({super.key, required this.child});
@@ -353,7 +335,6 @@ class AppShell extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final identityAsync = ref.watch(identityProvider);
 
-    // Until identity resolves, render the child without a (wrong) nav bar.
     final identity = identityAsync.valueOrNull;
     if (identity == null) return Scaffold(body: child);
 
@@ -362,7 +343,7 @@ class AppShell extends ConsumerWidget {
     final location = GoRouterState.of(context).matchedLocation;
 
     int index = dests.indexWhere((d) => _matches(d.route, location));
-    if (index < 0) index = 0; // nested routes (e.g. /conversations/:id) highlight Messages
+    if (index < 0) index = 0;
 
     void select(int i) {
       final target = dests[i].route;
@@ -373,7 +354,6 @@ class AppShell extends ConsumerWidget {
 
     final accent = TierAccent.of(tier);
 
-    // Selected destination: same tinted pill in both orientations.
     Widget selectedIconFor(NavDest d) => Container(
           decoration: BoxDecoration(
             color: accent.solid.withValues(alpha: 0.12),
@@ -400,8 +380,6 @@ class AppShell extends ConsumerWidget {
                 extended: extended,
                 minExtendedWidth: 200,
                 groupAlignment: -1,
-                // Short landscape windows (split screen, a foldable half-open)
-                // must scroll the destinations rather than overflow them.
                 scrollable: true,
                 useIndicator: true,
                 indicatorColor: accent.solid.withValues(alpha: 0.12),
@@ -437,12 +415,6 @@ class AppShell extends ConsumerWidget {
 
     return Scaffold(
       body: MediaQuery(
-        // The shell's own Scaffold consumes the bottom inset for its body, so
-        // a nested screen cannot tell that the navigation bar is there — and
-        // the last item of a long list ends up under it (the "Sign out"
-        // button was sitting half-hidden behind the bar). Restoring the
-        // inset, plus the height of the bar itself, lets every screen scroll
-        // its last row clear.
         data: MediaQuery.of(context).copyWith(
           padding: MediaQuery.of(context).padding.copyWith(
             bottom: MediaQuery.of(context).padding.bottom + 88,
@@ -477,7 +449,6 @@ class AppShell extends ConsumerWidget {
     return location == route || location.startsWith('$route/');
   }
 
-  /// Route guard, mirrored by the router so deep links are protected too.
   static bool _canOpen(AppTier tier, String path) {
     if (_leadershipOnlyPrefixes.any(path.startsWith)) {
       return tier == AppTier.leadership;
@@ -489,6 +460,5 @@ class AppShell extends ConsumerWidget {
   }
 }
 
-/// Exposed so screens can reason about permissions without importing the shell.
 bool canAccessRoute(AppTier tier, String path) =>
     AppShell._canOpen(tier, path);

@@ -64,6 +64,18 @@ const operationsNav: NavEntry[] = [
   { href: '/dashboard/settings', icon: 'Settings', label: 'Settings' },
 ]
 
+// Mentor Desk — academic support operations for the school.
+// Visible to all administrators (school-admin/principal and platform owner).
+const mentorDeskNav: NavEntry[] = [
+  { href: '/dashboard/mentor-desk', icon: 'HelpCircle', label: 'Overview' },
+  { href: '/dashboard/mentor-desk/doubts', icon: 'HelpCircle', label: 'Doubt Requests' },
+  { href: '/dashboard/mentor-desk/sessions', icon: 'Clock', label: 'Session Bookings' },
+  { href: '/dashboard/mentor-desk/mentors', icon: 'Users', label: 'Mentors' },
+  { href: '/dashboard/mentor-desk/ratings', icon: 'CheckCircle', label: 'Feedback & Ratings' },
+  { href: '/dashboard/mentor-desk/exceptions', icon: 'AlertCircle', label: 'Exceptions' },
+  { href: '/dashboard/mentor-desk/settings', icon: 'Percent', label: 'Settings' },
+]
+
 // Super-Admin-only: platform-wide data and control.
 const platformNav: NavEntry[] = [
   { href: '/dashboard/schools', icon: 'School', label: 'All Schools' },
@@ -87,10 +99,12 @@ function Sidebar({ user, membership }: SidebarProps) {
   const groups = isSuper
     ? [
         { section: 'Platform Control', items: platformNav },
+        { section: 'Mentor Desk', items: mentorDeskNav },
         { section: 'Operations', items: operationsNav },
       ]
     : [
         { section: 'My School', items: [{ href: '/dashboard/schools', icon: 'School', label: 'School Profile' }] },
+        { section: 'Mentor Desk', items: mentorDeskNav },
         { section: 'Operations', items: operationsNav },
       ]
 
