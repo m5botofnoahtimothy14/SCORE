@@ -48,17 +48,17 @@ class AppConfig {
   // Single source of truth: the splash, the EULA footer and the profile
   // signature block all render from these, so a rename or a new support
   // contact is a one-line change here and nowhere else.
-  static const String appName = 'TeachCross';
-  static const String brandName = 'CRIMSON';
+  static const String appName = 'SCORE+';
+  static const String brandName = 'SCORE+';
   static const String developerName = 'Noah Timothy Keba Joseph';
 
   /// The collaboration lockup shown on the splash and in the signature block.
   ///
-  /// It is set as three parts because the splash stacks them — CRIMSON above
-  /// the cross, the name below it — so the name can be sized to fit the
+  /// It is set as three parts because the splash stacks them — SCORE above
+  /// the plus, the name below it — so the name can be sized to fit the
   /// narrowest phone without wrapping.
-  static const String signatureTop = 'CRIMSON';
-  static const String signatureCross = 'X';
+  static const String signatureTop = 'SCORE';
+  static const String signatureCross = '+';
   static const String signatureName = 'NOAH TIMOTHY KEBA';
 
   /// The lockup as one line, for semantics and for the signature block.
@@ -66,6 +66,6 @@ class AppConfig {
       '$signatureTop $signatureCross $signatureName';
 
   // Support placeholders — replace with the live desk before shipping.
-  static const String supportEmail = 'support@teachcross.app';
+  static const String supportEmail = 'support@scoreplus.app';
   static const String supportPhone = '+91 90000 00000';
 }

@@ -276,7 +276,7 @@ void main() {
       expect(find.text(AppConfig.signatureCross), findsOneWidget);
       expect(find.text(AppConfig.signatureName), findsOneWidget);
       expect(find.text('Developed by Noah Timothy Keba Joseph'), findsOneWidget);
-      expect(find.text('support@teachcross.app'), findsOneWidget);
+      expect(find.text('support@scoreplus.app'), findsOneWidget);
       expect(find.text('+91 90000 00000'), findsOneWidget);
     });
   });
