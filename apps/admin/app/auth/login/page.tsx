@@ -113,7 +113,7 @@ function LoginForm() {
             <Shield className="h-8 w-8 text-white" strokeWidth={2} />
             <div className="pointer-events-none absolute inset-x-0 top-0 h-1/2 rounded-t-2xl bg-brand-sheen" />
           </div>
-          <h1 className="text-[26px] font-bold tracking-tight text-white">TeachCross Admin</h1>
+          <h1 className="text-[26px] font-bold tracking-tight text-white">SCORE+ Admin</h1>
           <p className="mt-1 text-sm text-slate-400">School Management System</p>
         </div>
 
@@ -209,7 +209,7 @@ function LoginForm() {
           <span className="font-mono text-slate-600">@2026</span>
         </p>
         <p className="mt-1 text-center text-[11px] text-slate-600">
-          TeachCross™ — Proprietary License · © 2026 Noah Timothy Keba Joseph. All rights reserved.
+          SCORE+™ — Proprietary License · © 2026 Noah Timothy Keba Joseph. All rights reserved.
         </p>
       </div>
     </div>

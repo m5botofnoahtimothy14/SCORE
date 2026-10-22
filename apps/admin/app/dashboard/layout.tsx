@@ -138,7 +138,7 @@ function Sidebar({ user, membership }: SidebarProps) {
           </div>
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-semibold text-white">
-              {isSuper ? 'TeachCross Platform' : (school?.name ?? 'School')}
+              {isSuper ? 'SCORE+ Platform' : (school?.name ?? 'School')}
             </p>
             <p className="text-xs text-slate-400">{roleLabel(membership?.role ?? '')}</p>
           </div>
@@ -195,7 +195,7 @@ function TopBar({ role }: { role: string }) {
     <div className="sticky top-0 z-20 flex items-center justify-between border-b border-ink-200/70 bg-white/70 px-6 py-3.5 backdrop-blur-xl lg:px-8">
       <div className="flex items-center gap-2">
         <span className="text-sm font-medium text-ink-400">
-          TeachCross Administration
+          SCORE+ Administration
         </span>
       </div>
       <div className="flex items-center gap-3">

@@ -76,7 +76,7 @@ Future<void> main() async {
 
   runApp(
     const ProviderScope(
-      child: TeachCrossApp(),
+      child: SCOREApp(),
     ),
   );
 
@@ -120,8 +120,8 @@ class _ConfigErrorApp extends StatelessWidget {
   }
 }
 
-class TeachCrossApp extends ConsumerWidget {
-  const TeachCrossApp({super.key});
+class SCOREApp extends ConsumerWidget {
+  const SCOREApp({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {

@@ -14,7 +14,7 @@ export function Footer() {
         </p>
         <p className="flex items-center gap-1.5 text-xs text-ink-400">
           <ShieldCheck className="h-3.5 w-3.5 text-brand-500" />
-          TeachCross™ — Proprietary License · © 2026 Noah Timothy Keba Joseph. All rights reserved.
+          SCORE+™ — Proprietary License · © 2026 Noah Timothy Keba Joseph. All rights reserved.
         </p>
       </div>
     </footer>

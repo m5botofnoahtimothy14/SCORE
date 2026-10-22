@@ -6,8 +6,8 @@ import { Toaster } from 'react-hot-toast'
 const inter = Inter({ subsets: ['latin'], display: 'swap', variable: '--font-inter' })
 
 export const metadata: Metadata = {
-  title: 'TeachCross Admin',
-  description: 'School Communication Platform — Administration Dashboard',
+  title: 'SCORE+ Admin',
+  description: 'SCORE+ Mentor Desk — Administration Dashboard',
   robots: 'noindex, nofollow', // Admin DMS must not be indexed
 }
 

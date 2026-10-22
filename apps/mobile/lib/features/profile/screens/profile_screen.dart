@@ -207,7 +207,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           _LegalTile(
                             icon: Icons.gavel_outlined,
                             label: 'Terms & Conditions',
-                            subtitle: 'The End User Licence Agreement for TeachCross.',
+                            subtitle: 'The End User Licence Agreement for SCORE+.',
                             onTap: _openTerms,
                           ),
                           const Divider(height: 1),

@@ -37,7 +37,7 @@ class EulaDeclinedScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  'TeachCross is only available to people who accept the End '
+                  'SCORE+ is only available to people who accept the End '
                   'User Licence Agreement and Acceptable Use Policy. You '
                   'declined, so your session has been closed and no school '
                   'data is available on this device.',

@@ -70,7 +70,7 @@ export async function getAdminContext(): Promise<AdminContext> {
     role,
     tier: tierOf(role),
     schoolId: membership.school_id as string,
-    schoolName: school?.name ?? 'TeachCross',
+    schoolName: school?.name ?? 'SCORE+',
     schoolCode: school?.code ?? '',
     isPlatformOwner: role === 'platform_owner',
     isSuperAdmin: role === 'platform_owner',

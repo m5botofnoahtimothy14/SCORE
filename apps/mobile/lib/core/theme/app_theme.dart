@@ -1,4 +1,4 @@
-// TeachCross design language: calm, glossy, professional.
+// SCORE+ design language: calm, glossy, professional.
 //
 // One system for both light and dark. Each role tier carries its own accent so
 // a student, teacher and leader can tell at a glance which surface they are in.

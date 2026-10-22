@@ -85,8 +85,8 @@ class _SchoolSelectScreenState extends ConsumerState<SchoolSelectScreen> {
                   Image.asset('assets/images/logo.png', height: 40, errorBuilder: (_, __, ___) =>
                     const Icon(Icons.school, size: 40, color: Color(0xFF1A56DB))),
                   const SizedBox(height: 24),
-                  Text(
-                    'Welcome to TeachCross',
+                    Text(
+                    'Welcome to SCORE+',
                     style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                       fontWeight: FontWeight.bold,
                       color: const Color(0xFF111827),

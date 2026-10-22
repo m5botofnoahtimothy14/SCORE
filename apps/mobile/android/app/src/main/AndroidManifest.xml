@@ -4,7 +4,7 @@
     <uses-permission android:name="android.permission.RECORD_AUDIO"/>
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS"/>
     <application
-        android:label="TeachCross"
+        android:label="SCORE+"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <!-- Firebase Cloud Messaging.
