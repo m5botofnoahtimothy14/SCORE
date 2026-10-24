@@ -18,11 +18,9 @@ class HomeScreen extends ConsumerStatefulWidget {
 }
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
-  int _unread = 0;
   int _openDoubts = 0;
   int _pendingSessions = 0;
   List<Map<String, dynamic>> _announcements = const [];
-  bool _loadingExtras = true;
 
   @override
   void initState() {
@@ -88,15 +86,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
       if (!mounted) return;
       setState(() {
-        _unread = unread;
         _openDoubts = openDoubts;
         _pendingSessions = pendingSessions;
         _announcements = anns;
-        _loadingExtras = false;
       });
     } catch (_) {
       if (!mounted) return;
-      setState(() => _loadingExtras = false);
+      setState(() {});
     }
   }
 

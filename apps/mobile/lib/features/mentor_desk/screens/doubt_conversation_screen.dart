@@ -7,12 +7,10 @@ import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
 
+import '../../../core/theme/app_theme.dart';
+import '../../../core/theme/mentor_desk_design.dart';
 import '../../../core/layout/responsive.dart';
-import '../../../core/models/identity.dart';
 import '../../../core/models/models.dart';
-import '../../../core/providers/identity_provider.dart';
-import '../../../core/providers/supabase_provider.dart';
-import '../../../core/theme/app_theme.dart' show TierAccent;
 import '../../../core/widgets/states.dart';
 import '../../mentor_desk/models/mentor_desk_models.dart';
 import '../../mentor_desk/services/mentor_desk_service.dart';
@@ -28,12 +26,10 @@ class MentorDoubtConversationScreen extends ConsumerStatefulWidget {
   const MentorDoubtConversationScreen({super.key, required this.requestId});
 
   @override
-  ConsumerState<MentorDoubtConversationScreen> createState() =>
-      _MentorDoubtConversationScreenState();
+  ConsumerState<MentorDoubtConversationScreen> createState() => _MentorDoubtConversationScreenState();
 }
 
-class _MentorDoubtConversationScreenState
-    extends ConsumerState<MentorDoubtConversationScreen> {
+class _MentorDoubtConversationScreenState extends ConsumerState<MentorDoubtConversationScreen> {
   DoubtRequest? _doubt;
   bool _loading = true;
   String? _error;
@@ -94,12 +90,12 @@ class _MentorDoubtConversationScreenState
       _isStudent = role == 'student';
       _isTeacher = role == 'teacher' || role == 'head_teacher';
 
-      _canReopen = _isStudent && doubt!.studentId == me && (doubt!.isResolved || doubt!.isClosed);
-      _canResolve = _isTeacher && doubt!.assignedMentorId == me && doubt!.isOpen;
+      _canReopen = _isStudent && doubt.studentId == me && (doubt.isResolved || doubt.isClosed);
+      _canResolve = _isTeacher && doubt.assignedMentorId == me && doubt.isOpen;
 
       final ratings = await service.listRatingsForRequest(widget.requestId);
       _alreadyRated = ratings.any((r) => r.studentId == me);
-      _canRate = _isStudent && doubt!.studentId == me && (doubt!.isResolved || doubt!.isClosed) && !_alreadyRated;
+      _canRate = _isStudent && doubt.studentId == me && (doubt.isResolved || doubt.isClosed) && !_alreadyRated;
 
       await _loadMessages();
 
@@ -227,8 +223,13 @@ class _MentorDoubtConversationScreenState
 
   @override
   Widget build(BuildContext context) {
+    final accent = MDTier.student;
+
     return Scaffold(
+      backgroundColor: MDColors.ink50,
       appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
         title: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.center,
@@ -256,9 +257,9 @@ class _MentorDoubtConversationScreenState
                   children: [
                     Expanded(
                       child: _messages.isEmpty
-                          ? const Center(child: Text('No messages yet. Start the conversation below.'))
+                          ? const Center(child: Text('No messages yet. Start the conversation below.', style: TextStyle(color: MDColors.ink600)))
                           : ListView.builder(
-                              padding: const EdgeInsets.all(12),
+                              padding: const EdgeInsets.all(kGutter),
                               itemCount: _messages.length,
                               itemBuilder: (context, i) {
                                 final m = _messages[i];
@@ -269,7 +270,7 @@ class _MentorDoubtConversationScreenState
                     if (_canResolve || _canReopen || _canRate) _actionBar(),
                     SafeArea(
                       child: Padding(
-                        padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
+                        padding: const EdgeInsets.fromLTRB(kGutter, 4, kGutter, kGutter),
                         child: Row(
                           children: [
                             IconButton(
@@ -283,11 +284,21 @@ class _MentorDoubtConversationScreenState
                               child: TextField(
                                 controller: _input,
                                 maxLines: 4,
-                                decoration: const InputDecoration(hintText: 'Type a reply...'),
+                                decoration: InputDecoration(
+                                  hintText: 'Type a reply...',
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(kRadiusSm),
+                                    borderSide: BorderSide(color: MDColors.ink200.withValues(alpha: 0.3)),
+                                  ),
+                                  focusedBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(kRadiusSm),
+                                    borderSide: BorderSide(color: accent.solid, width: 1.6),
+                                  ),
+                                ),
                                 onSubmitted: (_) => _send(),
                               ),
                             ),
-                            const SizedBox(width: 8),
+                            const SizedBox(width: kGutter / 2),
                             IconButton.filled(
                               icon: _sending
                                   ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
@@ -305,11 +316,12 @@ class _MentorDoubtConversationScreenState
   }
 
   Widget _actionBar() {
+    final scheme = Theme.of(context).colorScheme;
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(kGutter),
       decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        border: Border(top: BorderSide(color: Theme.of(context).dividerColor)),
+        color: scheme.surface.withValues(alpha: 0.85),
+        border: Border(top: BorderSide(color: MDColors.ink200.withValues(alpha: 0.2))),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -317,7 +329,7 @@ class _MentorDoubtConversationScreenState
           if (_canResolve)
             SizedBox(
               width: double.infinity,
-              child: OutlinedButton.icon(
+              child: MDGlossOutlineButton(
                 onPressed: () async {
                   final ok = await showDialog<bool>(
                     context: context,
@@ -332,14 +344,20 @@ class _MentorDoubtConversationScreenState
                   );
                   if (ok == true) _resolve();
                 },
-                icon: const Icon(Icons.check_circle_outline, size: 18),
-                label: const Text('Mark resolved'),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.check_circle_outline, size: 18),
+                    SizedBox(width: 8),
+                    Text('Mark resolved'),
+                  ],
+                ),
               ),
             ),
           if (_canReopen)
             SizedBox(
               width: double.infinity,
-              child: OutlinedButton.icon(
+              child: MDGlossOutlineButton(
                 onPressed: () async {
                   final ok = await showDialog<bool>(
                     context: context,
@@ -354,23 +372,29 @@ class _MentorDoubtConversationScreenState
                   );
                   if (ok == true) _reopen();
                 },
-                icon: const Icon(Icons.restore, size: 18),
-                label: const Text('Reopen conversation'),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.restore, size: 18),
+                    SizedBox(width: 8),
+                    Text('Reopen conversation'),
+                  ],
+                ),
               ),
             ),
           if (_canRate)
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const SizedBox(height: 10),
+                const SizedBox(height: kGutter),
                 const Text('Rate this support (1–5 stars)', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                const SizedBox(height: 8),
+                const SizedBox(height: kGutter / 2),
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: List.generate(5, (i) {
                     final stars = i + 1;
                     return IconButton(
-                      icon: Icon(Icons.star, color: Colors.amber, size: 30),
+                      icon: Icon(Icons.star, color: MDColors.warning, size: 30),
                       onPressed: () => _rate(stars),
                     );
                   }),
@@ -384,11 +408,11 @@ class _MentorDoubtConversationScreenState
 
   Color _statusColor(String status) {
     switch (status) {
-      case 'waiting': return const Color(0xFFD97706);
-      case 'assigned': return const Color(0xFF2563EB);
-      case 'resolved': return const Color(0xFF059669);
-      case 'closed': return const Color(0xFF475569);
-      default: return const Color(0xFF64748B);
+      case 'waiting': return MDColors.warning;
+      case 'assigned': return MDColors.brand;
+      case 'resolved': return MDColors.success;
+      case 'closed': return MDColors.ink600;
+      default: return MDColors.ink600;
     }
   }
 }

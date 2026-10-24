@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
@@ -91,9 +92,7 @@ export default function SessionsPage() {
           id, school_id, student_id, student_record_id, mentor_id, mentor_record_id,
           subject_id, duration_minutes, topic, preparation, requested_at,
           scheduled_at, confirmed_at, meeting_link, meeting_room, status,
-          allowance_minutes_used, cancelled_at, cancelled_by, refunded,
-          verification_code, code_expires_at, code_attempts, code_locked_at,
-          code_visible_at, verified_at, closed_without_code, close_reason,
+          allowance_minutes_used, cancelled_at, cancelled_by, refunded,\n          code_attempts, code_locked_at,\n          code_visible_at, verified_at, closed_without_code, close_reason,
           created_at, updated_at,
           students(student_id_no, first_name, last_name),
           teachers(staff_id_no, first_name, last_name),
@@ -364,3 +363,5 @@ export default function SessionsPage() {
     </div>
   )
 }
+
+

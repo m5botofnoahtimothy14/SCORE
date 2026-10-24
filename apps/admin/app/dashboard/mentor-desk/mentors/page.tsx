@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
@@ -297,3 +298,4 @@ export default function MentorsPage() {
     </div>
   )
 }
+

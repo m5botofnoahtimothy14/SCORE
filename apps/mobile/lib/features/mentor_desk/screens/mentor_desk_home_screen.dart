@@ -3,14 +3,15 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../core/theme/app_theme.dart';
+import '../../../core/theme/mentor_desk_design.dart';
 import '../../../core/layout/responsive.dart';
+import '../../../core/widgets/states.dart';
 import '../../../core/models/identity.dart';
 import '../../../core/providers/identity_provider.dart';
-import '../../../core/theme/app_theme.dart' show SectionHeader, TierAccent, GlossHeroMentor, GlossMetricTile, GlossActionTile, glossyElevatedButton, glassCard;
-import '../../../core/widgets/states.dart';
 import '../../mentor_desk/models/mentor_desk_models.dart';
 import '../../mentor_desk/services/mentor_desk_service.dart';
 
@@ -18,7 +19,7 @@ final _serviceProvider = Provider<MentorDeskService>(
   (ref) => MentorDeskService(Supabase.instance.client),
 );
 
-/// Student Mentor Desk home — glossy, professional surface showing allowance,
+/// Student Mentor Desk home — glossy, modern surface showing allowance,
 /// open doubts, upcoming sessions, urgent pass and quick actions.
 class MentorDeskHomeScreen extends ConsumerStatefulWidget {
   const MentorDeskHomeScreen({super.key});
@@ -36,18 +37,11 @@ class _MentorDeskHomeScreenState extends ConsumerState<MentorDeskHomeScreen> {
   int _openDoubtCount = 0;
   int _remainingSessionMinutes = 0;
   bool _urgentPassAvailable = false;
-  StreamSubscription? _realtime;
 
   @override
   void initState() {
     super.initState();
     _load();
-  }
-
-  @override
-  void dispose() {
-    _realtime?.cancel();
-    super.dispose();
   }
 
   Future<void> _load() async {
@@ -85,8 +79,6 @@ class _MentorDeskHomeScreenState extends ConsumerState<MentorDeskHomeScreen> {
         _urgentPassAvailable = urgent;
         _loading = false;
       });
-
-      _subscribeRealtime(service, schoolId, studentId);
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -94,17 +86,6 @@ class _MentorDeskHomeScreenState extends ConsumerState<MentorDeskHomeScreen> {
         _loading = false;
       });
     }
-  }
-
-  void _subscribeRealtime(MentorDeskService service, String schoolId, String studentId) {
-    _realtime = service.client
-        .from('doubt_requests')
-        .stream(primaryKey: ['id'])
-        .eq('student_id', studentId)
-        .listen((_) {
-      _load();
-    });
-    _realtime?.onError((_) {});
   }
 
   String _greeting(String? name) {
@@ -116,111 +97,175 @@ class _MentorDeskHomeScreenState extends ConsumerState<MentorDeskHomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final identityAsync = ref.watch(identityProvider);
+    final tier = ref.watch(identityProvider).value?.tier ?? AppTier.student;
+    final accent = MDTier.student;
 
     return Scaffold(
-      body: identityAsync.when(
+      backgroundColor: MDColors.ink50,
+      body: ref.watch(identityProvider).when(
         loading: () => const LoadingView(),
         error: (e, _) => ErrorView(
           message: e is IdentityException ? e.message : 'Could not load your identity.',
           onRetry: () => ref.invalidate(identityProvider),
         ),
-        data: (identity) => AdaptivePage(
-          respectTopSafeArea: true,
-          child: CustomScrollView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            slivers: [
-              SliverPadding(
-                padding: const EdgeInsets.fromLTRB(0, 16, 0, 0),
-                sliver: SliverToBoxAdapter(
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          'SCORE+ Mentor Desk',
-                          style: Theme.of(context).appBarTheme.titleTextStyle,
-                        ),
+        data: (identity) => CustomScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          slivers: [
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(kGutter, 10, kGutter, 0),
+              sliver: SliverToBoxAdapter(
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'SCORE+ Mentor Desk',
+                        style: Theme.of(context).appBarTheme.titleTextStyle,
                       ),
-                      IconButton(
-                        onPressed: () => _load(),
-                        icon: const Icon(Icons.refresh),
-                        tooltip: 'Refresh',
+                    ),
+                    IconButton(
+                      onPressed: () => _load(),
+                      icon: const Icon(Icons.refresh, size: 20),
+                      tooltip: 'Refresh',
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(kGutter, 6, kGutter, 0),
+              sliver: SliverToBoxAdapter(
+                child: Container(
+                  margin: const EdgeInsets.only(bottom: kGutter),
+                  padding: const EdgeInsets.all(kGutter + 8),
+                  decoration: BoxDecoration(
+                    gradient: accent.gradient,
+                    borderRadius: BorderRadius.circular(kRadiusLg),
+                    boxShadow: [
+                      BoxShadow(
+                        color: accent.solid.withValues(alpha: 0.45),
+                        blurRadius: 30,
+                        offset: const Offset(0, 14),
+                      ),
+                    ],
+                  ),
+                  child: Stack(
+                    children: [
+                      MDBloom(color: Colors.white, size: 220, alignment: Alignment.topRight),
+                      Padding(
+                        padding: const EdgeInsets.only(right: 40, bottom: 10),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        identity.schoolName.isEmpty ? identity.tier.label : identity.schoolName,
+                                        style: TextStyle(
+                                          color: Colors.white.withValues(alpha: 0.82),
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w800,
+                                          letterSpacing: 1.1,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 6),
+                                      Text(
+                                        _greeting(identity.displayName),
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 26,
+                                          fontWeight: FontWeight.w800,
+                                          letterSpacing: -0.4,
+                                          height: 1.12,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 5),
+                                      Text(
+                                        'Your academic support desk — doubts, sessions and ratings.',
+                                        style: TextStyle(
+                                          color: Colors.white.withValues(alpha: 0.86),
+                                          fontSize: 13,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
                       ),
                     ],
                   ),
                 ),
               ),
-              SliverPadding(
-                padding: const EdgeInsets.fromLTRB(0, 8, 0, 0),
-                sliver: SliverToBoxAdapter(
-                  child: GlossHeroMentor(
-                    accent: TierAccent.of(identity.tier),
-                    eyebrow: identity.schoolName.isEmpty ? identity.tier.label : identity.schoolName,
-                    title: _greeting(identity.displayName),
-                    subtitle: 'Your academic support desk — doubts, sessions and ratings.',
-                  ),
-                ),
-              ),
-              SliverPadding(
-                padding: const EdgeInsets.fromLTRB(16, 18, 16, 0),
-                sliver: _loading
-                    ? const SliverToBoxAdapter(child: LoadingView())
-                    : _error != null
-                        ? SliverToBoxAdapter(child: ErrorView(message: _error!, onRetry: _load))
-                        : SliverMainAxisGroup(
-                            slivers: [
-                              _allowancesSliver(context, identity),
-                              const SliverPadding(padding: EdgeInsets.only(top: 16)),
-                              _quickActionsSliver(context),
-                              const SliverPadding(padding: EdgeInsets.only(top: 16)),
-                              _openDoubtsSliver(context),
-                              const SliverPadding(padding: EdgeInsets.only(top: 16)),
-                              _upcomingSliver(context),
-                            ],
-                          ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
+            ),
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(kGutter, 0, kGutter, 0),
+              sliver: _loading
+                  ? const SliverToBoxAdapter(child: LoadingView())
+                  : _error != null
+                      ? SliverToBoxAdapter(child: ErrorView(message: _error!, onRetry: _load))
+                      : SliverMainAxisGroup(
+                          slivers: [
+                            _allowancesSliver(context),
+                            const SliverPadding(padding: EdgeInsets.only(top: kGutter)),
+                            _quickActionsSliver(context),
+                            const SliverPadding(padding: EdgeInsets.only(top: kGutter)),
+                            _openDoubtsSliver(context),
+                            const SliverPadding(padding: EdgeInsets.only(top: kGutter)),
+                            _upcomingSliver(context),
+                            const SliverPadding(padding: EdgeInsets.only(bottom: kGutter + 80)),
+                          ],
+                        ),
+               ),
+             ],
+         ),
+       ),
+     );
   }
 
-  Widget _allowancesSliver(BuildContext context, AppIdentity identity) {
-    final accent = TierAccent.of(identity.tier);
+  Widget _allowancesSliver(BuildContext context) {
     return SliverToBoxAdapter(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SectionHeader(title: 'Your weekly allowance'),
-          const SizedBox(height: 12),
-          AdaptiveGrid(
-            minColumns: 2,
-            maxColumns: 3,
-            itemExtent: 170,
-            spacing: 12,
+          MDSectionHeader(title: 'Your weekly allowance'),
+          const SizedBox(height: kGutter),
+          Row(
             children: [
-              GlossMetricTile(
-                icon: Icons.question_answer_outlined,
-                label: 'Open doubts',
-                value: '$_openDoubtCount',
-                accent: accent,
-                onTap: () => context.go('/mentor-desk/doubt/submit'),
+              Expanded(
+                child: MDMetricTile(
+                  icon: Icons.question_answer_outlined,
+                  label: 'Open doubts',
+                  value: '$_openDoubtCount',
+                  tier: MDTier.student,
+                  onTap: () => context.go('/mentor-desk/doubts'),
+                ),
               ),
-              GlossMetricTile(
-                icon: Icons.access_time_outlined,
-                label: 'Session minutes left',
-                value: '$_remainingSessionMinutes min',
-                accent: accent,
-                onTap: () => context.go('/mentor-desk/session/book'),
-              ),
-              GlossMetricTile(
-                icon: Icons.flash_on_outlined,
-                label: 'Urgent pass',
-                value: _urgentPassAvailable ? 'Available' : 'Used',
-                accent: accent,
+              const SizedBox(width: kGutter),
+              Expanded(
+                child: MDMetricTile(
+                  icon: Icons.access_time_outlined,
+                  label: 'Session minutes left',
+                  value: '$_remainingSessionMinutes min',
+                  tier: MDTier.student,
+                  onTap: () => context.go('/mentor-desk/session/book'),
+                ),
               ),
             ],
+          ),
+          const SizedBox(height: kGutter),
+          Expanded(
+            child: MDMetricTile(
+              icon: Icons.flash_on_outlined,
+              label: 'Urgent pass',
+              value: _urgentPassAvailable ? 'Available' : 'Used',
+              tier: MDTier.student,
+            ),
           ),
         ],
       ),
@@ -228,45 +273,56 @@ class _MentorDeskHomeScreenState extends ConsumerState<MentorDeskHomeScreen> {
   }
 
   Widget _quickActionsSliver(BuildContext context) {
-    final accent = TierAccent.of(AppTier.student);
     return SliverToBoxAdapter(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SectionHeader(title: 'Get help'),
-          const SizedBox(height: 12),
-          AdaptiveGrid(
-            maxColumns: 2,
-            itemExtent: 150,
-            spacing: 12,
+          MDSectionHeader(title: 'Get help'),
+          const SizedBox(height: kGutter),
+          Row(
             children: [
-              GlossActionTile(
-                icon: Icons.add_circle_outline,
-                label: 'Ask a Doubt',
-                subtitle: 'Guided submission flow',
-                accent: accent,
-                onTap: () => context.go('/mentor-desk/doubt/submit'),
+              Expanded(
+                child: _GlossActionTile(
+                  icon: Icons.add_circle_outline,
+                  label: 'Ask a Doubt',
+                  subtitle: 'Guided submission flow',
+                  tier: MDTier.student,
+                  onTap: () => context.go('/mentor-desk/doubt/submit'),
+                ),
               ),
-              GlossActionTile(
-                icon: Icons.schedule_outlined,
-                label: 'Book a Session',
-                subtitle: 'Pick mentor, time & length',
-                accent: accent,
-                onTap: () => context.go('/mentor-desk/session/book'),
+              const SizedBox(width: kGutter),
+              Expanded(
+                child: _GlossActionTile(
+                  icon: Icons.schedule_outlined,
+                  label: 'Book a Session',
+                  subtitle: 'Pick mentor, time & length',
+                  tier: MDTier.student,
+                  onTap: () => context.go('/mentor-desk/session/book'),
+                ),
               ),
-              GlossActionTile(
-                icon: Icons.forum_outlined,
-                label: 'My Conversations',
-                subtitle: 'Open threads & replies',
-                accent: accent,
-                onTap: () => context.go('/mentor-desk/doubts'),
+            ],
+          ),
+          const SizedBox(height: kGutter),
+          Row(
+            children: [
+              Expanded(
+                child: _GlossActionTile(
+                  icon: Icons.forum_outlined,
+                  label: 'My Conversations',
+                  subtitle: 'Open threads & replies',
+                  tier: MDTier.student,
+                  onTap: () => context.go('/mentor-desk/doubts'),
+                ),
               ),
-              GlossActionTile(
-                icon: Icons.rate_review_outlined,
-                label: 'Give Feedback',
-                subtitle: 'Rate closed support',
-                accent: accent,
-                onTap: () => context.go('/mentor-desk/ratings'),
+              const SizedBox(width: kGutter),
+              Expanded(
+                child: _GlossActionTile(
+                  icon: Icons.rate_review_outlined,
+                  label: 'Give Feedback',
+                  subtitle: 'Rate closed support',
+                  tier: MDTier.student,
+                  onTap: () => context.go('/mentor-desk/ratings'),
+                ),
               ),
             ],
           ),
@@ -280,10 +336,10 @@ class _MentorDeskHomeScreenState extends ConsumerState<MentorDeskHomeScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SectionHeader(title: 'Your doubts', actionLabel: 'See all', onAction: () => context.go('/mentor-desk/doubts')),
-          const SizedBox(height: 12),
+          MDSectionHeader(title: 'Your doubts', actionLabel: 'See all', onAction: () => context.go('/mentor-desk/doubts')),
+          const SizedBox(height: kGutter),
           if (_recentDoubts.isEmpty)
-            const SizedBox(
+            SizedBox(
               height: 160,
               child: EmptyView(
                 title: 'No open doubts',
@@ -315,10 +371,10 @@ class _MentorDeskHomeScreenState extends ConsumerState<MentorDeskHomeScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SectionHeader(title: 'Upcoming sessions', actionLabel: 'See all', onAction: () => context.go('/mentor-desk/sessions')),
-          const SizedBox(height: 12),
+          MDSectionHeader(title: 'Upcoming sessions', actionLabel: 'See all', onAction: () => context.go('/mentor-desk/sessions')),
+          const SizedBox(height: kGutter),
           if (_upcomingSessions.isEmpty)
-            const SizedBox(
+            SizedBox(
               height: 160,
               child: EmptyView(
                 title: 'No upcoming sessions',
@@ -346,6 +402,73 @@ class _MentorDeskHomeScreenState extends ConsumerState<MentorDeskHomeScreen> {
   }
 }
 
+class _GlossActionTile extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String subtitle;
+  final MDTier tier;
+  final VoidCallback onTap;
+  const _GlossActionTile({
+    required this.icon,
+    required this.label,
+    required this.subtitle,
+    required this.tier,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(kRadiusSm),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(kRadiusSm),
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.all(kGutter),
+          decoration: BoxDecoration(
+            color: scheme.surface.withValues(alpha: 0.5),
+            borderRadius: BorderRadius.circular(kRadiusSm),
+            border: Border.all(color: scheme.primary.withValues(alpha: 0.12)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  gradient: tier.gradient,
+                  borderRadius: BorderRadius.circular(14),
+                  boxShadow: [
+                    BoxShadow(color: tier.solid.withValues(alpha: 0.5), blurRadius: 12, offset: const Offset(0, 4)),
+                  ],
+                ),
+                child: Icon(icon, size: 20, color: Colors.white),
+              ),
+              const SizedBox(height: 14),
+              Text(
+                label,
+                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 6),
+              Text(
+                subtitle,
+                style: TextStyle(fontSize: 11.5, color: scheme.onSurface.withValues(alpha: 0.65)),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _DoubtCard extends StatelessWidget {
   final DoubtRequest doubt;
   final VoidCallback onTap;
@@ -353,15 +476,14 @@ class _DoubtCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final accent = TierAccent.of(AppTier.student);
+    final scheme = Theme.of(context).colorScheme;
     final color = _statusColor(doubt.status);
     return SizedBox(
       width: 230,
-      child: Container(
-        decoration: glassCard(color: Theme.of(context).cardColor.withValues(alpha: 0.9)),
+      child: MDListCard(
         child: InkWell(
+          borderRadius: BorderRadius.circular(kRadiusSm),
           onTap: onTap,
-          borderRadius: BorderRadius.circular(20),
           child: Padding(
             padding: const EdgeInsets.all(14),
             child: Column(
@@ -375,10 +497,10 @@ class _DoubtCard extends StatelessWidget {
                     ),
                     const SizedBox(width: 8),
                     Expanded(
-                      child: Text(doubt.statusLabel, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF64748B))),
+                      child: Text(doubt.statusLabel, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: MDColors.ink600)),
                     ),
                     if (doubt.urgent)
-                      const Icon(Icons.flash_on, size: 15, color: Color(0xFFDC2626)),
+                      const Icon(Icons.flash_on, size: 15, color: MDColors.danger),
                   ],
                 ),
                 const SizedBox(height: 10),
@@ -386,7 +508,7 @@ class _DoubtCard extends StatelessWidget {
                   child: Text(doubt.question, maxLines: 3, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
                 ),
                 const SizedBox(height: 8),
-                Text(_ago(doubt.createdAt), style: const TextStyle(fontSize: 11.5, color: Color(0xFF64748B))),
+                Text(_ago(doubt.createdAt), style: const TextStyle(fontSize: 11.5, color: MDColors.ink600)),
               ],
             ),
           ),
@@ -398,11 +520,11 @@ class _DoubtCard extends StatelessWidget {
 
 Color _statusColor(String status) {
   switch (status) {
-    case 'waiting': return const Color(0xFFD97706);
-    case 'assigned': return const Color(0xFF2563EB);
-    case 'resolved': return const Color(0xFF059669);
-    case 'closed': return const Color(0xFF475569);
-    default: return const Color(0xFF64748B);
+    case 'waiting': return MDColors.warning;
+    case 'assigned': return MDColors.brand;
+    case 'resolved': return MDColors.success;
+    case 'closed': return MDColors.ink600;
+    default: return MDColors.ink600;
   }
 }
 
@@ -420,15 +542,14 @@ class _SessionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final accent = TierAccent.of(AppTier.student);
+    final scheme = Theme.of(context).colorScheme;
     final time = booking.scheduledAt != null ? DateFormat('hh:mm a').format(booking.scheduledAt!.toLocal()) : 'TBD';
     return SizedBox(
       width: 230,
-      child: Container(
-        decoration: glassCard(color: Theme.of(context).cardColor.withValues(alpha: 0.9)),
+      child: MDListCard(
         child: InkWell(
+          borderRadius: BorderRadius.circular(kRadiusSm),
           onTap: onTap,
-          borderRadius: BorderRadius.circular(20),
           child: Padding(
             padding: const EdgeInsets.all(14),
             child: Column(
@@ -436,7 +557,7 @@ class _SessionCard extends StatelessWidget {
               children: [
                 Container(
                   width: 9, height: 9,
-                  decoration: BoxDecoration(color: accent.solid, shape: BoxShape.circle),
+                  decoration: BoxDecoration(color: MDTier.student.solid, shape: BoxShape.circle),
                 ),
                 const SizedBox(height: 10),
                 Expanded(
@@ -445,11 +566,11 @@ class _SessionCard extends StatelessWidget {
                 const SizedBox(height: 8),
                 Row(
                   children: [
-                    const Icon(Icons.access_time, size: 14, color: Color(0xFF64748B)),
+                    const Icon(Icons.access_time, size: 14, color: MDColors.ink600),
                     const SizedBox(width: 7),
-                    Text(time, style: const TextStyle(fontSize: 13, color: Color(0xFF64748B))),
+                    Text(time, style: const TextStyle(fontSize: 13, color: MDColors.ink600)),
                     const Spacer(),
-                    Text('${booking.durationMinutes} min', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF2563EB))),
+                    Text('${booking.durationMinutes} min', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: MDColors.brand)),
                   ],
                 ),
               ],

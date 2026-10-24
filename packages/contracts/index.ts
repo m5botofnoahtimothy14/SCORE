@@ -20,7 +20,7 @@ export type InvestigationStatus = 'requested' | 'approved' | 'active' | 'expired
 export type DoubtStatus = 'waiting' | 'assigned' | 'resolved' | 'closed';
 export type BookingStatus = 'requested' | 'confirmed' | 'cancelled_by_student' | 'cancelled_by_mentor' | 'completed' | 'no_show_student' | 'no_show_mentor' | 'unverified_closed';
 export type NoShowType = 'student_no_show' | 'mentor_no_show';
-export type EngagementScale = 'unprepared' | 'needs_improvement' | 'satisfactory' | 'good' | 'outstanding';
+export type EngagementScale = 'unprepared' | 'developing' | 'satisfactory' | 'strong' | 'outstanding';
 export type AllowanceAction = 'deduct' | 'refund';
 export type MentorApprovalStatus = 'pending' | 'approved' | 'rejected';
 export type AvailabilityStatus = 'available' | 'away';
@@ -427,3 +427,4 @@ export interface ApiError {
   message: string;
   status: number;
 }
+

@@ -10,6 +10,7 @@ import '../../../core/layout/responsive.dart';
 import '../../../core/models/identity.dart';
 import '../../../core/providers/identity_provider.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/theme/mentor_desk_design.dart';
 import '../../../core/widgets/states.dart';
 import '../../mentor_desk/models/mentor_desk_models.dart';
 import '../../mentor_desk/services/mentor_desk_service.dart';
@@ -18,8 +19,6 @@ final _serviceProvider = Provider<MentorDeskService>(
   (ref) => MentorDeskService(Supabase.instance.client),
 );
 
-/// Guided doubt submission: subject -> question (text or attachment) -> optional
-/// details -> attachments (up to 4) -> urgent pass -> summary -> send.
 class SubmitDoubtScreen extends ConsumerStatefulWidget {
   const SubmitDoubtScreen({super.key});
 
@@ -48,8 +47,7 @@ class _SubmitDoubtScreenState extends ConsumerState<SubmitDoubtScreen> {
   String? _studentId;
   bool _urgentAvailable = false;
 
-  // Wizard state
-  int _step = 0; // 0 subject, 1 question, 2 details, 3 summary
+  int _step = 0;
 
   @override
   void initState() {
@@ -70,8 +68,8 @@ class _SubmitDoubtScreenState extends ConsumerState<SubmitDoubtScreen> {
 
   Future<void> _load() async {
     final identity = await ref.read(identityProvider.future);
-    _schoolId = identity.schoolId;
-    _studentId = identity.userId;
+    _schoolId = identity.schoolId!;
+    _studentId = identity.userId!;
     final service = ref.read(_serviceProvider);
     final subjects = await service.listSubjects(_schoolId!);
     final allowances = await service.allowanceSummary(schoolId: _schoolId!, studentId: _studentId!);
@@ -83,31 +81,20 @@ class _SubmitDoubtScreenState extends ConsumerState<SubmitDoubtScreen> {
     });
   }
 
-  bool get _canSubmit => _selectedSubject != null && _questionCtrl.text.trim().isNotEmpty && _images.length <= MentorDeskService.maxAttachments;
+  bool get _canSubmit =>
+      _selectedSubject != null && _questionCtrl.text.trim().isNotEmpty && _images.length <= MentorDeskService.maxAttachments;
 
   Future<void> _pickImages() async {
     final remaining = MentorDeskService.maxAttachments - _images.length;
     if (remaining <= 0) return;
     final picker = ImagePicker();
-    final picked = await picker.pickMultiImage(
-      maxWidth: 1920,
-      imageQuality: 85,
-      limit: remaining,
-    );
+    final picked = await picker.pickMultiImage(maxWidth: 1920, imageQuality: 85, limit: remaining);
     if (picked.isEmpty) return;
     setState(() => _images.addAll(picked));
   }
 
   void _removeImage(int index) {
     setState(() => _images.removeAt(index));
-  }
-
-  String _mime(String name) {
-    final n = name.toLowerCase();
-    if (n.endsWith('.png')) return 'image/png';
-    if (n.endsWith('.webp')) return 'image/webp';
-    if (n.endsWith('.gif')) return 'image/gif';
-    return 'image/jpeg';
   }
 
   Future<void> _uploadAndSubmit() async {
@@ -128,12 +115,9 @@ class _SubmitDoubtScreenState extends ConsumerState<SubmitDoubtScreen> {
 
     try {
       final service = ref.read(_serviceProvider);
-      // Upload images first (need a conversation id — use a placeholder, RPC links them)
-      // We upload to a temp conversation path; submit_doubt will link attachments.
-      final convId = const String.fromEnvironment('conversation_id', defaultValue: 'pending');
       final ids = await service.uploadImages(
         schoolId: _schoolId!,
-        conversationId: convId,
+        conversationId: 'pending',
         files: _images,
       );
       _attachmentIds = ids;
@@ -164,10 +148,15 @@ class _SubmitDoubtScreenState extends ConsumerState<SubmitDoubtScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final accent = TierAccent.of(AppTier.student);
+    final tier = MDTier.student;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Ask a Doubt')),
+      backgroundColor: MDColors.ink50,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        title: const Text('Ask a Doubt'),
+      ),
       body: _loadingSubjects
           ? const LoadingView()
           : AdaptivePage(
@@ -175,11 +164,11 @@ class _SubmitDoubtScreenState extends ConsumerState<SubmitDoubtScreen> {
               child: Form(
                 key: _formKey,
                 child: ListView(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(kGutter),
                   children: [
                     if (_step == 0) ...[
-                      _SectionTitle('1 · Select subject'),
-                      const SizedBox(height: 10),
+                      MDSectionHeader(title: '1 · Select subject'),
+                      const SizedBox(height: kGutter),
                       DropdownButtonFormField<SubjectWithName>(
                         value: _selectedSubject,
                         hint: const Text('Choose a subject'),
@@ -191,85 +180,92 @@ class _SubmitDoubtScreenState extends ConsumerState<SubmitDoubtScreen> {
                             .toList(),
                         onChanged: (v) => setState(() => _selectedSubject = v),
                         validator: (_) => _selectedSubject == null ? 'Select a subject' : null,
-                        decoration: const InputDecoration(
+                        decoration: InputDecoration(
                           labelText: 'Subject',
-                          border: OutlineInputBorder(),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(kRadiusSm)),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(kRadiusSm),
+                            borderSide: BorderSide(color: tier.solid, width: 1.6),
+                          ),
                         ),
                       ),
-                      const SizedBox(height: 16),
-                      const Text('Your subject list is configured by your school.'),
-                      const SizedBox(height: 24),
+                      const SizedBox(height: kGutter),
+                      const Text('Your subject list is configured by your school.', style: TextStyle(fontSize: 12, color: MDColors.ink600)),
+                      const SizedBox(height: kGutter),
                       SizedBox(
                         width: double.infinity,
-                        child: ElevatedButton(
+                        child: MDGlossButton(
                           onPressed: _selectedSubject == null ? null : () => setState(() => _step = 1),
                           child: const Text('Continue'),
                         ),
                       ),
                     ] else if (_step == 1) ...[
-                      _SectionTitle('2 · Your question'),
-                      const SizedBox(height: 10),
-                      TextFormField(
+                      MDSectionHeader(title: '2 · Your question'),
+                      const SizedBox(height: kGutter),
+                      MDGlossInput(
                         controller: _questionCtrl,
-                        maxLines: 3,
-                        decoration: const InputDecoration(
-                          labelText: 'Question (one line)',
-                          hintText: 'e.g. How do I solve this quadratic equation?',
-                          border: OutlineInputBorder(),
-                        ),
+                        label: 'Question (one line)',
+                        hint: 'e.g. How do I solve this quadratic equation?',
                         validator: (v) => (v == null || v.trim().isEmpty) ? 'Enter your question' : null,
+                        maxLines: 3,
                       ),
-                      const SizedBox(height: 10),
-                      const Text('Or attach a photo of the question instead.', style: TextStyle(fontSize: 12, color: Color(0xFF64748B))),
-                      const SizedBox(height: 10),
-                      Row(
+                      const SizedBox(height: kGutter),
+                      const Text('Or attach a photo of the question instead.', style: TextStyle(fontSize: 12, color: MDColors.ink600)),
+                      const SizedBox(height: kGutter),
+                      SizedBox(
+                        width: double.infinity,
+                        child: MDGlossOutlineButton(
+                          onPressed: () { _pickImages(); },
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.image_outlined, size: 18),
+                              SizedBox(width: kGutter / 2),
+                              Text('Attach image'),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: kGutter),
+                      const Text('Up to 4 images. Each is safety-reviewed before others see it.', style: TextStyle(fontSize: 12, color: MDColors.ink600)),
+                      const SizedBox(height: kGutter),
+                      Wrap(
+                        spacing: kGutter,
+                        runSpacing: kGutter,
                         children: [
-                          OutlinedButton.icon(
-                            onPressed: _pickImages,
-                            icon: const Icon(Icons.image_outlined, size: 18),
-                            label: const Text('Attach image'),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Wrap(
-                              spacing: 6,
-                              runSpacing: 6,
-                              children: [
-                                for (var i = 0; i < _images.length; i++)
-                                  _ChipImage(image: _images[i], onRemove: () => _removeImage(i)),
-                              ],
-                            ),
-                          ),
+                          for (var i = 0; i < _images.length; i++)
+                            _ChipImage(image: _images[i], onRemove: () => _removeImage(i)),
                         ],
                       ),
-                      const Text('Up to 4 images. Each is safety-reviewed before others see it.',
-                          style: TextStyle(fontSize: 12, color: Color(0xFF64748B))),
-                      const SizedBox(height: 24),
+                      const SizedBox(height: kGutter * 2),
                       Row(
                         children: [
                           TextButton(onPressed: () => setState(() => _step = 0), child: const Text('Back')),
                           const Spacer(),
-                          ElevatedButton(onPressed: _canSubmit ? () => setState(() => _step = 2) : null, child: const Text('Continue')),
+                          MDGlossButton(
+                            onPressed: _canSubmit ? () => setState(() => _step = 2) : null,
+                            child: const Text('Continue'),
+                          ),
                         ],
                       ),
                     ] else if (_step == 2) ...[
-                      _SectionTitle('3 · Details (optional)'),
-                      const SizedBox(height: 10),
-                      _Field(controller: _chapterCtrl, label: 'Chapter', hint: 'e.g. Chapter 4'),
-                      const SizedBox(height: 10),
-                      _Field(controller: _qnCtrl, label: 'Question number', hint: 'e.g. Q3'),
-                      const SizedBox(height: 10),
-                      _Field(controller: _explanationCtrl, label: 'Explanation / what you tried', hint: 'Optional', maxLines: 3),
-                      const SizedBox(height: 10),
-                      _Field(controller: _attemptsCtrl, label: 'Previous attempts', hint: 'What have you tried so far?', maxLines: 3),
-                      const SizedBox(height: 16),
+                      MDSectionHeader(title: '3 · Details (optional)'),
+                      const SizedBox(height: kGutter),
+                      MDGlossInput(controller: _chapterCtrl, label: 'Chapter', hint: 'e.g. Chapter 4'),
+                      const SizedBox(height: kGutter),
+                      MDGlossInput(controller: _qnCtrl, label: 'Question number', hint: 'e.g. Q3'),
+                      const SizedBox(height: kGutter),
+                      MDGlossInput(controller: _explanationCtrl, label: 'Explanation / what you tried', hint: 'Optional', maxLines: 3),
+                      const SizedBox(height: kGutter),
+                      MDGlossInput(controller: _attemptsCtrl, label: 'Previous attempts', hint: 'What have you tried so far?', maxLines: 3),
+                      const SizedBox(height: kGutter * 2),
                       Row(
                         children: [
                           Checkbox(
                             value: _urgent,
                             onChanged: _urgentAvailable ? (v) => setState(() => _urgent = v ?? false) : null,
                           ),
-                          const SizedBox(width: 8),
+                          const SizedBox(width: kGutter / 2),
                           Expanded(
                             child: Text.rich(
                               TextSpan(
@@ -278,7 +274,7 @@ class _SubmitDoubtScreenState extends ConsumerState<SubmitDoubtScreen> {
                                 children: [
                                   TextSpan(
                                     text: '(${_urgentAvailable ? 'available' : 'used this week'})',
-                                    style: TextStyle(fontSize: 12, color: _urgentAvailable ? Colors.green : Colors.grey),
+                                    style: TextStyle(fontSize: 12, color: _urgentAvailable ? MDColors.success : MDColors.ink600),
                                   ),
                                 ],
                               ),
@@ -287,108 +283,73 @@ class _SubmitDoubtScreenState extends ConsumerState<SubmitDoubtScreen> {
                         ],
                       ),
                       if (_urgent) ...[
-                        const SizedBox(height: 10),
-                        _Field(controller: _urgentReasonCtrl, label: 'Reason for urgency *', hint: 'Why is this urgent?', maxLines: 2),
+                        const SizedBox(height: kGutter),
+                        MDGlossInput(controller: _urgentReasonCtrl, label: 'Reason for urgency *', hint: 'Why is this urgent?', maxLines: 2),
                       ],
-                      const SizedBox(height: 24),
+                      const SizedBox(height: kGutter * 2),
                       Row(
                         children: [
                           TextButton(onPressed: () => setState(() => _step = 1), child: const Text('Back')),
                           const Spacer(),
-                          ElevatedButton(onPressed: () => setState(() => _step = 3), child: const Text('Review')),
+                          MDGlossButton(onPressed: () => setState(() => _step = 3), child: const Text('Review')),
                         ],
                       ),
                     ] else ...[
-                      _SectionTitle('4 · Review before sending'),
-                      const SizedBox(height: 10),
+                      MDSectionHeader(title: '4 · Review before sending'),
+                      const SizedBox(height: kGutter),
                       _ReviewRow(label: 'Subject', value: _selectedSubject!.name),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: kGutter),
                       _ReviewRow(label: 'Question', value: _questionCtrl.text.trim()),
                       if (_chapterCtrl.text.trim().isNotEmpty) ...[
-                        const SizedBox(height: 8),
+                        const SizedBox(height: kGutter),
                         _ReviewRow(label: 'Chapter', value: _chapterCtrl.text.trim()),
                       ],
                       if (_qnCtrl.text.trim().isNotEmpty) ...[
-                        const SizedBox(height: 8),
+                        const SizedBox(height: kGutter),
                         _ReviewRow(label: 'Question #', value: _qnCtrl.text.trim()),
                       ],
                       if (_explanationCtrl.text.trim().isNotEmpty) ...[
-                        const SizedBox(height: 8),
+                        const SizedBox(height: kGutter),
                         _ReviewRow(label: 'Explanation', value: _explanationCtrl.text.trim()),
                       ],
                       if (_attemptsCtrl.text.trim().isNotEmpty) ...[
-                        const SizedBox(height: 8),
+                        const SizedBox(height: kGutter),
                         _ReviewRow(label: 'Previous attempts', value: _attemptsCtrl.text.trim()),
                       ],
                       if (_images.isNotEmpty) ...[
-                        const SizedBox(height: 8),
+                        const SizedBox(height: kGutter),
                         _ReviewRow(label: 'Attachments', value: '${_images.length} image${_images.length > 1 ? 's' : ''}'),
                       ],
                       if (_urgent) ...[
-                        const SizedBox(height: 8),
+                        const SizedBox(height: kGutter),
                         _ReviewRow(label: 'Urgent', value: 'Yes — ${_urgentReasonCtrl.text.trim()}'),
                       ],
-                      const SizedBox(height: 20),
+                      const SizedBox(height: kGutter * 2),
                       if (_error != null)
                         Container(
-                          padding: const EdgeInsets.all(12),
+                          padding: const EdgeInsets.all(kGutter),
                           color: const Color(0xFFFEF2F2),
-                          child: Text(_error!, style: const TextStyle(color: Color(0xFF991B1B), fontSize: 13)),
+                          child: Text(_error!, style: const TextStyle(color: MDColors.danger, fontSize: 13)),
                         ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: kGutter),
                       SizedBox(
                         width: double.infinity,
-                        height: 52,
-                        child: ElevatedButton(
-                          onPressed: _submitting ? null : _uploadAndSubmit,
+                        height: 56,
+                        child: MDGlossButton(
+                          onPressed: _submitting ? null : () { _uploadAndSubmit(); },
                           child: _submitting
                               ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                               : const Text('Submit Doubt'),
                         ),
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: kGutter),
                       TextButton(onPressed: () => setState(() => _step = 2), child: const Text('Edit details')),
-                    ]],
-                  ),
-                ),
+                    ],
+                   ],
               ),
-            );
-  }
-}
-
-class _SectionTitle extends StatelessWidget {
-  final String text;
-  const _SectionTitle(this.text);
-  @override
-  Widget build(BuildContext context) {
-    return Text(text, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, letterSpacing: 0.4, color: Color(0xFF64748B)));
-  }
-}
-
-class _Field extends StatelessWidget {
-  final TextEditingController controller;
-  final String label;
-  final String hint;
-  final int maxLines;
-  const _Field({required this.controller, required this.label, required this.hint, this.maxLines = 1});
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-        const SizedBox(height: 6),
-        TextFormField(
-          controller: controller,
-          maxLines: maxLines,
-          decoration: InputDecoration(
-            hintText: hint,
-            border: const OutlineInputBorder(),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
-          ),
-        ),
-      ],
-    );
+            ),
+            ),
+      );
   }
 }
 
@@ -401,7 +362,7 @@ class _ReviewRow extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SizedBox(width: 110, child: Text(label, style: const TextStyle(fontSize: 13, color: Color(0xFF64748B)))),
+        SizedBox(width: 110, child: Text(label, style: const TextStyle(fontSize: 13, color: MDColors.ink600))),
         Expanded(child: Text(value, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600))),
       ],
     );
@@ -431,7 +392,7 @@ class _ChipImage extends StatelessWidget {
             onTap: onRemove,
             child: Container(
               width: 20, height: 20,
-              decoration: const BoxDecoration(color: Color(0xFFDC2626), shape: BoxShape.circle),
+              decoration: const BoxDecoration(color: MDColors.danger, shape: BoxShape.circle),
               child: const Icon(Icons.close, size: 14, color: Colors.white),
             ),
           ),

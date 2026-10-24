@@ -6,10 +6,9 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../core/theme/app_theme.dart';
+import '../../../core/theme/mentor_desk_design.dart';
 import '../../../core/layout/responsive.dart';
-import '../../../core/models/identity.dart';
-import '../../../core/providers/identity_provider.dart';
-import '../../../core/theme/app_theme.dart' show SectionHeader, TierAccent;
 import '../../../core/widgets/states.dart';
 import '../../mentor_desk/models/mentor_desk_models.dart';
 import '../../mentor_desk/services/mentor_desk_service.dart';
@@ -142,10 +141,11 @@ class _SessionDetailScreenState extends ConsumerState<SessionDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final accent = TierAccent.of(AppTier.student);
+    final accent = MDTier.student;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Session')),
+      backgroundColor: MDColors.ink50,
+      appBar: AppBar(backgroundColor: Colors.transparent, elevation: 0, title: const Text('Session')),
       body: _loading
           ? const LoadingView()
           : _error != null
@@ -155,57 +155,120 @@ class _SessionDetailScreenState extends ConsumerState<SessionDetailScreen> {
                   : AdaptivePage(
                       maxWidth: 700,
                       child: ListView(
-                        padding: const EdgeInsets.all(16),
+                        padding: const EdgeInsets.all(kGutter),
                         children: [
-                          _StatusHeader(booking: _booking!),
-                          const SizedBox(height: 16),
+                          _StatusHeader(booking: _booking!, tier: accent),
+                          const SizedBox(height: kGutter),
                           _InfoRow(icon: Icons.schedule, label: 'Status', value: _booking!.statusLabel, color: Color(int.parse('0xFF${_statusColorName(_booking!.status)}'))),
-                          const SizedBox(height: 10),
+                          const SizedBox(height: kGutter),
                           if (_booking!.scheduledAt != null)
                             _InfoRow(icon: Icons.access_time, label: 'Date & time', value: DateFormat('EEE, MMM d, y • hh:mm a').format(_booking!.scheduledAt!.toLocal())),
-                          const SizedBox(height: 10),
+                          const SizedBox(height: kGutter),
                           _InfoRow(icon: Icons.access_alarm, label: 'Duration', value: '${_booking!.durationMinutes} minutes'),
-                          const SizedBox(height: 10),
+                          const SizedBox(height: kGutter),
                           if (_booking!.meetingLink != null && _booking!.meetingLink!.isNotEmpty)
                             _InfoRow(icon: Icons.videocam, label: 'Meeting link', value: _booking!.meetingLink!),
                           if (_booking!.meetingRoom != null && _booking!.meetingRoom!.isNotEmpty)
                             _InfoRow(icon: Icons.meeting_room, label: 'Room', value: _booking!.meetingRoom!),
-                          const SizedBox(height: 10),
+                          const SizedBox(height: kGutter),
                           _InfoRow(icon: Icons.subject, label: 'Topic', value: _booking!.topic),
-                          const SizedBox(height: 10),
+                          const SizedBox(height: kGutter),
                           if (_booking!.preparation != null && _booking!.preparation!.isNotEmpty)
                             _InfoRow(icon: Icons.note, label: 'Preparation', value: _booking!.preparation!),
-                          const SizedBox(height: 20),
-                          const SectionHeader(title: 'Actions'),
-                          const SizedBox(height: 10),
+                          const SizedBox(height: kGutter * 2),
+                          MDSectionHeader(title: 'Actions'),
+                          const SizedBox(height: kGutter),
                           if (_booking!.isRequested) ...[
-                            SizedBox(width: double.infinity, child: OutlinedButton.icon(onPressed: _cancel, icon: const Icon(Icons.cancel, size: 18), label: const Text('Cancel request'))),
-                            const SizedBox(height: 10),
+                            SizedBox(
+                              width: double.infinity,
+                              child: MDGlossOutlineButton(
+                                onPressed: _cancel,
+                                child: const Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [Icon(Icons.cancel, size: 18), SizedBox(width: 8), Text('Cancel request')],
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: kGutter),
                           ],
                           if (_booking!.isConfirmed) ...[
                             if (_booking!.showCode && _booking!.verificationCode != null && !_booking!.codeLocked) ...[
                               _CodeCard(code: _code, codeLoading: _codeLoading, onReveal: _getCode, alreadyRevealed: _codeVisible),
-                              const SizedBox(height: 10),
+                              const SizedBox(height: kGutter),
                             ] else if (_booking!.showCode) ...[
-                              SizedBox(width: double.infinity, child: OutlinedButton.icon(onPressed: _getCode, icon: const Icon(Icons.vpn_key, size: 18), label: const Text('Reveal verification code'))),
-                              const SizedBox(height: 10),
+                              SizedBox(
+                                width: double.infinity,
+                                child: MDGlossOutlineButton(
+                                  onPressed: _getCode,
+                                  child: const Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [Icon(Icons.vpn_key, size: 18), SizedBox(width: 8), Text('Reveal verification code')],
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: kGutter),
                             ],
                             if (_booking!.meetingLink != null && _booking!.meetingLink!.isNotEmpty)
-                              SizedBox(width: double.infinity, child: OutlinedButton.icon(onPressed: () {}, icon: const Icon(Icons.launch, size: 18), label: const Text('Open meeting link'))),
-                            const SizedBox(height: 10),
+                              SizedBox(
+                                width: double.infinity,
+                                child: MDGlossOutlineButton(
+                                  onPressed: () {},
+                                  child: const Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [Icon(Icons.launch, size: 18), SizedBox(width: 8), Text('Open meeting link')],
+                                  ),
+                                ),
+                              ),
+                            const SizedBox(height: kGutter),
                             if (_booking!.status == 'confirmed')
-                              SizedBox(width: double.infinity, child: OutlinedButton.icon(onPressed: _reportNoShow, icon: const Icon(Icons.report_outlined, size: 18), label: const Text("Mentor didn't join"))),
-                            const SizedBox(height: 10),
-                            SizedBox(width: double.infinity, child: OutlinedButton.icon(onPressed: _cancel, icon: const Icon(Icons.cancel, size: 18), label: const Text('Cancel session'))),
+                              SizedBox(
+                                width: double.infinity,
+                                child: MDGlossOutlineButton(
+                                  onPressed: _reportNoShow,
+                                  child: const Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [Icon(Icons.report_outlined, size: 18), SizedBox(width: 8), Text("Mentor didn't join")],
+                                  ),
+                                ),
+                              ),
+                            const SizedBox(height: kGutter),
+                            SizedBox(
+                              width: double.infinity,
+                              child: MDGlossOutlineButton(
+                                onPressed: _cancel,
+                                child: const Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [Icon(Icons.cancel, size: 18), SizedBox(width: 8), Text('Cancel session')],
+                                ),
+                              ),
+                            ),
                           ],
                           if (_booking!.isNoShow && _booking!.status == 'no_show_mentor') ...[
-                            SizedBox(width: double.infinity, child: OutlinedButton.icon(onPressed: _reportNoShow, icon: const Icon(Icons.report_outlined, size: 18), label: const Text("Mentor didn't join"))),
-                            const SizedBox(height: 10),
+                            SizedBox(
+                              width: double.infinity,
+                              child: MDGlossOutlineButton(
+                                onPressed: _reportNoShow,
+                                child: const Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [Icon(Icons.report_outlined, size: 18), SizedBox(width: 8), Text("Mentor didn't join")],
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: kGutter),
                           ],
                           if (_booking!.isCompleted)
-                            SizedBox(width: double.infinity, child: OutlinedButton.icon(onPressed: () => context.go('/mentor-desk/rating/${_booking!.id}'), icon: const Icon(Icons.rate_review, size: 18), label: const Text('Rate this session'))),
+                            SizedBox(
+                              width: double.infinity,
+                              child: MDGlossButton(
+                                onPressed: () => context.go('/mentor-desk/rating/${_booking!.id}'),
+                                child: const Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [Icon(Icons.rate_review, size: 18), SizedBox(width: 8), Text('Rate this session')],
+                                ),
+                              ),
+                            ),
                           if (_booking!.closedWithoutCode)
-                            const Text('Session closed without verification code. Pending administrative review.', style: TextStyle(color: Color(0xFFDC2626), fontSize: 13)),
+                            const Text('Session closed without verification code — flagged for administrative review.', style: TextStyle(color: MDColors.danger, fontSize: 13)),
                         ],
                       ),
                     ),
@@ -215,14 +278,18 @@ class _SessionDetailScreenState extends ConsumerState<SessionDetailScreen> {
 
 class _StatusHeader extends StatelessWidget {
   final SessionBooking booking;
-  const _StatusHeader({required this.booking});
+  final MDTier tier;
+  const _StatusHeader({required this.booking, required this.tier});
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(kGutter),
       decoration: BoxDecoration(
-        gradient: LinearGradient(colors: [TierAccent.of(AppTier.student).start, TierAccent.of(AppTier.student).end]),
-        borderRadius: BorderRadius.circular(20),
+        gradient: tier.gradient,
+        borderRadius: BorderRadius.circular(kRadiusLg),
+        boxShadow: [
+          BoxShadow(color: tier.solid.withValues(alpha: 0.45), blurRadius: 30, offset: const Offset(0, 14)),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -251,13 +318,13 @@ class _InfoRow extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Container(width: 34, height: 34, decoration: BoxDecoration(color: TierAccent.of(AppTier.student).soft, borderRadius: BorderRadius.circular(10)), child: Icon(icon, size: 18, color: TierAccent.of(AppTier.student).onSoft)),
+        Container(width: 34, height: 34, decoration: BoxDecoration(color: MDTier.student.soft, borderRadius: BorderRadius.circular(12)), child: Icon(icon, size: 18, color: MDTier.student.onSoft)),
         const SizedBox(width: 12),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(label, style: const TextStyle(fontSize: 12, color: Color(0xFF64748B))),
+              Text(label, style: const TextStyle(fontSize: 12, color: MDColors.ink600)),
               const SizedBox(height: 2),
               Text(value, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: color)),
             ],
@@ -277,13 +344,13 @@ class _CodeCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(color: const Color(0xFFF1F5F9), borderRadius: BorderRadius.circular(16), border: Border.all(color: const Color(0xFFE2E8F0))),
+      padding: const EdgeInsets.all(kGutter),
+      decoration: BoxDecoration(color: const Color(0xFFF1F5F9), borderRadius: BorderRadius.circular(kRadiusSm), border: Border.all(color: const Color(0xFFE2E8F0))),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Verification code', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF64748B))),
-          const SizedBox(height: 10),
+          const Text('Verification code', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+          const SizedBox(height: kGutter / 2),
           Row(
             children: [
               Expanded(
@@ -299,18 +366,18 @@ class _CodeCard extends StatelessWidget {
                         ),
                 ),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: kGutter / 2),
               if (!alreadyRevealed)
                 SizedBox(
                   height: 56,
-                  child: OutlinedButton(onPressed: onReveal, child: const Text('Reveal')),
+                  child: MDGlossOutlineButton(onPressed: onReveal, child: const Text('Reveal')),
                 )
               else
-                const Icon(Icons.vpn_key, color: Color(0xFF2563EB)),
+                const Icon(Icons.vpn_key, color: MDColors.brand),
             ],
           ),
-          const SizedBox(height: 8),
-          const Text('Show this code to the mentor at the end of the session. The mentor enters it to verify.', style: TextStyle(fontSize: 11, color: Color(0xFF64748B))),
+          const SizedBox(height: kGutter / 2),
+          const Text('Show this code to the mentor at the end of the session. The mentor enters it to verify.', style: TextStyle(fontSize: 11, color: MDColors.ink600)),
         ],
       ),
     );

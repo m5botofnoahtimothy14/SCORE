@@ -110,8 +110,8 @@ CREATE TABLE public.session_bookings (
   school_id          UUID NOT NULL REFERENCES public.schools(id) ON DELETE CASCADE,
   student_id         UUID NOT NULL REFERENCES public.user_profiles(id) ON DELETE CASCADE,
   student_record_id  UUID NOT NULL REFERENCES public.students(id) ON DELETE CASCADE,
-  mentor_id          UUID NOT NULL REFERENCES public.user_profiles(id),
-  mentor_record_id   UUID NOT NULL REFERENCES public.teachers(id),
+  mentor_id          UUID REFERENCES public.user_profiles(id),
+  mentor_record_id   UUID REFERENCES public.teachers(id),
   subject_id         UUID NOT NULL REFERENCES public.subjects(id) ON DELETE CASCADE,
   duration_minutes   INTEGER NOT NULL,
   topic              TEXT NOT NULL,
@@ -183,9 +183,9 @@ CREATE INDEX idx_ratings_mentor  ON public.ratings(mentor_id);
 -- ── Mentor assessments (mentor -> student; PRIVATE, never shown to student) ──
 CREATE TYPE public.engagement_scale AS ENUM (
   'unprepared',
-  'needs_improvement',
+  'developing',
   'satisfactory',
-  'good',
+  'strong',
   'outstanding'
 );
 
@@ -456,17 +456,13 @@ BEGIN
   IF NOT FOUND THEN
     RETURN jsonb_build_object('success', FALSE, 'error', 'student_not_found');
   END IF;
-  v_school_id := v_student.school_id;
-
-  -- Settings
-  SELECT * INTO v_settings
-  FROM mentor_desk_settings
+  v_school_id := v_student.school_id;\n\n  -- Serialize concurrent submissions per student\n  PERFORM pg_advisory_xact_lock(hashtext(v_uid::text || ':submit_doubt'));\n\n  -- Settings\n  SELECT * INTO v_settings\n  FROM mentor_desk_settings
   WHERE school_id = v_school_id;
   IF NOT FOUND THEN
     RETURN jsonb_build_object('success', FALSE, 'error', 'settings_not_configured');
   END IF;
 
-  -- Subject must belong to the school
+  -- Attachment count limit (max 4 images per doubt)\n  IF COALESCE(array_length(p_attachment_ids, 1), 0) > 4 THEN\n    RETURN jsonb_build_object('success', FALSE, 'error', 'too_many_attachments');\n  END IF;\n\n  -- Subject must belong to the school
   IF NOT EXISTS (
     SELECT 1 FROM subjects WHERE id = p_subject_id AND school_id = v_school_id
   ) THEN
@@ -860,10 +856,7 @@ BEGIN
   IF NOT FOUND THEN
     RETURN jsonb_build_object('success', FALSE, 'error', 'student_not_found');
   END IF;
-  v_school_id := v_student.school_id;
-
-  SELECT * INTO v_settings
-  FROM mentor_desk_settings WHERE school_id = v_school_id;
+  v_school_id := v_student.school_id;\n\n  -- Serialize concurrent bookings per student\n  PERFORM pg_advisory_xact_lock(hashtext(v_uid::text || ':book_session'));\n\n  SELECT * INTO v_settings\n  FROM mentor_desk_settings WHERE school_id = v_school_id;
   IF NOT FOUND THEN
     RETURN jsonb_build_object('success', FALSE, 'error', 'settings_not_configured');
   END IF;
@@ -1675,3 +1668,7 @@ BEGIN
 EXCEPTION WHEN OTHERS THEN
   RAISE WARNING 'weekly_allowance_reset cron not scheduled: %', SQLERRM;
 END $$;
+
+
+
+

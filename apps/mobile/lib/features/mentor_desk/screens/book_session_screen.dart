@@ -7,10 +7,11 @@ import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../core/theme/app_theme.dart';
+import '../../../core/theme/mentor_desk_design.dart';
 import '../../../core/layout/responsive.dart';
 import '../../../core/models/identity.dart';
 import '../../../core/providers/identity_provider.dart';
-import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/states.dart';
 import '../../mentor_desk/models/mentor_desk_models.dart';
 import '../../mentor_desk/services/mentor_desk_service.dart';
@@ -19,8 +20,8 @@ final _serviceProvider = Provider<MentorDeskService>(
   (ref) => MentorDeskService(Supabase.instance.client),
 );
 
-/// Book a session: subject -> mentor (any or specific) -> date/time -> length ->
-/// topic/prep -> attachments (up to 4) -> submit. Allowance enforced server-side.
+/// Book a session: subject -> mentor -> date/time -> length -> topic/prep ->
+/// attachments (up to 4) -> submit. Allowance enforced server-side.
 class BookSessionScreen extends ConsumerStatefulWidget {
   const BookSessionScreen({super.key});
 
@@ -35,17 +36,13 @@ class _BookSessionScreenState extends ConsumerState<BookSessionScreen> {
 
   List<SubjectWithName> _subjects = const [];
   SubjectWithName? _selectedSubject;
-  List<MentorSubjectApproval> _approvals = const [];
-  List<Map<String, dynamic>> _mentors = []; // {id, name, subjectId, available}
 
   String? _schoolId;
   String? _studentId;
-  String? _teacherId;
   bool _loading = true;
   bool _submitting = false;
   String? _error;
   List<XFile> _images = [];
-  List<String> _attachmentIds = [];
 
   String _mode = 'any'; // 'any' | 'specific'
   DateTime? _selectedDate;
@@ -69,7 +66,6 @@ class _BookSessionScreenState extends ConsumerState<BookSessionScreen> {
     final identity = await ref.read(identityProvider.future);
     _schoolId = identity.schoolId;
     _studentId = identity.userId;
-    _teacherId = identity.teacherId;
     final service = ref.read(_serviceProvider);
     final subjects = await service.listSubjects(_schoolId!);
     if (!mounted) return;
@@ -77,16 +73,6 @@ class _BookSessionScreenState extends ConsumerState<BookSessionScreen> {
       _subjects = subjects;
       _loading = false;
     });
-  }
-
-  Future<void> _loadMentorsForSubject() async {
-    if (_selectedSubject == null) return;
-    final service = ref.read(_serviceProvider);
-    // Find teachers approved for this subject who are active
-    final client = Supabase.instance.client;
-    final approvals = await service.listMyApprovals(_teacherId!);
-    _approvals = approvals;
-    setState(() {});
   }
 
   Future<void> _pickImages() async {
@@ -122,13 +108,11 @@ class _BookSessionScreenState extends ConsumerState<BookSessionScreen> {
         _selectedTime!.hour, _selectedTime!.minute);
   }
 
-  bool get _canSubmit {
-    final settings = MentorDeskService.maxAttachments;
-    return _selectedSubject != null &&
-        _topicCtrl.text.trim().isNotEmpty &&
-        _scheduledAt != null &&
-        _images.length <= settings;
-  }
+  bool get _canSubmit =>
+      _selectedSubject != null &&
+      _topicCtrl.text.trim().isNotEmpty &&
+      _scheduledAt != null &&
+      _images.length <= MentorDeskService.maxAttachments;
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
@@ -140,18 +124,16 @@ class _BookSessionScreenState extends ConsumerState<BookSessionScreen> {
       setState(() => _error = 'Pick a date and time.');
       return;
     }
-    final String? mentorId = _mode == 'specific' ? _selectedMentor?.id : null;
+    final String? mentorId = null; // any available mentor
     setState(() { _submitting = true; _error = null; });
 
     try {
       final service = ref.read(_serviceProvider);
-      // Upload images to a temp path; the booking RPC links them.
       final ids = await service.uploadImages(
         schoolId: _schoolId!,
         conversationId: 'pending-booking',
         files: _images,
       );
-      _attachmentIds = ids;
 
       final booking = await service.bookSession(
         subjectId: _selectedSubject!.id,
@@ -160,7 +142,7 @@ class _BookSessionScreenState extends ConsumerState<BookSessionScreen> {
         scheduledAt: _scheduledAt!,
         topic: _topicCtrl.text.trim(),
         preparation: _prepCtrl.text.trim().isEmpty ? null : _prepCtrl.text.trim(),
-        attachmentIds: _attachmentIds,
+        attachmentIds: ids,
       );
 
       if (!mounted) return;
@@ -175,20 +157,13 @@ class _BookSessionScreenState extends ConsumerState<BookSessionScreen> {
     }
   }
 
-  MentorSubjectApproval? get _selectedMentor {
-    if (_mode != 'specific') return null;
-    return _approvals.where((a) => a.isApproved).firstOrNull;
-  }
-
-  bool get _subjectHasApprovedMentor =>
-      _approvals.any((a) => a.isApproved);
-
   @override
   Widget build(BuildContext context) {
-    final accent = TierAccent.of(AppTier.student);
+    final tier = MDTier.student;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Book a Session')),
+      backgroundColor: MDColors.ink50,
+      appBar: AppBar(backgroundColor: Colors.transparent, elevation: 0, title: const Text('Book a Session')),
       body: _loading
           ? const LoadingView()
           : AdaptivePage(
@@ -196,128 +171,117 @@ class _BookSessionScreenState extends ConsumerState<BookSessionScreen> {
               child: Form(
                 key: _formKey,
                 child: ListView(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(kGutter),
                   children: [
-                    _SectionTitle('1 · Subject'),
-                    const SizedBox(height: 10),
+                    MDSectionHeader(title: '1 · Subject'),
+                    const SizedBox(height: kGutter),
                     DropdownButtonFormField<SubjectWithName>(
                       value: _selectedSubject,
                       hint: const Text('Choose a subject'),
                       items: _subjects
                           .map((s) => DropdownMenuItem(value: s, child: Text(s.name)))
                           .toList(),
-                      onChanged: (v) {
-                        setState(() {
-                          _selectedSubject = v;
-                          _approvals = const [];
-                        });
-                        _loadMentorsForSubject();
-                      },
+                      onChanged: (v) => setState(() => _selectedSubject = v),
                       validator: (_) => _selectedSubject == null ? 'Select a subject' : null,
-                      decoration: const InputDecoration(labelText: 'Subject', border: OutlineInputBorder()),
-                    ),
-                    const SizedBox(height: 16),
-                    if (_selectedSubject != null) ...[
-                      const Text('Choose a mentor', style: TextStyle(fontWeight: FontWeight.w600)),
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          const Expanded(child: Text('Any available mentor')),
-                          Switch(value: _mode == 'specific', onChanged: (v) => setState(() => _mode = v ? 'specific' : 'any')),
-                          const Expanded(child: Text('Specific mentor', textAlign: TextAlign.right)),
-                        ],
+                      decoration: InputDecoration(
+                        labelText: 'Subject',
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(kRadiusSm)),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(kRadiusSm),
+                          borderSide: BorderSide(color: tier.solid, width: 1.6),
+                        ),
                       ),
-                      if (_mode == 'specific') ...[
-                        const SizedBox(height: 10),
-                        if (!_subjectHasApprovedMentor)
-                          const Text('No approved mentor for this subject yet.', style: TextStyle(color: Color(0xFFDC2626), fontSize: 13)),
-                        if (_subjectHasApprovedMentor)
-                          DropdownButtonFormField<MentorSubjectApproval>(
-                            value: _approvals.isNotEmpty ? _approvals.first : null,
-                            items: _approvals
-                                .where((a) => a.isApproved)
-                                .map((a) => DropdownMenuItem(
-                                      value: a,
-                                      child: Text('Mentor · ${a.subjectId.substring(0, 6)}'),
-                                    ))
-                                .toList(),
-                            onChanged: (v) => setState(() {}),
-                            decoration: const InputDecoration(labelText: 'Mentor', border: OutlineInputBorder()),
-                          ),
-                      ],
-                      const SizedBox(height: 16),
-                    ],
-                    _SectionTitle('2 · Date & time'),
-                    const SizedBox(height: 10),
-                    ListTile(
-                      leading: const Icon(Icons.calendar_today, size: 20),
-                      title: Text(_selectedDate == null ? 'Pick a date' : DateFormat('EEE, MMM d').format(_selectedDate!)),
-                      trailing: const Icon(Icons.chevron_right),
+                    ),
+                    const SizedBox(height: kGutter * 2),
+                    MDSectionHeader(title: '2 · Date & time'),
+                    const SizedBox(height: kGutter),
+                    _DateTimeTile(
+                      label: 'Date',
+                      value: _selectedDate == null ? 'Pick a date' : DateFormat('EEE, MMM d').format(_selectedDate!),
                       onTap: _pickDateTime,
                     ),
-                    ListTile(
-                      leading: const Icon(Icons.access_time, size: 20),
-                      title: Text(_selectedTime == null ? 'Pick a time' : _selectedTime!.format(context)),
-                      trailing: const Icon(Icons.chevron_right),
+                    const SizedBox(height: kGutter),
+                    _DateTimeTile(
+                      label: 'Time',
+                      value: _selectedTime == null ? 'Pick a time' : _selectedTime!.format(context),
                       onTap: () async {
                         final time = await showTimePicker(context: context, initialTime: _selectedTime ?? TimeOfDay.now());
                         if (time != null) setState(() => _selectedTime = time);
                       },
                     ),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: kGutter),
+                    const Text('Session length', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                    const SizedBox(height: kGutter / 2),
                     Wrap(
-                      spacing: 8,
+                      spacing: kGutter,
+                      runSpacing: kGutter,
                       children: [15, 30, 45].map((m) {
                         final selected = _duration == m;
-                        return FilterChip(
-                          label: Text('$m min'),
+                        return MDChip(
+                          label: '$m min',
                           selected: selected,
+                          color: tier.solid,
                           onSelected: (_) => setState(() => _duration = m),
-                          avatar: selected ? const Icon(Icons.check, size: 16, color: Colors.white) : null,
                         );
                       }).toList(),
                     ),
-                    const SizedBox(height: 16),
-                    _SectionTitle('3 · Topic & preparation'),
-                    const SizedBox(height: 10),
-                    _Field(controller: _topicCtrl, label: 'Topic', hint: 'e.g. Quadratic equations', validator: (v) => v == null || v.trim().isEmpty ? 'Enter a topic' : null),
-                    const SizedBox(height: 10),
-                    _Field(controller: _prepCtrl, label: 'Preparation (optional)', hint: 'What should the mentor know?', maxLines: 3),
-                    const SizedBox(height: 16),
-                    _SectionTitle('4 · Attachments (up to 4 images)'),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: kGutter * 2),
+                    MDSectionHeader(title: '3 · Topic & preparation'),
+                    const SizedBox(height: kGutter),
+                    MDGlossInput(
+                      controller: _topicCtrl,
+                      label: 'Topic',
+                      hint: 'e.g. Quadratic equations',
+                      validator: (v) => v == null || v.trim().isEmpty ? 'Enter a topic' : null,
+                    ),
+                    const SizedBox(height: kGutter),
+                    MDGlossInput(
+                      controller: _prepCtrl,
+                      label: 'Preparation (optional)',
+                      hint: 'What should the mentor know?',
+                      maxLines: 3,
+                    ),
+                    const SizedBox(height: kGutter * 2),
+                    MDSectionHeader(title: '4 · Attachments (up to 4 images)'),
+                    const SizedBox(height: kGutter),
                     Row(
                       children: [
-                        OutlinedButton.icon(
-                          onPressed: _pickImages,
-                          icon: const Icon(Icons.image_outlined, size: 18),
-                          label: const Text('Attach image'),
-                        ),
-                        const SizedBox(width: 8),
                         Expanded(
-                          child: Wrap(
-                            spacing: 6,
-                            runSpacing: 6,
-                            children: [
-                              for (var i = 0; i < _images.length; i++)
-                                _ChipImage(image: _images[i], onRemove: () => _removeImage(i)),
-                            ],
+                          child: MDGlossOutlineButton(
+                            onPressed: _pickImages,
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.image_outlined, size: 18),
+                                SizedBox(width: 8),
+                                Text('Attach image'),
+                              ],
+                            ),
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: kGutter),
+                    Wrap(
+                      spacing: kGutter,
+                      runSpacing: kGutter,
+                      children: [
+                        for (var i = 0; i < _images.length; i++)
+                          _ChipImage(image: _images[i], onRemove: () => _removeImage(i)),
+                      ],
+                    ),
+                    const SizedBox(height: kGutter * 2),
                     if (_error != null)
                       Container(
-                        padding: const EdgeInsets.all(12),
+                        padding: const EdgeInsets.all(kGutter),
                         color: const Color(0xFFFEF2F2),
-                        child: Text(_error!, style: const TextStyle(color: Color(0xFF991B1B), fontSize: 13)),
+                        child: Text(_error!, style: const TextStyle(color: MDColors.danger, fontSize: 13)),
                       ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: kGutter),
                     SizedBox(
                       width: double.infinity,
-                      height: 52,
-                      child: ElevatedButton(
+                      height: 56,
+                      child: MDGlossButton(
                         onPressed: _submitting || !_canSubmit ? null : _submit,
                         child: _submitting
                             ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
@@ -327,45 +291,40 @@ class _BookSessionScreenState extends ConsumerState<BookSessionScreen> {
                   ],
                 ),
               ),
-            ),
-    );
+             ),
+     );
   }
 }
 
-class _SectionTitle extends StatelessWidget {
-  final String text;
-  const _SectionTitle(this.text);
-  @override
-  Widget build(BuildContext context) {
-    return Text(text, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, letterSpacing: 0.4, color: Color(0xFF64748B)));
-  }
-}
-
-class _Field extends StatelessWidget {
-  final TextEditingController controller;
+class _DateTimeTile extends StatelessWidget {
   final String label;
-  final String hint;
-  final int maxLines;
-  final String? Function(String?)? validator;
-  const _Field({required this.controller, required this.label, required this.hint, this.maxLines = 1, this.validator});
+  final String value;
+  final VoidCallback onTap;
+  const _DateTimeTile({required this.label, required this.value, required this.onTap});
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-        const SizedBox(height: 6),
-        TextFormField(
-          controller: controller,
-          maxLines: maxLines,
-          validator: validator,
-          decoration: InputDecoration(
-            hintText: hint,
-            border: const OutlineInputBorder(),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
+      decoration: BoxDecoration(
+        color: MDColors.ink50.withValues(alpha: 0.4),
+        borderRadius: BorderRadius.circular(kRadiusSm),
+        border: Border.all(color: MDColors.ink200.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: MDColors.ink600)),
+                const SizedBox(height: 6),
+                Text(value, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: MDColors.ink900)),
+              ],
+            ),
           ),
-        ),
-      ],
+          const Icon(Icons.chevron_right, color: MDColors.ink400),
+        ],
+      ),
     );
   }
 }
@@ -376,13 +335,29 @@ class _ChipImage extends StatelessWidget {
   const _ChipImage({required this.image, required this.onRemove});
   @override
   Widget build(BuildContext context) {
-    return Stack(clipBehavior: Clip.none, children: [
-      Container(width: 64, height: 64, decoration: BoxDecoration(borderRadius: BorderRadius.circular(10), border: Border.all(color: const Color(0xFFE5E7EB)), image: DecorationImage(image: FileImage(File(image.path)), fit: BoxFit.cover))),
-      Positioned(right: -6, top: -6, child: GestureDetector(onTap: onRemove, child: Container(width: 20, height: 20, decoration: const BoxDecoration(color: Color(0xFFDC2626), shape: BoxShape.circle), child: const Icon(Icons.close, size: 14, color: Colors.white)))),
-    ]);
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Container(
+          width: 64, height: 64,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: const Color(0xFFE5E7EB)),
+            image: DecorationImage(image: FileImage(File(image.path)), fit: BoxFit.cover),
+          ),
+        ),
+        Positioned(
+          right: -6, top: -6,
+          child: GestureDetector(
+            onTap: onRemove,
+            child: Container(
+              width: 20, height: 20,
+              decoration: const BoxDecoration(color: MDColors.danger, shape: BoxShape.circle),
+              child: const Icon(Icons.close, size: 14, color: Colors.white),
+            ),
+          ),
+        ),
+      ],
+    );
   }
-}
-
-extension _FirstOrNull<E> on Iterable<E> {
-  E? get firstOrNull => isEmpty ? null : first;
 }

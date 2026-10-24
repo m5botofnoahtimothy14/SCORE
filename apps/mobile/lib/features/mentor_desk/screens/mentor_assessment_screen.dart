@@ -3,10 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../core/theme/app_theme.dart';
+import '../../../core/theme/mentor_desk_design.dart';
 import '../../../core/layout/responsive.dart';
+import '../../../core/models/models.dart';
 import '../../../core/models/identity.dart';
 import '../../../core/providers/identity_provider.dart';
-import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/states.dart';
 import '../../mentor_desk/models/mentor_desk_models.dart';
 import '../../mentor_desk/services/mentor_desk_service.dart';
@@ -97,15 +99,20 @@ class _MentorAssessmentScreenState extends ConsumerState<MentorAssessmentScreen>
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
-        const SizedBox(height: 8),
+        const SizedBox(height: kGutter / 2),
         Wrap(
-          spacing: 8,
+          spacing: kGutter / 2,
+          runSpacing: kGutter / 2,
           children: _scaleLabels.entries.map((e) {
             final selected = value == e.key;
             return ChoiceChip(
               label: Text(e.value),
               selected: selected,
               onSelected: selected ? null : (s) => onChanged(s ? e.key : null),
+              selectedColor: MDTier.teacher.soft,
+              labelStyle: TextStyle(color: selected ? MDTier.teacher.solid : MDColors.ink600, fontWeight: selected ? FontWeight.w700 : FontWeight.normal),
+              backgroundColor: MDColors.ink100.withValues(alpha: 0.4),
+              side: BorderSide(color: selected ? MDTier.teacher.solid : MDColors.ink200.withValues(alpha: 0.3)),
             );
           }).toList(),
         ),
@@ -115,39 +122,41 @@ class _MentorAssessmentScreenState extends ConsumerState<MentorAssessmentScreen>
 
   @override
   Widget build(BuildContext context) {
+    final accent = MDTier.teacher;
     return Scaffold(
-      appBar: AppBar(title: const Text('Student assessment (private)')),
+      backgroundColor: MDColors.ink50,
+      appBar: AppBar(backgroundColor: Colors.transparent, elevation: 0, title: const Text('Student assessment (private)')),
       body: _loading
           ? const LoadingView()
           : AdaptivePage(
               maxWidth: 600,
               child: ListView(
-                padding: const EdgeInsets.all(24),
+                padding: const EdgeInsets.all(kGutter * 1.5),
                 children: [
                   const Text('Assess the student\'s preparation and engagement for this request.', style: TextStyle(fontSize: 15)),
-                  const SizedBox(height: 8),
-                  const Text('This assessment is private — the student will never see it.', style: TextStyle(fontSize: 12, color: Color(0xFF64748B), fontStyle: FontStyle.italic)),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: kGutter / 2),
+                  const Text('This assessment is private — the student will never see it.', style: TextStyle(fontSize: 12, color: MDColors.ink600, fontStyle: FontStyle.italic)),
+                  const SizedBox(height: kGutter * 2),
                   _scalePicker('Preparation', _preparation, (v) => setState(() => _preparation = v)),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: kGutter * 2),
                   _scalePicker('Engagement', _engagement, (v) => setState(() => _engagement = v)),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: kGutter * 2),
                   const Text('Private note (optional)', style: TextStyle(fontWeight: FontWeight.w600)),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: kGutter / 2),
                   TextField(
                     controller: _noteCtrl,
                     maxLines: 4,
-                    decoration: const InputDecoration(hintText: 'Notes only you and admins can see', border: OutlineInputBorder()),
+                    decoration: InputDecoration(hintText: 'Notes only you and admins can see', border: OutlineInputBorder(borderRadius: BorderRadius.circular(kRadiusSm))),
                   ),
                   if (_error != null) ...[
-                    const SizedBox(height: 10),
-                    Text(_error!, style: const TextStyle(color: Color(0xFFDC2626), fontSize: 13)),
+                    const SizedBox(height: kGutter),
+                    Text(_error!, style: const TextStyle(color: MDColors.danger, fontSize: 13)),
                   ],
-                  const SizedBox(height: 24),
+                  const SizedBox(height: kGutter * 2),
                   SizedBox(
                     width: double.infinity,
-                    height: 52,
-                    child: ElevatedButton(
+                    height: 56,
+                    child: MDGlossButton(
                       onPressed: _submitting || _preparation == null || _engagement == null ? null : _submit,
                       child: _submitting
                           ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))

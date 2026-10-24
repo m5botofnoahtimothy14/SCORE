@@ -3,12 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../../../core/layout/responsive.dart';
-import '../../../core/models/identity.dart';
-import '../../../core/providers/identity_provider.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/theme/mentor_desk_design.dart';
+import '../../../core/layout/responsive.dart';
 import '../../../core/widgets/states.dart';
-import '../../mentor_desk/models/mentor_desk_models.dart';
 import '../../mentor_desk/services/mentor_desk_service.dart';
 
 final _serviceProvider = Provider<MentorDeskService>(
@@ -79,51 +77,65 @@ class _RatingScreenState extends ConsumerState<RatingScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final tier = MDTier.student;
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Rate this support')),
+      backgroundColor: MDColors.ink50,
+      appBar: AppBar(backgroundColor: Colors.transparent, elevation: 0, title: const Text('Rate this support')),
       body: _loading
           ? const LoadingView()
           : AdaptivePage(
               maxWidth: 600,
               child: ListView(
-                padding: const EdgeInsets.all(24),
+                padding: const EdgeInsets.all(kGutter * 1.5),
                 children: [
                   const Text('How would you rate the support you received?', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600)),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: kGutter),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: List.generate(5, (i) {
                       final stars = i + 1;
                       return IconButton(
-                        icon: Icon(stars <= _stars ? Icons.star : Icons.star_border, color: Colors.amber, size: 40),
+                        icon: Icon(stars <= _stars ? Icons.star : Icons.star_border, color: MDColors.warning, size: 40),
                         onPressed: () => setState(() => _stars = stars),
                       );
                     }),
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: kGutter * 2),
                   const Text('Comment (optional)', style: TextStyle(fontWeight: FontWeight.w600)),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: kGutter / 2),
                   TextField(
                     controller: _commentCtrl,
                     maxLines: 4,
-                    decoration: const InputDecoration(hintText: 'Tell us what helped or what could be better', border: OutlineInputBorder()),
+                    decoration: InputDecoration(
+                      hintText: 'Tell us what helped or what could be better',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(kRadiusSm),
+                        borderSide: BorderSide(color: MDColors.ink200.withValues(alpha: 0.3)),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(kRadiusSm),
+                        borderSide: BorderSide(color: tier.solid, width: 1.6),
+                      ),
+                    ),
                   ),
                   if (_error != null) ...[
-                    const SizedBox(height: 10),
-                    Text(_error!, style: const TextStyle(color: Color(0xFFDC2626), fontSize: 13)),
+                    const SizedBox(height: kGutter),
+                    Text(_error!, style: const TextStyle(color: MDColors.danger, fontSize: 13)),
                   ],
-                  const SizedBox(height: 24),
+                  const SizedBox(height: kGutter * 2),
                   SizedBox(
                     width: double.infinity,
-                    height: 52,
-                    child: ElevatedButton(
+                    height: 56,
+                    child: MDGlossButton(
                       onPressed: _submitting ? null : _submit,
                       child: _submitting
                           ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                           : const Text('Submit rating'),
                     ),
                   ),
-                  const Text('You can rate each request only once.', style: TextStyle(fontSize: 11, color: Color(0xFF64748B))),
+                  const SizedBox(height: kGutter),
+                  const Text('You can rate each request only once.', style: TextStyle(fontSize: 11, color: MDColors.ink500)),
                 ],
               ),
             ),

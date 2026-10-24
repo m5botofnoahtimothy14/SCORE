@@ -353,7 +353,7 @@ class MentorDeskSettings {
         urgentPassesPerWeek: (j['urgent_passes_per_week'] as num?)?.toInt() ?? 1,
         escalationThresholdMinutes: (j['escalation_threshold_minutes'] as num?)?.toInt() ?? 30,
         weekStartDay: (j['week_start_day'] as num?)?.toInt() ?? 1,
-        sessionLengths: (j['session_lengths'] as List?)?.cast<int>()?.toList() ?? const [15, 30, 45],
+        sessionLengths: (j['session_lengths'] as List?)?.cast<int>().toList() ?? const [15, 30, 45],
         verificationCodeDigits: (j['verification_code_digits'] as num?)?.toInt() ?? 6,
         codeVisibleMinutesBefore: (j['code_visible_minutes_before'] as num?)?.toInt() ?? 10,
         maxVerificationAttempts: (j['max_verification_attempts'] as num?)?.toInt() ?? 5,

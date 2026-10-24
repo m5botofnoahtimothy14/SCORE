@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
@@ -82,13 +83,13 @@ export default function MentorDeskOverview() {
         supabase.from('doubt_requests').select('id', { count: 'exact', head: true }).eq('school_id', sid).in('status', ['resolved', 'closed']),
         supabase.from('session_bookings').select('id', { count: 'exact', head: true }).eq('school_id', sid).eq('status', 'confirmed').gte('scheduled_at', now),
         supabase.from('session_bookings').select('id', { count: 'exact', head: true }).eq('school_id', sid).eq('status', 'completed'),
+        supabase.from('session_bookings').select('id', { count: 'exact', head: true }).eq('school_id', sid).eq('status', 'completed').not('verified_at', 'is', null),
         supabase.from('session_bookings').select('id', { count: 'exact', head: true }).eq('school_id', sid).eq('status', 'completed').is('verified_at', null),
-        supabase.from('session_bookings').select('id', { count: 'exact', head: true }).eq('school_id', sid).eq('status', 'completed').is('verified_at', null).not('closed_without_code', 'eq', false),
         supabase.from('session_no_shows').select('id', { count: 'exact', head: true }).eq('school_id', sid).eq('no_show_type', 'student_no_show').gte('created_at', weekAgo),
         supabase.from('session_no_shows').select('id', { count: 'exact', head: true }).eq('school_id', sid).eq('no_show_type', 'mentor_no_show').gte('created_at', weekAgo),
         supabase.from('mentor_availability').select('id', { count: 'exact', head: true }).eq('school_id', sid).eq('status', 'available'),
         supabase.from('mentor_subject_approvals').select('id', { count: 'exact', head: true }).eq('school_id', sid).eq('status', 'pending'),
-        supabase.from('ratings').select('id', { count: 'exact', head: true }).eq('school_id', sid).eq('rating', 1).or('rating.eq.2'),
+        supabase.from('ratings').select('id', { count: 'exact', head: true }).eq('school_id', sid).lte('rating', 2),
         supabase.from('session_bookings').select('id', { count: 'exact', head: true }).eq('school_id', sid).eq('status', 'confirmed').gte('requested_at', weekAgo),
         supabase.from('audit_events').select('id, action, created_at').eq('school_id', sid).order('created_at', { ascending: false }).limit(12),
       ])
@@ -266,3 +267,5 @@ type LinkProps = { href: string; children: React.ReactNode; className?: string }
 function Link({ href, children, className }: LinkProps) {
   return <a href={href} className={['text-brand-600 text-xs font-medium hover:underline underline-offset-2', className].filter(Boolean).join(' ')}>{children}</a>
 }
+
+
