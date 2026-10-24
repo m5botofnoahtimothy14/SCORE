@@ -141,7 +141,7 @@ export default function SchoolsPage() {
             <Card key={s.id} className="p-4 flex items-center justify-between">
               <div>
                 <p className="font-semibold text-ink-950">{s.name} <span className="text-ink-500 font-mono text-xs">{s.code}</span></p>
-                <p className="text-xs text-ink-600">{[s.city, s.state].filter(Boolean).join(', ') || 'â€”'} Â· {s.email || 'no email'}</p>
+                <p className="text-xs text-ink-600">{[s.city, s.state].filter(Boolean).join(', ') || '—'} · {s.email || 'no email'}</p>
                 <div className="mt-1"><StatusBadge value={s.is_active ? 'active' : 'suspended'} /></div>
               </div>
               <div className="flex gap-2">

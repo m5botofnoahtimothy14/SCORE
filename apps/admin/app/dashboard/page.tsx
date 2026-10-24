@@ -119,21 +119,27 @@ export default function OverviewPage() {
       {(!data.providers.fcm || !data.providers.moderation || !data.providers.vision) && (
         <div className="mb-6 flex animate-fade-up items-start gap-3 rounded-2xl border border-amber-200/80 bg-gradient-to-b from-amber-50 to-amber-50/40 p-4 shadow-soft">
           <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-500" />
-          <p className="text-sm text-amber-900">
-            <span className="font-semibold">Provider configuration incomplete: </span>
-            {[
-              !data.providers.fcm && 'FCM (push notifications disabled)',
-              !data.providers.moderation && 'text moderation (messages held for review)',
-              !data.providers.vision && 'image safety (uploads quarantined)',
-            ]
-              .filter(Boolean)
-              .join(' · ')}
-            . See{' '}
-            <Link href="/dashboard/health" className="font-medium underline underline-offset-2">
-              System Health
-            </Link>{' '}
-            for setup.
-          </p>
+          <div className="space-y-1 text-sm text-amber-900">
+            <p>
+              <span className="font-semibold">Cyber-threat alert:</span> one or more protection layers are not configured.
+            </p>
+            <p>
+              {[
+                !data.providers.fcm && 'FCM push notifications are offline',
+                !data.providers.moderation && 'text moderation is not active, so risky messages are held for review',
+                !data.providers.vision && 'image safety is not active, so uploads are quarantined',
+              ]
+                .filter(Boolean)
+                .join(' · ')}
+            </p>
+            <p>
+              Review{' '}
+              <Link href="/dashboard/health" className="font-medium underline underline-offset-2">
+                System Health
+              </Link>{' '}
+              for configuration and recovery steps.
+            </p>
+          </div>
         </div>
       )}
 

@@ -56,7 +56,7 @@ export default function TeachersPage() {
       const byTeacher = new Map<string, { class_name: string; subject: string | null }[]>()
       for (const row of (((a ?? []) as unknown) as { teacher_id: string; classes: { name: string } | null; subjects: { name: string } | null }[])) {
         const list = byTeacher.get(row.teacher_id) ?? []
-        list.push({ class_name: row.classes?.name ?? 'â€”', subject: row.subjects?.name ?? null })
+        list.push({ class_name: row.classes?.name ?? '—', subject: row.subjects?.name ?? null })
         byTeacher.set(row.teacher_id, list)
       }
       setTeachers((((t ?? []) as Teacher[])).map((x) => ({ ...x, assignments: byTeacher.get(x.id) ?? [] })))
@@ -232,10 +232,10 @@ export default function TeachersPage() {
             <tbody>
               {filtered.map((t) => (
                 <tr key={t.id} className="border-b border-ink-200 last:border-0">
-                  <td className="p-3 font-medium">{t.first_name} {t.last_name}{t.is_leadership && ' Â· leadership'}</td>
+                  <td className="p-3 font-medium">{t.first_name} {t.last_name}{t.is_leadership && ' · leadership'}</td>
                   <td className="font-mono text-xs">{t.staff_id_no}</td>
                   <td className="text-xs">{t.phone}</td>
-                  <td className="text-xs">{t.assignments?.map((a) => `${a.class_name}${a.subject ? ` (${a.subject})` : ''}`).join(', ') || 'â€”'}</td>
+                  <td className="text-xs">{t.assignments?.map((a) => `${a.class_name}${a.subject ? ` (${a.subject})` : ''}`).join(', ') || '—'}</td>
                   <td><StatusBadge value={t.is_active ? 'active' : 'suspended'} /></td>
                   <td>{t.user_id ? 'Yes' : 'No'}</td>
                   <td className="text-right pr-3 whitespace-nowrap">

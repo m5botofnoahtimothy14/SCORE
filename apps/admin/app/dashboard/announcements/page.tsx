@@ -145,7 +145,7 @@ export default function AnnouncementsPage() {
           </select>
           {form.audience_type === 'class' && (
             <select className={inputCls} value={form.class_id} onChange={(e) => setForm({ ...form, class_id: e.target.value })}>
-              <option value="">Select classâ€¦</option>
+              <option value="">Select class…</option>
               {classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
           )}
@@ -168,7 +168,7 @@ export default function AnnouncementsPage() {
                   <td className="p-3 font-medium">{a.title}</td>
                   <td><StatusBadge value={a.category} /></td>
                   <td className="text-xs">{a.audience_type.replace('_', ' ')}</td>
-                  <td className="text-xs text-ink-600">{a.published_at ? new Date(a.published_at).toLocaleString() : 'â€”'}</td>
+                  <td className="text-xs text-ink-600">{a.published_at ? new Date(a.published_at).toLocaleString() : '—'}</td>
                   <td className="text-right pr-3"><button onClick={() => openDetail(a)} className="text-brand-600 text-xs hover:underline">Delivery & acks</button></td>
                 </tr>
               ))}

@@ -167,7 +167,7 @@ export default function StudentsPage() {
       const data = await res.json()
       if (!data.success) throw new Error(data.error ?? 'issue_failed')
       setIssuedCode({ name: `${s.first_name} ${s.last_name}`, code: data.code, expires: data.expires_at })
-      show(true, 'Code issued â€” copy it now, it will not be shown again.')
+      show(true, 'Code issued — copy it now, it will not be shown again.')
     } catch (e) {
       show(false, e instanceof Error ? e.message : 'Could not issue code.')
     }
@@ -260,7 +260,7 @@ export default function StudentsPage() {
                 <tr key={s.id} className="border-b border-ink-200 last:border-0">
                   <td className="p-3 font-medium">{s.first_name} {s.last_name}</td>
                   <td className="font-mono text-xs">{s.student_id_no}</td>
-                  <td>{s.class_name ?? 'â€”'}</td>
+                  <td>{s.class_name ?? '—'}</td>
                   <td><StatusBadge value={s.is_active ? 'active' : 'suspended'} /></td>
                   <td>{s.user_id ? 'Yes' : 'No'}</td>
                   <td className="text-right pr-3 whitespace-nowrap">

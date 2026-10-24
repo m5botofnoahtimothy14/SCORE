@@ -29,7 +29,7 @@ const roleLabel = (r: string) => (r === 'platform_owner' ? 'Super Admin' : r ===
 
 const emptyForm = { email: '', password: '', display_name: '', school_id: '', role: 'school_admin' }
 
-// Super Admin only â€” manage school IT-head "Admin" accounts.
+// Super Admin only — manage school IT-head "Admin" accounts.
 export function AdminsClient() {
   const [admins, setAdmins] = useState<AdminRow[]>([])
   const [schools, setSchools] = useState<School[]>([])
@@ -133,9 +133,9 @@ export function AdminsClient() {
               {admins.map((a) => (
                 <tr key={a.id} className="border-b border-ink-50 last:border-0">
                   <td className="px-4 py-3 text-ink-950">
-                    {a.display_name || 'â€”'}
+                    {a.display_name || '—'}
                     {a.role === 'platform_owner' && (
-                      <span className="ml-2 text-[10px] uppercase tracking-wide text-brand-600 bg-brand-50 px-1.5 py-0.5 rounded">You Â· Owner</span>
+                      <span className="ml-2 text-[10px] uppercase tracking-wide text-brand-600 bg-brand-50 px-1.5 py-0.5 rounded">You · Owner</span>
                     )}
                   </td>
                   <td className="px-4 py-3 text-ink-700">{a.email}</td>
@@ -165,13 +165,13 @@ export function AdminsClient() {
             <input className={inputCls} type="email" placeholder="Email *" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
             <input className={inputCls} type="password" placeholder="Temporary password (8+ chars) *" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
             <select className={inputCls} value={form.school_id} onChange={(e) => setForm({ ...form, school_id: e.target.value })}>
-              <option value="">Select schoolâ€¦</option>
+              <option value="">Select school…</option>
               {schools.map((s) => (
                 <option key={s.id} value={s.id}>{s.name} ({s.code})</option>
               ))}
             </select>
             <select className={inputCls} value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}>
-              <option value="school_admin">Admin â€” School IT Head</option>
+              <option value="school_admin">Admin — School IT Head</option>
               <option value="principal">Principal</option>
             </select>
             <p className="text-xs text-ink-600">

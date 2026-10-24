@@ -88,7 +88,7 @@ Future<bool> _isOnboarded(String userId) async {
     _onboardedCache[userId] = ok;
     return ok;
   } catch (_) {
-    return false; // fail closed â€” keep the user on the auth flow
+    return false; // fail closed — keep the user on the auth flow
   }
 }
 
@@ -144,7 +144,7 @@ Future<String?> resolveRedirect({
   return null;
 }
 
-/// Plain provider (no codegen) â€” avoids build_runner in CI/dev.
+/// Plain provider (no codegen) — avoids build_runner in CI/dev.
 final appRouterProvider = Provider<GoRouter>((ref) {
   final auth = Supabase.instance.client.auth;
 

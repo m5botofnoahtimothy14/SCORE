@@ -61,7 +61,7 @@ export default function SettingsPage() {
   async function save() {
     if (!settings) return
     if (settings.max_file_size_mb < 1 || settings.max_file_size_mb > 15) {
-      show(false, 'Max file size must be 1â€“15 MB (bucket limit).')
+      show(false, 'Max file size must be 1–15 MB (bucket limit).')
       return
     }
     setSaving(true)
@@ -95,7 +95,7 @@ export default function SettingsPage() {
           </label>
           <label className="flex items-start gap-2 text-sm">
             <input type="checkbox" className="mt-1" checked={settings.allow_student_id_only_login} onChange={(e) => setSettings({ ...settings, allow_student_id_only_login: e.target.checked })} />
-            Allow ID-only login (weak â€” higher impersonation risk)
+            Allow ID-only login (weak — higher impersonation risk)
           </label>
           {settings.allow_student_id_only_login && (
             <p className="text-xs text-red-700 bg-red-50 border border-red-200 rounded-lg p-2 mt-2">
@@ -119,11 +119,11 @@ export default function SettingsPage() {
           <select className={inputCls} value={settings.image_safety_provider} onChange={(e) => setSettings({ ...settings, image_safety_provider: e.target.value })}>
             <option value="apilayer_nudity">APILayer Nudity Detection</option>
           </select>
-          <p className="text-xs text-ink-600 mt-2">If a provider is unconfigured or fails, content is held/quarantined â€” never auto-approved.</p>
+          <p className="text-xs text-ink-600 mt-2">If a provider is unconfigured or fails, content is held/quarantined — never auto-approved.</p>
         </Card>
         <Card className="p-4">
           <h2 className="font-semibold mb-3">Limits</h2>
-          <label className="text-xs text-ink-600">Max file size (MB, â‰¤ 15)</label>
+          <label className="text-xs text-ink-600">Max file size (MB, ≤ 15)</label>
           <input className={`${inputCls} mb-2`} type="number" min={1} max={15} value={settings.max_file_size_mb} onChange={(e) => setSettings({ ...settings, max_file_size_mb: Number(e.target.value) })} />
           <label className="text-xs text-ink-600">Default retention (days)</label>
           <input className={inputCls} type="number" min={30} value={settings.retention_days} onChange={(e) => setSettings({ ...settings, retention_days: Number(e.target.value) })} />

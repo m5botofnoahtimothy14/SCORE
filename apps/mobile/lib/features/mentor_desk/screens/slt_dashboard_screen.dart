@@ -66,7 +66,7 @@ class _SLTDashboardScreenState extends ConsumerState<SLTDashboardScreen> {
       for (final s in (subjRows as List)) {
         final sid = (s as Map)['id'] as String;
         final cnt = await _client.from('doubt_requests').select('id').eq('school_id', schoolId).eq('subject_id', sid);
-        subjectDemand.add({'name': (s as Map)['name'] as String, 'count': (cnt as List).length});
+        subjectDemand.add({'name': (s)['name'] as String, 'count': (cnt as List).length});
       }
       subjectDemand.sort((a, b) => (b['count'] as int).compareTo(a['count'] as int));
 

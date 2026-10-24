@@ -169,7 +169,7 @@ export default function IncidentsPage() {
                   <td className="p-3 max-w-xs truncate">{r.purpose}</td>
                   <td className="text-xs max-w-xs truncate">{r.scope_description}</td>
                   <td><StatusBadge value={r.status} /></td>
-                  <td className="text-xs">{r.access_expires_at ? new Date(r.access_expires_at).toLocaleString() : 'â€”'}</td>
+                  <td className="text-xs">{r.access_expires_at ? new Date(r.access_expires_at).toLocaleString() : '—'}</td>
                   <td className="text-right pr-3">
                     {isOwner && r.status === 'requested' ? (
                       <>

@@ -105,9 +105,9 @@ export default function AuditPage() {
                 <tr key={r.id} className="border-b border-ink-200 last:border-0">
                   <td className="p-3 text-xs text-ink-600 whitespace-nowrap">{new Date(r.created_at).toLocaleString()}</td>
                   <td className="font-mono text-xs">{r.action}</td>
-                  <td className="text-xs">{r.target_type ?? 'â€”'}</td>
+                  <td className="text-xs">{r.target_type ?? '—'}</td>
                   <td><StatusBadge value={r.outcome} /></td>
-                  <td className="text-xs text-ink-600">{r.reason ?? 'â€”'}</td>
+                  <td className="text-xs text-ink-600">{r.reason ?? '—'}</td>
                 </tr>
               ))}
             </tbody>

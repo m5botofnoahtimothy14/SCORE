@@ -149,7 +149,7 @@ export default function ClassesPage() {
       const foundIds = new Set(((found ?? []) as { student_id_no: string }[]).map((f) => f.student_id_no))
       const missing = ids.filter((i) => !foundIds.has(i))
       if (missing.length > 0) {
-        show(false, `Unknown IDs: ${missing.slice(0, 5).join(', ')}${missing.length > 5 ? 'â€¦' : ''}`)
+        show(false, `Unknown IDs: ${missing.slice(0, 5).join(', ')}${missing.length > 5 ? '…' : ''}`)
         return
       }
       let assigned = 0
@@ -209,7 +209,7 @@ export default function ClassesPage() {
           <tbody>
             {classes.map((c) => (
               <tr key={c.id} className="border-b border-ink-200 last:border-0">
-                <td className="py-2 font-medium">{c.name}</td><td>{c.grade}</td><td>{c.section ?? 'â€”'}</td>
+                <td className="py-2 font-medium">{c.name}</td><td>{c.grade}</td><td>{c.section ?? '—'}</td>
                 <td>{enrollCounts[c.id] ?? 0}</td>
                 <td><StatusBadge value={c.is_active ? 'active' : 'suspended'} /></td>
               </tr>
@@ -221,7 +221,7 @@ export default function ClassesPage() {
           <input className={inputCls} placeholder="Grade (8)" value={classForm.grade} onChange={(e) => setClassForm({ ...classForm, grade: e.target.value })} />
           <input className={inputCls} placeholder="Section (A)" value={classForm.section} onChange={(e) => setClassForm({ ...classForm, section: e.target.value })} />
           <select className={inputCls} value={classForm.year_id} onChange={(e) => setClassForm({ ...classForm, year_id: e.target.value })}>
-            <option value="">Academic yearâ€¦</option>
+            <option value="">Academic year…</option>
             {years.map((y) => <option key={y.id} value={y.id}>{y.name}</option>)}
           </select>
         </div>
@@ -231,7 +231,7 @@ export default function ClassesPage() {
         <h2 className="font-semibold mb-1">Bulk assignment</h2>
         <p className="text-xs text-ink-600 mb-3">Enroll many students (by Student ID) into a class at once.</p>
         <select className={`${inputCls} mb-2`} value={bulkClass} onChange={(e) => setBulkClass(e.target.value)}>
-          <option value="">Select classâ€¦</option>
+          <option value="">Select class…</option>
           {classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
         </select>
         <textarea className={inputCls} rows={4} placeholder={'S1001\nS1002'} value={bulkIds} onChange={(e) => setBulkIds(e.target.value)} />

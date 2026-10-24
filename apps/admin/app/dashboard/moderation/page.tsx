@@ -174,7 +174,7 @@ export default function ModerationPage() {
                   <tr key={c.id} className="border-b border-ink-200 last:border-0">
                     <td className="p-3 max-w-md">
                       <p className="truncate">{c.message_body ?? '(attachment case)'}</p>
-                      <p className="text-xs text-ink-600">{c.sender_name ?? ''} Â· {c.reason_code} Â· {new Date(c.created_at).toLocaleString()}</p>
+                      <p className="text-xs text-ink-600">{c.sender_name ?? ''} · {c.reason_code} · {new Date(c.created_at).toLocaleString()}</p>
                     </td>
                     <td><StatusBadge value={c.moderation_results?.verdict ?? 'held'} /></td>
                     <td><StatusBadge value={c.status} /></td>
@@ -217,11 +217,11 @@ export default function ModerationPage() {
         <Modal title="Review case" wide onClose={() => setSelected(null)}>
           <div className="bg-ink-50 rounded-lg p-3 text-sm mb-3">
             <p className="font-medium">{selected.sender_name ?? 'Unknown sender'}</p>
-            <p className="mt-1">{selected.message_body ?? '(no text â€” attachment case)'}</p>
+            <p className="mt-1">{selected.message_body ?? '(no text — attachment case)'}</p>
             <p className="text-xs text-ink-600 mt-2">
-              Provider: {selected.moderation_results?.provider ?? 'â€”'} Â·
+              Provider: {selected.moderation_results?.provider ?? '—'} ·
               Scores: {JSON.stringify(selected.moderation_results?.categories ?? {})}
-              {selected.moderation_results?.provider_error && ` Â· Error: ${selected.moderation_results.provider_error}`}
+              {selected.moderation_results?.provider_error && ` · Error: ${selected.moderation_results.provider_error}`}
             </p>
           </div>
           <textarea className={inputCls} rows={3} placeholder="Reviewer notes / reason code..." value={note} onChange={(e) => setNote(e.target.value)} />

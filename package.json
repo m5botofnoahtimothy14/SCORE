@@ -10,9 +10,13 @@
   "scripts": {
     "test": "node --test tests/*.test.mjs",
     "test:unit": "node --test tests/*.test.mjs",
+    "typecheck": "npm run typecheck:contracts && npm run typecheck:admin",
     "typecheck:contracts": "node apps/admin/node_modules/typescript/bin/tsc --noEmit -p packages/contracts/tsconfig.json",
     "typecheck:admin": "npm --prefix apps/admin run typecheck",
-    "lint:admin": "npm --prefix apps/admin run lint"
+    "lint:admin": "npm --prefix apps/admin run lint",
+    "dev:admin": "npm --prefix apps/admin run dev",
+    "build:admin": "npm --prefix apps/admin run build",
+    "start:admin": "npm --prefix apps/admin run start"
   },
   "engines": {
     "node": ">=20"

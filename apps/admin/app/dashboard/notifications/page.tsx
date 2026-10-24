@@ -76,7 +76,7 @@ export default function NotificationsPage() {
       if (error) throw error
       await logAudit(supabase, userId!, { schoolId, action: 'notification.retry', targetType: 'notification_job', targetId: id, outcome: 'success' })
       const { sent } = await dispatch()
-      show(true, `Job re-queued â€” ${sent} sent.`)
+      show(true, `Job re-queued — ${sent} sent.`)
       load()
     } catch (e) {
       show(false, e instanceof Error ? e.message : 'Retry failed.')
@@ -85,7 +85,7 @@ export default function NotificationsPage() {
 
   async function testPing() {
     if (!fcmConfigured) {
-      show(false, 'FCM is not configured â€” set the Firebase service-account secrets (FCM_PROJECT_ID / FCM_CLIENT_EMAIL / FCM_PRIVATE_KEY) first. No test was sent.')
+      show(false, 'FCM is not configured — set the Firebase service-account secrets (FCM_PROJECT_ID / FCM_CLIENT_EMAIL / FCM_PRIVATE_KEY) first. No test was sent.')
       return
     }
     try {
@@ -113,7 +113,7 @@ export default function NotificationsPage() {
       {node}
       <PageHeader
         title="Notifications"
-        subtitle={fcmConfigured === false ? 'FCM is NOT configured â€” push dispatch is disabled.' : 'Dispatch diagnostics and retry'}
+        subtitle={fcmConfigured === false ? 'FCM is NOT configured — push dispatch is disabled.' : 'Dispatch diagnostics and retry'}
         action={<button onClick={testPing} className={btnSecondary}>Send test to self</button>}
       />
       <div className="flex gap-2 mb-4">
@@ -136,7 +136,7 @@ export default function NotificationsPage() {
                   <td className="p-3 max-w-xs truncate">{j.title}</td>
                   <td className="text-xs">{j.type}</td>
                   <td><StatusBadge value={j.status} /></td>
-                  <td className="text-xs text-ink-600 max-w-xs truncate">{j.failure_reason ?? 'â€”'}</td>
+                  <td className="text-xs text-ink-600 max-w-xs truncate">{j.failure_reason ?? '—'}</td>
                   <td className="text-xs text-ink-600">{new Date(j.created_at).toLocaleString()}</td>
                   <td className="text-right pr-3">
                     {j.status === 'failed' && <button onClick={() => retry(j.id)} className="text-brand-600 text-xs hover:underline">Re-queue</button>}

@@ -18,7 +18,7 @@ import 'firebase_options.dart';
 final FlutterLocalNotificationsPlugin localNotificationsPlugin =
     FlutterLocalNotificationsPlugin();
 
-// Background FCM handler â€” must be top-level
+// Background FCM handler — must be top-level
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
@@ -54,7 +54,7 @@ Future<void> main() async {
     pushEnabled = true;
     FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
   } catch (e) {
-    debugPrint('Firebase not configured â€” push notifications disabled: $e');
+    debugPrint('Firebase not configured — push notifications disabled: $e');
   }
 
   // Initialize local notifications (channels always; FCM only if ready)
