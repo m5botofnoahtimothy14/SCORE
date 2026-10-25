@@ -3,11 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../../../core/layout/responsive.dart';
-import '../../../core/models/identity.dart';
 import '../../../core/providers/identity_provider.dart';
-import '../../../core/theme/app_theme.dart';
-import '../../../core/widgets/states.dart';
 
 /// Search across the user's own Mentor Desk doubts and sessions.
 /// Never queries outside RLS-visible rows.

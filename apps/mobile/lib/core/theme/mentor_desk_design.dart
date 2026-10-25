@@ -494,7 +494,7 @@ class MDMetricTile extends StatelessWidget {
                   ),
                   const Spacer(),
                   if (onTap != null)
-                    Icon(Icons.chevron_right, size: 18, color: MDColors.ink400),
+                    const Icon(Icons.chevron_right, size: 18, color: MDColors.ink400),
                 ],
               ),
               const SizedBox(height: 14),

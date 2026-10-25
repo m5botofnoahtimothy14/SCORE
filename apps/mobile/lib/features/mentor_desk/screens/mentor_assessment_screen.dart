@@ -122,7 +122,7 @@ class _MentorAssessmentScreenState extends ConsumerState<MentorAssessmentScreen>
 
   @override
   Widget build(BuildContext context) {
-    final accent = MDTier.teacher;
+    const accent = MDTier.teacher;
     return Scaffold(
       backgroundColor: MDColors.ink50,
       appBar: AppBar(backgroundColor: Colors.transparent, elevation: 0, title: const Text('Student assessment (private)')),

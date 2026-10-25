@@ -223,7 +223,7 @@ class _MentorDoubtConversationScreenState extends ConsumerState<MentorDoubtConve
 
   @override
   Widget build(BuildContext context) {
-    final accent = MDTier.student;
+    const accent = MDTier.student;
 
     return Scaffold(
       backgroundColor: MDColors.ink50,
@@ -394,7 +394,7 @@ class _MentorDoubtConversationScreenState extends ConsumerState<MentorDoubtConve
                   children: List.generate(5, (i) {
                     final stars = i + 1;
                     return IconButton(
-                      icon: Icon(Icons.star, color: MDColors.warning, size: 30),
+                      icon: const Icon(Icons.star, color: MDColors.warning, size: 30),
                       onPressed: () => _rate(stars),
                     );
                   }),
@@ -429,7 +429,7 @@ class _Bubble extends StatelessWidget {
       child: Container(
         margin: const EdgeInsets.symmetric(vertical: 4),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        constraints: BoxConstraints(maxWidth: 560),
+        constraints: const BoxConstraints(maxWidth: 560),
         decoration: BoxDecoration(
           color: mine ? const Color(0xFF1A56DB) : Colors.white,
           borderRadius: BorderRadius.circular(16),

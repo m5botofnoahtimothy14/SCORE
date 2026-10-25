@@ -68,7 +68,7 @@ class _MentorAvailabilityScreenState extends ConsumerState<MentorAvailabilityScr
 
   @override
   Widget build(BuildContext context) {
-    final accent = MDTier.teacher;
+    const accent = MDTier.teacher;
     return Scaffold(
       backgroundColor: MDColors.ink50,
       appBar: AppBar(backgroundColor: Colors.transparent, elevation: 0, title: const Text('My availability')),

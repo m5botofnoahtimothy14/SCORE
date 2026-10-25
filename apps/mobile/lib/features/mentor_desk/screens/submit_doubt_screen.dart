@@ -37,7 +37,7 @@ class _SubmitDoubtScreenState extends ConsumerState<SubmitDoubtScreen> {
 
   List<SubjectWithName> _subjects = const [];
   SubjectWithName? _selectedSubject;
-  List<XFile> _images = [];
+  final List<XFile> _images = [];
   List<String> _attachmentIds = [];
   bool _urgent = false;
   bool _loadingSubjects = true;
@@ -68,8 +68,8 @@ class _SubmitDoubtScreenState extends ConsumerState<SubmitDoubtScreen> {
 
   Future<void> _load() async {
     final identity = await ref.read(identityProvider.future);
-    _schoolId = identity.schoolId!;
-    _studentId = identity.userId!;
+    _schoolId = identity.schoolId;
+    _studentId = identity.userId;
     final service = ref.read(_serviceProvider);
     final subjects = await service.listSubjects(_schoolId!);
     final allowances = await service.allowanceSummary(schoolId: _schoolId!, studentId: _studentId!);
@@ -148,7 +148,7 @@ class _SubmitDoubtScreenState extends ConsumerState<SubmitDoubtScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final tier = MDTier.student;
+    const tier = MDTier.student;
 
     return Scaffold(
       backgroundColor: MDColors.ink50,
@@ -167,10 +167,10 @@ class _SubmitDoubtScreenState extends ConsumerState<SubmitDoubtScreen> {
                   padding: const EdgeInsets.all(kGutter),
                   children: [
                     if (_step == 0) ...[
-                      MDSectionHeader(title: '1 · Select subject'),
+                      const MDSectionHeader(title: '1 · Select subject'),
                       const SizedBox(height: kGutter),
                       DropdownButtonFormField<SubjectWithName>(
-                        value: _selectedSubject,
+                        initialValue: _selectedSubject,
                         hint: const Text('Choose a subject'),
                         items: _subjects
                             .map((s) => DropdownMenuItem(
@@ -200,7 +200,7 @@ class _SubmitDoubtScreenState extends ConsumerState<SubmitDoubtScreen> {
                         ),
                       ),
                     ] else if (_step == 1) ...[
-                      MDSectionHeader(title: '2 · Your question'),
+                      const MDSectionHeader(title: '2 · Your question'),
                       const SizedBox(height: kGutter),
                       MDGlossInput(
                         controller: _questionCtrl,
@@ -249,7 +249,7 @@ class _SubmitDoubtScreenState extends ConsumerState<SubmitDoubtScreen> {
                         ],
                       ),
                     ] else if (_step == 2) ...[
-                      MDSectionHeader(title: '3 · Details (optional)'),
+                      const MDSectionHeader(title: '3 · Details (optional)'),
                       const SizedBox(height: kGutter),
                       MDGlossInput(controller: _chapterCtrl, label: 'Chapter', hint: 'e.g. Chapter 4'),
                       const SizedBox(height: kGutter),
@@ -295,7 +295,7 @@ class _SubmitDoubtScreenState extends ConsumerState<SubmitDoubtScreen> {
                         ],
                       ),
                     ] else ...[
-                      MDSectionHeader(title: '4 · Review before sending'),
+                      const MDSectionHeader(title: '4 · Review before sending'),
                       const SizedBox(height: kGutter),
                       _ReviewRow(label: 'Subject', value: _selectedSubject!.name),
                       const SizedBox(height: kGutter),

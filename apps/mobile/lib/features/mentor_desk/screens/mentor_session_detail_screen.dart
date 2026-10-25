@@ -127,7 +127,7 @@ class _MentorSessionDetailScreenState extends ConsumerState<MentorSessionDetailS
 
   @override
   Widget build(BuildContext context) {
-    final accent = MDTier.teacher;
+    const accent = MDTier.teacher;
     return Scaffold(
       backgroundColor: MDColors.ink50,
       appBar: AppBar(backgroundColor: Colors.transparent, elevation: 0, title: const Text('Session')),
@@ -156,7 +156,7 @@ class _MentorSessionDetailScreenState extends ConsumerState<MentorSessionDetailS
                           const SizedBox(height: kGutter),
                           _InfoRow(icon: Icons.subject, label: 'Topic', value: _booking!.topic),
                           const SizedBox(height: kGutter * 2),
-                          MDSectionHeader(title: 'Actions'),
+                          const MDSectionHeader(title: 'Actions'),
                           const SizedBox(height: kGutter),
                           if (_booking!.isRequested) ...[
                             _ConfirmCard(

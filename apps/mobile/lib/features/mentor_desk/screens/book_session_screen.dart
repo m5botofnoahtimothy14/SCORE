@@ -42,9 +42,9 @@ class _BookSessionScreenState extends ConsumerState<BookSessionScreen> {
   bool _loading = true;
   bool _submitting = false;
   String? _error;
-  List<XFile> _images = [];
+  final List<XFile> _images = [];
 
-  String _mode = 'any'; // 'any' | 'specific'
+  final String _mode = 'any'; // 'any' | 'specific'
   DateTime? _selectedDate;
   TimeOfDay? _selectedTime;
   int _duration = 30;
@@ -124,7 +124,7 @@ class _BookSessionScreenState extends ConsumerState<BookSessionScreen> {
       setState(() => _error = 'Pick a date and time.');
       return;
     }
-    final String? mentorId = null; // any available mentor
+    const String? mentorId = null; // any available mentor
     setState(() { _submitting = true; _error = null; });
 
     try {
@@ -159,7 +159,7 @@ class _BookSessionScreenState extends ConsumerState<BookSessionScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final tier = MDTier.student;
+    const tier = MDTier.student;
 
     return Scaffold(
       backgroundColor: MDColors.ink50,
@@ -173,10 +173,10 @@ class _BookSessionScreenState extends ConsumerState<BookSessionScreen> {
                 child: ListView(
                   padding: const EdgeInsets.all(kGutter),
                   children: [
-                    MDSectionHeader(title: '1 · Subject'),
+                    const MDSectionHeader(title: '1 · Subject'),
                     const SizedBox(height: kGutter),
                     DropdownButtonFormField<SubjectWithName>(
-                      value: _selectedSubject,
+                      initialValue: _selectedSubject,
                       hint: const Text('Choose a subject'),
                       items: _subjects
                           .map((s) => DropdownMenuItem(value: s, child: Text(s.name)))
@@ -193,7 +193,7 @@ class _BookSessionScreenState extends ConsumerState<BookSessionScreen> {
                       ),
                     ),
                     const SizedBox(height: kGutter * 2),
-                    MDSectionHeader(title: '2 · Date & time'),
+                    const MDSectionHeader(title: '2 · Date & time'),
                     const SizedBox(height: kGutter),
                     _DateTimeTile(
                       label: 'Date',
@@ -226,7 +226,7 @@ class _BookSessionScreenState extends ConsumerState<BookSessionScreen> {
                       }).toList(),
                     ),
                     const SizedBox(height: kGutter * 2),
-                    MDSectionHeader(title: '3 · Topic & preparation'),
+                    const MDSectionHeader(title: '3 · Topic & preparation'),
                     const SizedBox(height: kGutter),
                     MDGlossInput(
                       controller: _topicCtrl,
@@ -242,7 +242,7 @@ class _BookSessionScreenState extends ConsumerState<BookSessionScreen> {
                       maxLines: 3,
                     ),
                     const SizedBox(height: kGutter * 2),
-                    MDSectionHeader(title: '4 · Attachments (up to 4 images)'),
+                    const MDSectionHeader(title: '4 · Attachments (up to 4 images)'),
                     const SizedBox(height: kGutter),
                     Row(
                       children: [

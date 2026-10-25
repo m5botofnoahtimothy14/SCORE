@@ -102,7 +102,7 @@ class StartupCoordinator {
     // signed in. `getSession()` forces the local-storage read to complete.
     var session = client.auth.currentSession;
     try {
-      session = (await client.auth.getSession()).session;
+      session = await client.auth.getSession();
     } catch (e) {
       failures.add('session_restore');
       debugPrint('[CRIMSON] session restore failed: $e');

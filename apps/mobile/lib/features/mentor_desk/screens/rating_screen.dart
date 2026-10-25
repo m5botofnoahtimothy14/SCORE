@@ -77,7 +77,7 @@ class _RatingScreenState extends ConsumerState<RatingScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final tier = MDTier.student;
+    const tier = MDTier.student;
 
     return Scaffold(
       backgroundColor: MDColors.ink50,

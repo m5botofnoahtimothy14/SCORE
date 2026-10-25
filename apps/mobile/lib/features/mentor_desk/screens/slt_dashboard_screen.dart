@@ -38,7 +38,7 @@ class _SLTDashboardScreenState extends ConsumerState<SLTDashboardScreen> {
   Future<void> _load() async {
     try {
       final identity = await ref.read(identityProvider.future);
-      final schoolId = identity.schoolId!;
+      final schoolId = identity.schoolId;
       final metrics = <String, dynamic>{};
       final total = await _client.from('doubt_requests').select('id').eq('school_id', schoolId);
       metrics['total_requests'] = (total as List).length;
@@ -88,7 +88,7 @@ class _SLTDashboardScreenState extends ConsumerState<SLTDashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final accent = MDTier.slt;
+    const accent = MDTier.slt;
 
     return Scaffold(
       backgroundColor: MDColors.ink50,
@@ -122,7 +122,7 @@ class _SLTDashboardScreenState extends ConsumerState<SLTDashboardScreen> {
                         ],
                       ),
                       const SizedBox(height: kGutter * 2),
-                      MDSectionHeader(title: 'Subject-level demand'),
+                      const MDSectionHeader(title: 'Subject-level demand'),
                       const SizedBox(height: kGutter),
                       SizedBox(
                         height: 200,
@@ -160,7 +160,7 @@ class _SLTDashboardScreenState extends ConsumerState<SLTDashboardScreen> {
                               ),
                       ),
                       const SizedBox(height: kGutter * 2),
-                      MDSectionHeader(title: 'Recent requests'),
+                      const MDSectionHeader(title: 'Recent requests'),
                       const SizedBox(height: kGutter),
                       if (_recent.isEmpty)
                         const EmptyView(title: 'No requests', subtitle: 'Nothing to show.', icon: Icons.inbox_outlined)

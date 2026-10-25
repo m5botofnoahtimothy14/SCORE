@@ -178,7 +178,7 @@ class MentorDeskService {
     }
     final reqId = data['request_id'] as String;
     final req = await getDoubtRequest(reqId);
-    if (req == null) throw MentorDeskException('not_found', 'Doubt created but could not be reloaded.');
+    if (req == null) throw const MentorDeskException('not_found', 'Doubt created but could not be reloaded.');
     return req;
   }
 
@@ -331,7 +331,7 @@ class MentorDeskService {
     }
     final bookingId = data['booking_id'] as String;
     final booking = await getSessionBooking(bookingId);
-    if (booking == null) throw MentorDeskException('not_found', 'Booking created but could not be reloaded.');
+    if (booking == null) throw const MentorDeskException('not_found', 'Booking created but could not be reloaded.');
     return booking;
   }
 
@@ -704,7 +704,7 @@ class MentorDeskService {
     required List<XFile> files,
   }) async {
     if (files.length > maxAttachments) {
-      throw MentorDeskException('too_many_files', 'You can attach up to $maxAttachments images.');
+      throw const MentorDeskException('too_many_files', 'You can attach up to $maxAttachments images.');
     }
     final ids = <String>[];
     for (final f in files) {

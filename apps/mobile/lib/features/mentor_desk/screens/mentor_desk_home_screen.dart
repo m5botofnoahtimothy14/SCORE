@@ -98,7 +98,7 @@ class _MentorDeskHomeScreenState extends ConsumerState<MentorDeskHomeScreen> {
   @override
   Widget build(BuildContext context) {
     final tier = ref.watch(identityProvider).value?.tier ?? AppTier.student;
-    final accent = MDTier.student;
+    const accent = MDTier.student;
 
     return Scaffold(
       backgroundColor: MDColors.ink50,
@@ -150,7 +150,7 @@ class _MentorDeskHomeScreenState extends ConsumerState<MentorDeskHomeScreen> {
                   ),
                   child: Stack(
                     children: [
-                      MDBloom(color: Colors.white, size: 220, alignment: Alignment.topRight),
+                      const MDBloom(color: Colors.white, size: 220, alignment: Alignment.topRight),
                       Padding(
                         padding: const EdgeInsets.only(right: 40, bottom: 10),
                         child: Column(
@@ -233,7 +233,7 @@ class _MentorDeskHomeScreenState extends ConsumerState<MentorDeskHomeScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          MDSectionHeader(title: 'Your weekly allowance'),
+          const MDSectionHeader(title: 'Your weekly allowance'),
           const SizedBox(height: kGutter),
           Row(
             children: [
@@ -277,7 +277,7 @@ class _MentorDeskHomeScreenState extends ConsumerState<MentorDeskHomeScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          MDSectionHeader(title: 'Get help'),
+          const MDSectionHeader(title: 'Get help'),
           const SizedBox(height: kGutter),
           Row(
             children: [
@@ -339,9 +339,9 @@ class _MentorDeskHomeScreenState extends ConsumerState<MentorDeskHomeScreen> {
           MDSectionHeader(title: 'Your doubts', actionLabel: 'See all', onAction: () => context.go('/mentor-desk/doubts')),
           const SizedBox(height: kGutter),
           if (_recentDoubts.isEmpty)
-            SizedBox(
+            const SizedBox(
               height: 160,
-              child: EmptyView(
+              child: const EmptyView(
                 title: 'No open doubts',
                 subtitle: 'Ask a doubt to get started.',
                 icon: Icons.question_answer_outlined,
@@ -374,9 +374,9 @@ class _MentorDeskHomeScreenState extends ConsumerState<MentorDeskHomeScreen> {
           MDSectionHeader(title: 'Upcoming sessions', actionLabel: 'See all', onAction: () => context.go('/mentor-desk/sessions')),
           const SizedBox(height: kGutter),
           if (_upcomingSessions.isEmpty)
-            SizedBox(
+            const SizedBox(
               height: 160,
-              child: EmptyView(
+              child: const EmptyView(
                 title: 'No upcoming sessions',
                 subtitle: 'Book a session with a mentor.',
                 icon: Icons.schedule_outlined,

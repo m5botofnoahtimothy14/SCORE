@@ -57,7 +57,7 @@ class _MentorQueueScreenState extends ConsumerState<MentorQueueScreen> {
         .toList();
 
     final now = DateTime.now();
-    final threshold = Duration(minutes: 30);
+    const threshold = Duration(minutes: 30);
 
     final waiting = allDoubts.where((d) => d.status == 'waiting').toList()
       ..sort((a, b) {
@@ -95,7 +95,7 @@ class _MentorQueueScreenState extends ConsumerState<MentorQueueScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final accent = MDTier.teacher;
+    const accent = MDTier.teacher;
 
     return Scaffold(
       backgroundColor: MDColors.ink50,
@@ -224,7 +224,7 @@ class _Row extends StatelessWidget {
   const _Row({required this.doubt, this.onClaim});
   @override
   Widget build(BuildContext context) {
-    final accent = MDTier.teacher;
+    const accent = MDTier.teacher;
     final waited = DateTime.now().difference(doubt.createdAt);
     final urgent = doubt.urgent;
     final escalated = waited.inMinutes > 30;

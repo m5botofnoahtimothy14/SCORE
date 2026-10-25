@@ -141,7 +141,7 @@ class _SessionDetailScreenState extends ConsumerState<SessionDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final accent = MDTier.student;
+    const accent = MDTier.student;
 
     return Scaffold(
       backgroundColor: MDColors.ink50,
@@ -176,7 +176,7 @@ class _SessionDetailScreenState extends ConsumerState<SessionDetailScreen> {
                           if (_booking!.preparation != null && _booking!.preparation!.isNotEmpty)
                             _InfoRow(icon: Icons.note, label: 'Preparation', value: _booking!.preparation!),
                           const SizedBox(height: kGutter * 2),
-                          MDSectionHeader(title: 'Actions'),
+                          const MDSectionHeader(title: 'Actions'),
                           const SizedBox(height: kGutter),
                           if (_booking!.isRequested) ...[
                             SizedBox(
