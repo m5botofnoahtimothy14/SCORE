@@ -45,6 +45,9 @@ dependencies:
   # Security
   flutter_secure_storage: ^9.2.2
   
+  # Launch URLs (Google Meet links, etc.)
+  url_launcher: ^6.3.1
+  
   # JSON
   json_annotation: ^4.9.0
 

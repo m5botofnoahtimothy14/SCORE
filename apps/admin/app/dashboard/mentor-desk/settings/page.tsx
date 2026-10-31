@@ -8,12 +8,13 @@ import {
   PageHeader, Card, LoadingState, ErrorState,
   inputCls, btnPrimary, btnSecondary, useToast,
 } from '@/components/ui'
-import { AlertTriangle, Clock, Percent, RotateCcw, ShieldCheck, Users } from 'lucide-react'
+import { AlertTriangle, Clock, Percent, RotateCcw, ShieldCheck, Users, Video } from 'lucide-react'
 
 interface MentorDeskSettings {
   id: string
   school_id: string
   open_doubt_limit: number
+  weekly_doubt_allowance: number
   session_allowance_minutes: number
   urgent_passes_per_week: number
   escalation_threshold_minutes: number
@@ -71,11 +72,12 @@ export default function MentorDeskSettingsPage() {
         const defaults: Partial<MentorDeskSettings> = {
           school_id: sid,
           open_doubt_limit: 3,
-          session_allowance_minutes: 120,
+          weekly_doubt_allowance: 3,
+          session_allowance_minutes: 60,
           urgent_passes_per_week: 1,
           escalation_threshold_minutes: 30,
           week_start_day: 1,
-          session_lengths: [15, 30, 45],
+          session_lengths: [15, 30],
           verification_code_digits: 6,
           code_visible_minutes_before: 10,
           max_verification_attempts: 5,
@@ -110,8 +112,8 @@ export default function MentorDeskSettingsPage() {
       show(false, 'Open doubt limit must be 1–50.')
       return
     }
-    if (settings.session_allowance_minutes < 1 || settings.session_allowance_minutes > 1000) {
-      show(false, 'Session allowance must be 1–1000 minutes.')
+    if (settings.session_allowance_minutes < 1 || settings.session_allowance_minutes > 60) {
+      show(false, 'Session allowance must be 1–60 minutes.')
       return
     }
     if (settings.urgent_passes_per_week < 0 || settings.urgent_passes_per_week > 10) {
@@ -129,6 +131,7 @@ export default function MentorDeskSettingsPage() {
         .from('mentor_desk_settings')
         .update({
           open_doubt_limit: settings.open_doubt_limit,
+          weekly_doubt_allowance: settings.weekly_doubt_allowance,
           session_allowance_minutes: settings.session_allowance_minutes,
           urgent_passes_per_week: settings.urgent_passes_per_week,
           escalation_threshold_minutes: settings.escalation_threshold_minutes,
@@ -172,9 +175,9 @@ export default function MentorDeskSettingsPage() {
           </div>
           <div className="space-y-3">
             <div>
-              <p className="text-xs font-medium text-ink-600">Open doubts per subject</p>
-              <input className={inputCls} type="number" min={1} max={50} value={settings.open_doubt_limit} onChange={(e) => setSettings({ ...settings, open_doubt_limit: Number(e.target.value) })} />
-              <p className="text-[11px] text-ink-500 mt-1">Default 3. Configurable limit of unresolved doubts per subject.</p>
+              <p className="text-xs font-medium text-ink-600">Weekly doubts per student and subject</p>
+              <input className={inputCls} type="number" min={1} max={50} value={settings.weekly_doubt_allowance} onChange={(e) => setSettings({ ...settings, weekly_doubt_allowance: Number(e.target.value) })} />
+              <p className="text-[11px] text-ink-500 mt-1">Default 3 accepted doubts per subject each week; at most one can be urgent.</p>
             </div>
           </div>
         </Card>
@@ -185,9 +188,9 @@ export default function MentorDeskSettingsPage() {
           </div>
           <div className="space-y-3">
             <div>
-              <p className="text-xs font-medium text-ink-600">Weekly session minutes per subject</p>
+              <p className="text-xs font-medium text-ink-600">Weekly session minutes per student across subjects</p>
               <input className={inputCls} type="number" min={1} max={1000} value={settings.session_allowance_minutes} onChange={(e) => setSettings({ ...settings, session_allowance_minutes: Number(e.target.value) })} />
-              <p className="text-[11px] text-ink-500 mt-1">Default 120 minutes. Week runs Monday–Sunday.</p>
+              <p className="text-[11px] text-ink-500 mt-1">Default 60 minutes across all subjects and teachers. Week resets Monday at 00:00 in the school&apos;s configured timezone.</p>
             </div>
             <div>
               <p className="text-xs font-medium text-ink-600">Queue escalation threshold (minutes)</p>
@@ -233,7 +236,7 @@ export default function MentorDeskSettingsPage() {
             <div>
               <p className="text-xs font-medium text-ink-600">Allowed session lengths (minutes)</p>
               <div className="flex gap-2">
-                {[15, 30, 45].map((len) => {
+                {[15, 30].map((len) => {
                   const active = settings.session_lengths.includes(len)
                   return (
                     <button key={len} onClick={() => {
@@ -247,7 +250,37 @@ export default function MentorDeskSettingsPage() {
                   )
                 })}
               </div>
-              <p className="text-[11px] text-ink-500 mt-1">Default 15, 30, 45. Durations exceeding remaining allowance are disabled server-side.</p>
+              <p className="text-[11px] text-ink-500 mt-1">Only 15- and 30-minute sessions are permitted; enforced server-side.</p>
+            </div>
+          </div>
+        </Card>
+
+        {/* Google Meet configuration */}
+        <Card className="p-4 md:col-span-2 lg:col-span-2">
+          <div className="flex items-center gap-2 mb-3">
+            <Video className="h-4 w-4 text-brand-600" />
+            <h2 className="font-semibold text-ink-900">Google Meet — Calendar Scheduling</h2>
+          </div>
+          <div className="space-y-3">
+            <div>
+              <p className="text-xs font-medium text-ink-600">Enable Google Meet links for sessions</p>
+              <div className="flex items-center gap-3 mt-1">
+                <input
+                  id="googleMeetEnabled"
+                  type="checkbox"
+                  className="rounded border-ink-300 text-brand-600 focus:ring-brand-500"
+                  defaultChecked={false}
+                  readOnly
+                />
+                <label htmlFor="googleMeetEnabled" className="text-sm text-ink-700">
+                  Google Meet calendar links are created automatically when a session is confirmed.
+                </label>
+              </div>
+              <p className="text-[11px] text-ink-500 mt-1">
+                Requires GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET and GOOGLE_REFRESH_TOKEN to be set as
+                Supabase Edge Function secrets. Ask your platform owner to configure the
+                `create-google-meet` function.
+              </p>
             </div>
           </div>
         </Card>

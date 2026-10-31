@@ -25,7 +25,7 @@ class EulaSection {
 }
 
 const String kEulaTitle = 'End User Licence Agreement';
-const String kEulaEffectiveDate = '18 October 2026';
+const String kEulaEffectiveDate = '31 October 2026';
 const String kEulaPreamble =
     'SCORE+ is a school communication tool. Before you can use it, please '
     'read this agreement. It explains what the app does, what we ask of you, '
@@ -106,6 +106,15 @@ const List<EulaSection> kEulaSections = <EulaSection>[
   ),
   EulaSection(
     number: '8',
+    heading: 'AI Ask Learning Support',
+    paragraphs: [
+      'AI Ask is an optional supplementary study feature for eligible students. It uses approved learning material to prepare an answer and show its source references. It is not a teacher, examination answer key, medical or wellbeing service, or official school instruction.',
+      'When you submit a question to AI Ask, the question and the approved source passages needed to answer it are processed by the AI service provider configured by SCORE+. Do not include passwords, verification codes, private contact details, health information, safeguarding concerns or content about another person in an AI Ask question.',
+      'An AI-generated answer may be incomplete or incorrect. Check the listed sources and ask your teacher where an answer is uncertain, important, or does not match your classwork. AI Ask does not make school decisions and cannot replace human support.',
+    ],
+  ),
+  EulaSection(
+    number: '9',
     heading: 'Intellectual Property',
     paragraphs: [
       'SCORE+, its software, its design and its documentation are owned by Noah Timothy Keba Joseph. SCORE+™ is a trademark of Noah Timothy Keba Joseph. CRIMSON is a proprietary brand of Noah Timothy Keba Joseph.',
@@ -114,7 +123,7 @@ const List<EulaSection> kEulaSections = <EulaSection>[
     ],
   ),
   EulaSection(
-    number: '9',
+    number: '10',
     heading: 'SMS Notifications',
     paragraphs: [
       'When your school has enabled SMS verification, SCORE+ sends a one-time verification code to the phone number your school has on file, so that your identity can be confirmed before your account is activated. That number is used for one-time verification codes and for messages your school sends to you.',
@@ -123,7 +132,7 @@ const List<EulaSection> kEulaSections = <EulaSection>[
     ],
   ),
   EulaSection(
-    number: '10',
+    number: '11',
     heading: 'Limitation of Liability and Governing Law',
     paragraphs: [
       'To the maximum extent permitted by law, SCORE+ is provided "as is" and without warranties of any kind, whether express or implied, including any implied warranty of merchantability, fitness for a particular purpose or non-infringement. We do not warrant that the app will be uninterrupted, error-free, or that communications will always be delivered immediately.',
@@ -133,7 +142,7 @@ const List<EulaSection> kEulaSections = <EulaSection>[
     ],
   ),
   EulaSection(
-    number: '11',
+    number: '12',
     heading: 'Changes to These Terms',
     paragraphs: [
       'We may update these terms from time to time, for example to reflect legal changes, new safeguarding requirements or new features. The effective date at the top of this screen always shows the version you are reading.',

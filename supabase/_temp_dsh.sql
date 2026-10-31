@@ -1,0 +1,1 @@
+﻿CREATE TABLE IF NOT EXISTS doubt_status_history (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), request_id UUID NOT NULL REFERENCES doubt_requests(id) ON DELETE CASCADE, old_status TEXT, new_status TEXT NOT NULL, changed_by UUID REFERENCES user_profiles(id), changed_at TIMESTAMPTZ NOT NULL DEFAULT NOW());

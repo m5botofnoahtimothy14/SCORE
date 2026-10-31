@@ -17,7 +17,7 @@ export type IncidentSeverity = 'low' | 'medium' | 'high' | 'critical';
 export type IncidentStatus = 'open' | 'investigating' | 'escalated_external' | 'resolved' | 'closed';
 export type QuestionStatus = 'open' | 'in_progress' | 'answered' | 'resolved';
 export type InvestigationStatus = 'requested' | 'approved' | 'active' | 'expired' | 'revoked' | 'closed';
-export type DoubtStatus = 'waiting' | 'assigned' | 'resolved' | 'closed';
+export type DoubtStatus = 'pending_assignment' | 'waiting' | 'assigned' | 'in_progress' | 'answered' | 'resolved' | 'reopened' | 'closed';
 export type BookingStatus = 'requested' | 'confirmed' | 'cancelled_by_student' | 'cancelled_by_mentor' | 'completed' | 'no_show_student' | 'no_show_mentor' | 'unverified_closed';
 export type NoShowType = 'student_no_show' | 'mentor_no_show';
 export type EngagementScale = 'unprepared' | 'developing' | 'satisfactory' | 'strong' | 'outstanding';
@@ -254,6 +254,9 @@ export interface SessionBooking {
   verified_at?: string;
   closed_without_code: boolean;
   close_reason?: string;
+  google_meet_link?: string;
+  google_calendar_event_id?: string;
+  google_meet_created_at?: string;
   created_at: string;
   updated_at: string;
 }
@@ -349,6 +352,16 @@ export interface SltAccessGrant {
   scope_value: string;
   created_at: string;
   revoked_at?: string;
+}
+
+export interface GoogleMeetConfig {
+  id: string;
+  school_id: string;
+  calendar_id: string;
+  time_zone: string;
+  is_enabled: boolean;
+  created_at: string;
+  updated_at: string;
 }
 
 // ── Edge Function request/response types ────────────────────

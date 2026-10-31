@@ -44,7 +44,7 @@ export interface NavEntry {
   label: string
 }
 
-export function NavItem({ href, icon, label }: NavEntry) {
+export function NavItem({ href, icon, label, onClick }: NavEntry & { onClick?: () => void }) {
   const pathname = usePathname()
   const isActive = pathname === href
   const Icon = NAV_ICONS[icon] ?? LayoutDashboard
@@ -52,6 +52,7 @@ export function NavItem({ href, icon, label }: NavEntry) {
   return (
     <Link
       href={href}
+      onClick={onClick}
       aria-current={isActive ? 'page' : undefined}
       className={[
         'group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium',

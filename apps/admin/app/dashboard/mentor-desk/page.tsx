@@ -77,9 +77,9 @@ export default function MentorDeskOverview() {
         lowRatings, studentsAtLimit, recentAudit,
       ] = await Promise.all([
         supabase.from('doubt_requests').select('id', { count: 'exact', head: true }).eq('school_id', sid),
-        supabase.from('doubt_requests').select('id', { count: 'exact', head: true }).eq('school_id', sid).eq('status', 'waiting'),
-        supabase.from('doubt_requests').select('id', { count: 'exact', head: true }).eq('school_id', sid).eq('status', 'assigned'),
-        supabase.from('doubt_requests').select('id', { count: 'exact', head: true }).eq('school_id', sid).eq('status', 'waiting').lt('created_at', new Date(Date.now() - 30 * 60 * 1000).toISOString()),
+        supabase.from('doubt_requests').select('id', { count: 'exact', head: true }).eq('school_id', sid).in('status', ['pending_assignment', 'waiting']),
+        supabase.from('doubt_requests').select('id', { count: 'exact', head: true }).eq('school_id', sid).in('status', ['assigned', 'in_progress']),
+        supabase.from('doubt_requests').select('id', { count: 'exact', head: true }).eq('school_id', sid).in('status', ['waiting']).lt('created_at', new Date(Date.now() - 30 * 60 * 1000).toISOString()),
         supabase.from('doubt_requests').select('id', { count: 'exact', head: true }).eq('school_id', sid).in('status', ['resolved', 'closed']),
         supabase.from('session_bookings').select('id', { count: 'exact', head: true }).eq('school_id', sid).eq('status', 'confirmed').gte('scheduled_at', now),
         supabase.from('session_bookings').select('id', { count: 'exact', head: true }).eq('school_id', sid).eq('status', 'completed'),
@@ -186,7 +186,9 @@ export default function MentorDeskOverview() {
 
       {statGroups.map((group) => (
         <Card key={group.section} className="mb-6">
-          <SectionHeader title={group.section} />
+          <div className="mb-3 flex items-end justify-between gap-3">
+            <h2 className="text-xs font-semibold uppercase tracking-[0.14em] text-ink-400">{group.section}</h2>
+          </div>
           <div className="grid grid-cols-2 gap-4 md:grid-cols-4 lg:grid-cols-5">
             {group.items.map((s, i) => (
               <Card key={s.label} interactive className="p-4" style={{ animationDelay: `${i * 40}ms` }}>
@@ -255,17 +257,8 @@ function toneChip(tone: string) {
   return map[tone] ?? map.brand
 }
 
-function SectionHeader({ title }: { title: string }) {
-  return (
-    <div className="mb-3 flex items-end justify-between gap-3">
-      <h2 className="text-xs font-semibold uppercase tracking-[0.14em] text-ink-400">{title}</h2>
-    </div>
-  )
-}
-
+// Link component stub
 type LinkProps = { href: string; children: React.ReactNode; className?: string }
 function Link({ href, children, className }: LinkProps) {
   return <a href={href} className={['text-brand-600 text-xs font-medium hover:underline underline-offset-2', className].filter(Boolean).join(' ')}>{children}</a>
 }
-
-

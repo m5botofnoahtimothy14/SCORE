@@ -1,4 +1,4 @@
-// Mentor Desk data models — mirrors the new DB schema (migration 00021).
+// Mentor Desk data models — mirrors migration 00024 + migration 00025 (Google Meet).
 // All parsing is null-safe.
 class DoubtRequest {
   final String id;
@@ -6,6 +6,7 @@ class DoubtRequest {
   final String conversationId;
   final String studentId;
   final String studentRecordId;
+  final String? classId;
   final String subjectId;
   final String question;
   final String? chapter;
@@ -15,7 +16,7 @@ class DoubtRequest {
   final bool urgent;
   final String? urgentReason;
   final bool urgentPassUsed;
-  final String status; // waiting | assigned | resolved | closed
+  final String status; // pending_assignment | waiting | assigned | in_progress | answered | resolved | reopened | closed
   final String? assignedMentorId;
   final String? assignedTeacherId;
   final bool namedMentor;
@@ -31,6 +32,7 @@ class DoubtRequest {
     required this.conversationId,
     required this.studentId,
     required this.studentRecordId,
+    this.classId,
     required this.subjectId,
     required this.question,
     this.chapter,
@@ -57,6 +59,7 @@ class DoubtRequest {
         conversationId: j['conversation_id'] as String,
         studentId: j['student_id'] as String,
         studentRecordId: j['student_record_id'] as String,
+        classId: j['class_id'] as String?,
         subjectId: j['subject_id'] as String,
         question: j['question'] as String? ?? '',
         chapter: j['chapter'] as String?,
@@ -66,7 +69,7 @@ class DoubtRequest {
         urgent: j['urgent'] as bool? ?? false,
         urgentReason: j['urgent_reason'] as String?,
         urgentPassUsed: j['urgent_pass_used'] as bool? ?? false,
-        status: j['status'] as String? ?? 'waiting',
+        status: j['status'] as String? ?? 'pending_assignment',
         assignedMentorId: j['assigned_mentor_id'] as String?,
         assignedTeacherId: j['assigned_teacher_id'] as String?,
         namedMentor: j['named_mentor'] as bool? ?? false,
@@ -77,18 +80,29 @@ class DoubtRequest {
         updatedAt: DateTime.tryParse(j['updated_at'] as String? ?? '') ?? DateTime.now(),
       );
 
-  bool get isOpen => status == 'waiting' || status == 'assigned';
+  bool get isOpen =>
+      status == 'pending_assignment' ||
+      status == 'waiting' ||
+      status == 'assigned' ||
+      status == 'in_progress';
+  bool get isPendingAssignment => status == 'pending_assignment';
   bool get isWaiting => status == 'waiting';
   bool get isAssigned => status == 'assigned';
+  bool get isInProgress => status == 'in_progress';
+  bool get isAnswered => status == 'answered';
   bool get isResolved => status == 'resolved';
   bool get isClosed => status == 'closed';
 
   String get statusLabel {
     switch (status) {
+      case 'pending_assignment': return 'Pending assignment';
       case 'waiting': return 'Waiting for mentor';
       case 'assigned': return 'Assigned';
+      case 'in_progress': return 'In progress';
+      case 'answered': return 'Answered';
       case 'resolved': return 'Resolved';
       case 'closed': return 'Closed';
+      case 'reopened': return 'Reopened';
       default: return status;
     }
   }
@@ -99,15 +113,19 @@ class SessionBooking {
   final String schoolId;
   final String studentId;
   final String studentRecordId;
+  final String? classId;
   final String mentorId;
   final String mentorRecordId;
   final String subjectId;
   final int durationMinutes;
+  final int reservedMinutes;
   final String topic;
   final String? preparation;
   final DateTime requestedAt;
   final DateTime? scheduledAt;
   final DateTime? confirmedAt;
+  final DateTime? startedAt;
+  final DateTime? endedAt;
   final String? meetingLink;
   final String? meetingRoom;
   final String status; // requested | confirmed | cancelled_by_student | cancelled_by_mentor | completed | no_show_student | no_show_mentor | unverified_closed
@@ -123,6 +141,10 @@ class SessionBooking {
   final DateTime? verifiedAt;
   final bool closedWithoutCode;
   final String? closeReason;
+  // ── Google Meet (migration 00025) ──
+  final String? googleMeetLink;
+  final String? googleCalendarEventId;
+  final DateTime? googleMeetCreatedAt;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -131,15 +153,19 @@ class SessionBooking {
     required this.schoolId,
     required this.studentId,
     required this.studentRecordId,
+    this.classId,
     required this.mentorId,
     required this.mentorRecordId,
     required this.subjectId,
     required this.durationMinutes,
+    required this.reservedMinutes,
     required this.topic,
     this.preparation,
     required this.requestedAt,
     this.scheduledAt,
     this.confirmedAt,
+    this.startedAt,
+    this.endedAt,
     this.meetingLink,
     this.meetingRoom,
     required this.status,
@@ -155,6 +181,9 @@ class SessionBooking {
     this.verifiedAt,
     required this.closedWithoutCode,
     this.closeReason,
+    this.googleMeetLink,
+    this.googleCalendarEventId,
+    this.googleMeetCreatedAt,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -164,15 +193,19 @@ class SessionBooking {
         schoolId: j['school_id'] as String,
         studentId: j['student_id'] as String,
         studentRecordId: j['student_record_id'] as String,
+        classId: j['class_id'] as String?,
         mentorId: j['mentor_id'] as String,
         mentorRecordId: j['mentor_record_id'] as String,
         subjectId: j['subject_id'] as String,
         durationMinutes: (j['duration_minutes'] as num?)?.toInt() ?? 0,
+        reservedMinutes: (j['reserved_minutes'] as num?)?.toInt() ?? 0,
         topic: j['topic'] as String? ?? '',
         preparation: j['preparation'] as String?,
         requestedAt: DateTime.tryParse(j['requested_at'] as String? ?? '') ?? DateTime.now(),
         scheduledAt: DateTime.tryParse(j['scheduled_at'] as String? ?? ''),
         confirmedAt: DateTime.tryParse(j['confirmed_at'] as String? ?? ''),
+        startedAt: DateTime.tryParse(j['started_at'] as String? ?? ''),
+        endedAt: DateTime.tryParse(j['ended_at'] as String? ?? ''),
         meetingLink: j['meeting_link'] as String?,
         meetingRoom: j['meeting_room'] as String?,
         status: j['status'] as String? ?? 'requested',
@@ -188,18 +221,27 @@ class SessionBooking {
         verifiedAt: DateTime.tryParse(j['verified_at'] as String? ?? ''),
         closedWithoutCode: j['closed_without_code'] as bool? ?? false,
         closeReason: j['close_reason'] as String?,
+        googleMeetLink: j['google_meet_link'] as String?,
+        googleCalendarEventId: j['google_calendar_event_id'] as String?,
+        googleMeetCreatedAt: DateTime.tryParse(j['google_meet_created_at'] as String? ?? ''),
         createdAt: DateTime.tryParse(j['created_at'] as String? ?? '') ?? DateTime.now(),
         updatedAt: DateTime.tryParse(j['updated_at'] as String? ?? '') ?? DateTime.now(),
       );
 
   bool get isConfirmed => status == 'confirmed';
   bool get isRequested => status == 'requested';
+  bool get isStarted => startedAt != null;
   bool get isCompleted => status == 'completed';
-  bool get isCancelled => status == 'cancelled_by_student' || status == 'cancelled_by_mentor';
-  bool get isNoShow => status == 'no_show_student' || status == 'no_show_mentor';
+  bool get isCancelled =>
+      status == 'cancelled_by_student' || status == 'cancelled_by_mentor';
+  bool get isNoShow =>
+      status == 'no_show_student' || status == 'no_show_mentor';
   bool get isVerified => verifiedAt != null;
   bool get codeLocked => codeLockedAt != null;
-  bool get showCode => codeVisibleAt != null && DateTime.now().isAfter(codeVisibleAt!);
+  bool get showCode =>
+      codeVisibleAt != null && DateTime.now().isAfter(codeVisibleAt!);
+  bool get hasGoogleMeet =>
+      googleMeetLink != null && googleMeetLink!.isNotEmpty;
 
   String get statusLabel {
     switch (status) {
@@ -214,6 +256,8 @@ class SessionBooking {
       default: return status;
     }
   }
+
+  String? get meetUrl => googleMeetLink ?? meetingLink;
 }
 
 class MentorAvailability {
@@ -349,14 +393,44 @@ class MentorDeskSettings {
         id: j['id'] as String,
         schoolId: j['school_id'] as String,
         openDoubtLimit: (j['open_doubt_limit'] as num?)?.toInt() ?? 3,
-        sessionAllowanceMinutes: (j['session_allowance_minutes'] as num?)?.toInt() ?? 120,
+        sessionAllowanceMinutes: (j['session_allowance_minutes'] as num?)?.toInt() ?? 60,
         urgentPassesPerWeek: (j['urgent_passes_per_week'] as num?)?.toInt() ?? 1,
         escalationThresholdMinutes: (j['escalation_threshold_minutes'] as num?)?.toInt() ?? 30,
         weekStartDay: (j['week_start_day'] as num?)?.toInt() ?? 1,
-        sessionLengths: (j['session_lengths'] as List?)?.cast<int>().toList() ?? const [15, 30, 45],
+        sessionLengths: (j['session_lengths'] as List?)?.cast<int>().toList() ?? const [15, 30],
         verificationCodeDigits: (j['verification_code_digits'] as num?)?.toInt() ?? 6,
         codeVisibleMinutesBefore: (j['code_visible_minutes_before'] as num?)?.toInt() ?? 10,
         maxVerificationAttempts: (j['max_verification_attempts'] as num?)?.toInt() ?? 5,
+        createdAt: DateTime.tryParse(j['created_at'] as String? ?? '') ?? DateTime.now(),
+        updatedAt: DateTime.tryParse(j['updated_at'] as String? ?? '') ?? DateTime.now(),
+      );
+}
+
+class GoogleMeetConfig {
+  final String id;
+  final String schoolId;
+  final String calendarId;
+  final String timeZone;
+  final bool isEnabled;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+
+  const GoogleMeetConfig({
+    required this.id,
+    required this.schoolId,
+    required this.calendarId,
+    required this.timeZone,
+    required this.isEnabled,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+
+  factory GoogleMeetConfig.fromJson(Map<String, dynamic> j) => GoogleMeetConfig(
+        id: j['id'] as String,
+        schoolId: j['school_id'] as String,
+        calendarId: j['calendar_id'] as String? ?? 'primary',
+        timeZone: j['time_zone'] as String? ?? 'Asia/Kolkata',
+        isEnabled: j['is_enabled'] as bool? ?? true,
         createdAt: DateTime.tryParse(j['created_at'] as String? ?? '') ?? DateTime.now(),
         updatedAt: DateTime.tryParse(j['updated_at'] as String? ?? '') ?? DateTime.now(),
       );
@@ -417,6 +491,10 @@ class AllowanceSummary {
   final int remainingMinutes;
   final int openDoubts;
   final bool urgentPassAvailable;
+  final int sessionAllowanceMinutes;
+  final int sessionUsedMinutes;
+  final int sessionRemainingMinutes;
+  final DateTime? nextResetAt;
   AllowanceSummary({
     required this.subjectId,
     required this.subjectName,
@@ -425,5 +503,9 @@ class AllowanceSummary {
     required this.remainingMinutes,
     required this.openDoubts,
     required this.urgentPassAvailable,
+    this.sessionAllowanceMinutes = 60,
+    this.sessionUsedMinutes = 0,
+    this.sessionRemainingMinutes = 0,
+    this.nextResetAt,
   });
 }

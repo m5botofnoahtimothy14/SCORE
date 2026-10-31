@@ -1,0 +1,1 @@
+﻿CREATE TABLE IF NOT EXISTS session_no_shows (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), booking_id UUID NOT NULL REFERENCES session_bookings(id) ON DELETE CASCADE, no_show_type no_show_type NOT NULL, recorded_by UUID REFERENCES user_profiles(id), recorded_at TIMESTAMPTZ NOT NULL DEFAULT NOW());

@@ -277,11 +277,26 @@ BEGIN
   END IF;
 END $$;
 
-ALTER PUBLICATION supabase_realtime ADD TABLE IF EXISTS doubt_requests;
-ALTER PUBLICATION supabase_realtime ADD TABLE IF EXISTS session_bookings;
-ALTER PUBLICATION supabase_realtime ADD TABLE IF EXISTS mentor_availability;
-ALTER PUBLICATION supabase_realtime ADD TABLE IF EXISTS ratings;
-ALTER PUBLICATION supabase_realtime ADD TABLE IF EXISTS notification_jobs;
+DO $$ BEGIN
+  ALTER PUBLICATION supabase_realtime ADD TABLE doubt_requests;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+DO $$ BEGIN
+  ALTER PUBLICATION supabase_realtime ADD TABLE session_bookings;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+DO $$ BEGIN
+  ALTER PUBLICATION supabase_realtime ADD TABLE mentor_availability;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+DO $$ BEGIN
+  ALTER PUBLICATION supabase_realtime ADD TABLE ratings;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+DO $$ BEGIN
+  ALTER PUBLICATION supabase_realtime ADD TABLE notification_jobs;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
 -- ============================================================
 -- RLS POLICIES
@@ -424,7 +439,8 @@ CREATE OR REPLACE FUNCTION public.submit_doubt(
   p_previous_attempts  TEXT DEFAULT NULL,
   p_urgent             BOOLEAN DEFAULT FALSE,
   p_urgent_reason      TEXT DEFAULT NULL,
-  p_attachment_ids     UUID[] DEFAULT '{}'::UUID[]
+  p_attachment_ids     UUID[] DEFAULT '{}'::UUID[],
+  p_idempotency_key    UUID DEFAULT NULL
 )
 RETURNS JSONB
 LANGUAGE plpgsql
@@ -456,13 +472,25 @@ BEGIN
   IF NOT FOUND THEN
     RETURN jsonb_build_object('success', FALSE, 'error', 'student_not_found');
   END IF;
-  v_school_id := v_student.school_id;\n\n  -- Serialize concurrent submissions per student\n  PERFORM pg_advisory_xact_lock(hashtext(v_uid::text || ':submit_doubt'));\n\n  -- Settings\n  SELECT * INTO v_settings\n  FROM mentor_desk_settings
+  v_school_id := v_student.school_id;
+
+  -- Serialize concurrent submissions per student
+  PERFORM pg_advisory_xact_lock(hashtext(v_uid::text || ':submit_doubt'));
+
+  -- Settings
+  SELECT * INTO v_settings
+  FROM mentor_desk_settings
   WHERE school_id = v_school_id;
   IF NOT FOUND THEN
     RETURN jsonb_build_object('success', FALSE, 'error', 'settings_not_configured');
   END IF;
 
-  -- Attachment count limit (max 4 images per doubt)\n  IF COALESCE(array_length(p_attachment_ids, 1), 0) > 4 THEN\n    RETURN jsonb_build_object('success', FALSE, 'error', 'too_many_attachments');\n  END IF;\n\n  -- Subject must belong to the school
+  -- Attachment count limit (max 4 images per doubt)
+  IF COALESCE(array_length(p_attachment_ids, 1), 0) > 4 THEN
+    RETURN jsonb_build_object('success', FALSE, 'error', 'too_many_attachments');
+  END IF;
+
+  -- Subject must belong to the school
   IF NOT EXISTS (
     SELECT 1 FROM subjects WHERE id = p_subject_id AND school_id = v_school_id
   ) THEN
@@ -472,8 +500,7 @@ BEGIN
   -- Open-doubt limit per subject
   SELECT COUNT(*) INTO v_open_count
   FROM doubt_requests
-  WHERE student_id = v_uid
-    AND subject_id = p_subject_id
+  WHERE student_id = v_uid AND subject_id = p_subject_id
     AND status IN ('waiting', 'assigned');
   IF v_open_count >= v_settings.open_doubt_limit THEN
     RETURN jsonb_build_object('success', FALSE, 'error', 'doubt_limit_reached');
@@ -484,11 +511,8 @@ BEGIN
     IF p_urgent_reason IS NULL OR trim(p_urgent_reason) = '' THEN
       RETURN jsonb_build_object('success', FALSE, 'error', 'urgent_reason_required');
     END IF;
-    v_week_start := tc_week_start(NOW(), (SELECT timezone FROM school_settings WHERE school_id = v_school_id));
-    IF EXISTS (
-      SELECT 1 FROM urgent_pass_usage
-      WHERE student_id = v_uid AND subject_id = p_subject_id AND week_start = v_week_start
-    ) THEN
+    v_week_start := tc_week_start(NOW(), (SELECT timezone FROM school_settings WHERE school_id=v_school_id));
+    IF EXISTS (SELECT 1 FROM urgent_pass_usage WHERE student_id=v_uid AND subject_id=p_subject_id AND week_start=v_week_start) THEN
       RETURN jsonb_build_object('success', FALSE, 'error', 'urgent_pass_used');
     END IF;
   END IF;
@@ -510,9 +534,7 @@ BEGIN
   VALUES (
     v_school_id, v_conv_id, v_uid, v_student.id,
     p_subject_id, p_question, p_chapter, p_question_number, p_explanation,
-    p_previous_attempts, p_urgent, p_urgent_reason,
-    CASE WHEN p_urgent THEN 'waiting' ELSE 'waiting' END,
-    NOW(), NOW()
+    p_previous_attempts, p_urgent, p_urgent_reason, 'waiting', NOW(), NOW()
   )
   RETURNING id INTO v_req_id;
 
@@ -529,10 +551,8 @@ BEGIN
 
   -- Create the first message (the doubt itself) via send_message for moderation
   IF p_question IS NOT NULL AND length(trim(p_question)) > 0 THEN
-    PERFORM public.send_message(
-      v_conv_id, v_uid, p_question,
-      gen_random_uuid()::TEXT, NULL, NULL
-    );
+    PERFORM public.send_message(v_conv_id, v_uid, p_question,
+      gen_random_uuid()::TEXT, NULL, NULL);
   END IF;
 
   -- Link attachments (owned by the student, in this school)
@@ -856,7 +876,13 @@ BEGIN
   IF NOT FOUND THEN
     RETURN jsonb_build_object('success', FALSE, 'error', 'student_not_found');
   END IF;
-  v_school_id := v_student.school_id;\n\n  -- Serialize concurrent bookings per student\n  PERFORM pg_advisory_xact_lock(hashtext(v_uid::text || ':book_session'));\n\n  SELECT * INTO v_settings\n  FROM mentor_desk_settings WHERE school_id = v_school_id;
+  v_school_id := v_student.school_id;
+
+  -- Serialize concurrent bookings per student
+  PERFORM pg_advisory_xact_lock(hashtext(v_uid::text || ':book_session'));
+
+  SELECT * INTO v_settings
+  FROM mentor_desk_settings WHERE school_id = v_school_id;
   IF NOT FOUND THEN
     RETURN jsonb_build_object('success', FALSE, 'error', 'settings_not_configured');
   END IF;

@@ -8,7 +8,7 @@ import {
   PageHeader, Card, StatusBadge, LoadingState, ErrorState,
   inputCls, btnPrimary, btnSecondary, useToast, EmptyState, Modal,
 } from '@/components/ui'
-import { AlertTriangle, CheckCircle } from 'lucide-react'
+import { AlertTriangle, CheckCircle, Clock } from 'lucide-react'
 import { format } from 'date-fns'
 
 interface BookingRow {
@@ -16,8 +16,8 @@ interface BookingRow {
   school_id: string
   student_id: string
   student_record_id: string
-  mentor_id: string
-  mentor_record_id: string
+  mentor_id: string | null
+  mentor_record_id: string | null
   subject_id: string
   duration_minutes: number
   topic: string
@@ -27,7 +27,7 @@ interface BookingRow {
   confirmed_at: string | null
   meeting_link: string | null
   meeting_room: string | null
-  status: 'requested' | 'confirmed' | 'cancelled_by_student' | 'cancelled_by_mentor' | 'completed' | 'no_show_student' | 'no_show_mentor' | 'unverified_closed'
+  status: string
   allowance_minutes_used: number
   cancelled_at: string | null
   cancelled_by: string | null
@@ -40,6 +40,9 @@ interface BookingRow {
   verified_at: string | null
   closed_without_code: boolean
   close_reason: string | null
+  google_meet_link: string | null
+  google_calendar_event_id: string | null
+  google_meet_created_at: string | null
   created_at: string
   updated_at: string
   students?: { student_id_no: string; first_name: string; last_name: string } | null
@@ -48,8 +51,7 @@ interface BookingRow {
   user_profiles?: { display_name: string } | null
 }
 
-// Session booking management. Verification codes are never exposed in the
-// list — administrators investigate failures through the event history.
+// Session booking management
 export default function SessionsPage() {
   const [rows, setRows] = useState<BookingRow[]>([])
   const [subjects, setSubjects] = useState<{ id: string; name: string }[]>([])
@@ -88,17 +90,24 @@ export default function SessionsPage() {
       setSchoolId(sid)
 
       const [resBookings, resSubjects, resMentors] = await Promise.all([
-        supabase.from('session_bookings').select(`
-          id, school_id, student_id, student_record_id, mentor_id, mentor_record_id,
-          subject_id, duration_minutes, topic, preparation, requested_at,
-          scheduled_at, confirmed_at, meeting_link, meeting_room, status,
-          allowance_minutes_used, cancelled_at, cancelled_by, refunded,\n          code_attempts, code_locked_at,\n          code_visible_at, verified_at, closed_without_code, close_reason,
-          created_at, updated_at,
-          students(student_id_no, first_name, last_name),
-          teachers(staff_id_no, first_name, last_name),
-          subjects(name),
-          user_profiles!session_bookings_mentor_id_fkey(display_name)
-        `).eq('school_id', sid).order('created_at', { ascending: false }),
+        supabase
+          .from('session_bookings')
+          .select(`
+            id, school_id, student_id, student_record_id, mentor_id, mentor_record_id,
+            subject_id, duration_minutes, topic, preparation, requested_at,
+            scheduled_at, confirmed_at, meeting_link, meeting_room, status,
+            allowance_minutes_used, cancelled_at, cancelled_by, refunded,
+            code_attempts, code_locked_at,
+            code_visible_at, verified_at, closed_without_code, close_reason,
+            google_meet_link, google_calendar_event_id, google_meet_created_at,
+            created_at, updated_at,
+            students(student_id_no, first_name, last_name),
+            teachers(staff_id_no, first_name, last_name),
+            subjects(name),
+            user_profiles(display_name)
+          `)
+          .eq('school_id', sid)
+          .order('created_at', { ascending: false }),
         supabase.from('subjects').select('id, name').eq('school_id', sid).order('name'),
         supabase.from('teachers').select('id, staff_id_no, first_name, last_name').eq('school_id', sid).eq('is_active', true).order('first_name'),
       ])
@@ -127,7 +136,7 @@ export default function SessionsPage() {
       const mentor = r.teachers as { first_name?: string; last_name?: string; staff_id_no?: string } | null
       const subject = r.subjects as { name?: string } | null
       const matchText = !q ||
-        `${r.id} ${student?.first_name ?? ''} ${student?.last_name ?? ''} ${student?.student_id_no ?? ''} ${mentor?.first_name ?? ''} ${mentor?.last_name ?? ''} ${subject?.name ?? ''} ${r.topic}`.toLowerCase().includes(q)
+        `${r.id} ${student?.first_name ?? ''} ${student?.last_name ?? ''} ${student?.student_id_no ?? ''} ${mentor?.first_name ?? ''} ${mentor?.last_name ?? ''} ${mentor?.staff_id_no ?? ''} ${subject?.name ?? ''} ${r.topic}`.toLowerCase().includes(q)
       const matchStatus = !statusFilter || r.status === statusFilter
       const scheduled = r.scheduled_at ? new Date(r.scheduled_at).getTime() : 0
       const matchDate = scheduled >= from && scheduled <= to
@@ -199,6 +208,31 @@ export default function SessionsPage() {
     }
   }
 
+  async function createGoogleMeet(booking: BookingRow) {
+    try {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error('Not signed in.')
+      const { data: { session } } = await supabase.auth.getSession()
+      const token = session?.access_token ?? ''
+      const { data, error } = await supabase.functions.invoke('create-google-meet', {
+        body: { booking_id: booking.id },
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (error) throw error
+      if (!data || data.success !== true) throw new Error(data?.error ?? 'Failed to create Google Meet link')
+      await logAudit(supabase, user.id, {
+        schoolId, action: 'session.google_meet.create', targetType: 'session_booking', targetId: booking.id,
+        outcome: 'success', metadata: { meet_link: data.meet_link, event_id: data.calendar_event_id },
+      })
+      show(true, 'Google Meet link created.')
+      setEditing(null)
+      load()
+    } catch (e) {
+      show(false, e instanceof Error ? e.message : 'Google Meet creation failed.')
+    }
+  }
+
   if (error) return <ErrorState message={error} onRetry={load} />
   if (loading) return <LoadingState message="Loading session bookings…" />
 
@@ -239,6 +273,7 @@ export default function SessionsPage() {
                   <th className="p-3 text-right">Duration</th>
                   <th className="p-3 text-right">Status</th>
                   <th className="p-3 text-right">Verification</th>
+                  <th className="p-3 text-right">Meet</th>
                   <th className="p-3 text-right">Actions</th>
                 </tr>
               </thead>
@@ -268,6 +303,13 @@ export default function SessionsPage() {
                           ) : (
                             <span className="inline-flex items-center gap-1 text-[10px] font-bold text-brand-700">CODE</span>
                           )
+                        ) : (
+                          <span className="text-[10px] text-ink-400">—</span>
+                        )}
+                      </td>
+                      <td className="p-3 text-right text-[10px]">
+                        {r.google_meet_link ? (
+                          <span className="inline-flex items-center gap-1 text-emerald-700"><CheckCircle className="h-3 w-3" /> MEET</span>
                         ) : (
                           <span className="text-[10px] text-ink-400">—</span>
                         )}
@@ -315,6 +357,12 @@ export default function SessionsPage() {
                   <p className="text-sm">{editing.meeting_room}</p>
                 </div>
               )}
+              {editing.google_meet_link && (
+                <div className="mt-2">
+                  <p className="text-xs font-medium text-ink-600">Google Meet</p>
+                  <a href={editing.google_meet_link} target="_blank" rel="noopener noreferrer" className="text-sm text-brand-600 hover:underline break-all">{editing.google_meet_link}</a>
+                </div>
+              )}
             </div>
             <div className="col-span-1 space-y-3">
               <p className="text-xs font-medium text-ink-600">Timing</p>
@@ -339,6 +387,7 @@ export default function SessionsPage() {
                 <div className="space-y-2">
                   <button onClick={() => recordNoShow(editing, 'mentor', 'Admin recorded mentor no-show')} className={btnSecondary}><AlertTriangle className="h-3.5 w-3.5 mr-1.5" /> Mentor no-show</button>
                   <button onClick={() => cancel(editing, 'admin', 'Admin cancelled session')} className={btnSecondary}>Cancel session</button>
+                  <button onClick={() => createGoogleMeet(editing)} className={btnSecondary}>Create Google Meet link</button>
                 </div>
               )}
               {editing.status === 'completed' && !editing.closed_without_code && (
@@ -363,5 +412,3 @@ export default function SessionsPage() {
     </div>
   )
 }
-
-

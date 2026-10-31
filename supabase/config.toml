@@ -73,3 +73,6 @@ verify_jwt = false
 
 [functions.score-moderation]
 verify_jwt = false
+
+[functions.curriculum-rag]
+verify_jwt = false

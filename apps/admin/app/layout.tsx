@@ -1,25 +1,25 @@
-import type { Metadata, Viewport } from 'next'
-import { Inter } from 'next/font/google'
-import './globals.css'
-import { Toaster } from 'react-hot-toast'
+import type { Metadata, Viewport } from 'next';
+import { Inter } from 'next/font/google';
+import './globals.css';
+import { Toaster } from 'react-hot-toast';
 
-const inter = Inter({ subsets: ['latin'], display: 'swap', variable: '--font-inter' })
+const inter = Inter({ subsets: ['latin'], display: 'swap', variable: '--font-inter' });
 
 export const metadata: Metadata = {
   title: 'SCORE+ Admin',
   description: 'SCORE+ Mentor Desk — Administration Dashboard',
-  robots: 'noindex, nofollow', // Admin DMS must not be indexed
-}
+  robots: 'noindex, nofollow',
+};
 
 export const viewport: Viewport = {
   themeColor: '#151e53',
   colorScheme: 'light',
-}
+};
 
 export default function RootLayout({
   children,
 }: {
-  children: React.ReactNode
+  children: React.ReactNode;
 }) {
   return (
     <html lang="en" className={inter.variable}>
@@ -38,5 +38,5 @@ export default function RootLayout({
         />
       </body>
     </html>
-  )
+  );
 }

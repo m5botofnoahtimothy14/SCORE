@@ -5,6 +5,43 @@ import { ADMIN_ROLES, roleLabel } from '@/lib/auth'
 import { Footer } from '@/components/footer'
 import { NavItem, type NavEntry } from '@/components/nav-item'
 import { LogoutButton } from './logout-button'
+import { MobileSidebar } from '@/components/mobile-sidebar'
+import { TopBarClient } from '@/components/top-bar-client'
+
+interface SidebarProps {
+  user: { email?: string | null }
+  membership: {
+    role: string
+    schools: { id: string; name: string; code: string; logo_url?: string | null } | { id: string; name: string; code: string; logo_url?: string | null }[] | null
+  }
+}
+
+// ── Module-level navigation entries (used by both DashboardLayout and Sidebar) ──
+const operationsNav: NavEntry[] = [
+  { href: '/dashboard', icon: 'LayoutDashboard', label: 'Overview' },
+  { href: '/dashboard/students', icon: 'GraduationCap', label: 'Students' },
+  { href: '/dashboard/teachers', icon: 'Users', label: 'Teachers' },
+  { href: '/dashboard/classes', icon: 'BookOpen', label: 'Classes' },
+  { href: '/dashboard/announcements', icon: 'Megaphone', label: 'Announcements' },
+  { href: '/dashboard/notifications', icon: 'Bell', label: 'Notifications' },
+  { href: '/dashboard/tickets', icon: 'TicketIcon', label: 'Support' },
+  { href: '/dashboard/settings', icon: 'Settings', label: 'Settings' },
+]
+
+const mentorDeskNav: NavEntry[] = [
+  { href: '/dashboard/mentor-desk', icon: 'HelpCircle', label: 'Overview' },
+  { href: '/dashboard/mentor-desk/doubts', icon: 'HelpCircle', label: 'Doubt Requests' },
+  { href: '/dashboard/mentor-desk/sessions', icon: 'Clock', label: 'Session Bookings' },
+  { href: '/dashboard/mentor-desk/mentors', icon: 'Users', label: 'Mentors' },
+  { href: '/dashboard/mentor-desk/ratings', icon: 'CheckCircle', label: 'Feedback & Ratings' },
+  { href: '/dashboard/mentor-desk/exceptions', icon: 'AlertCircle', label: 'Exceptions' },
+  { href: '/dashboard/mentor-desk/settings', icon: 'Percent', label: 'Settings' },
+]
+
+const platformNav: NavEntry[] = [
+  { href: '/dashboard/admins', icon: 'UserCog', label: 'Administrators' },
+  { href: '/dashboard/audit', icon: 'ClipboardList', label: 'Audit Trail' },
+]
 
 export default async function DashboardLayout({
   children,
@@ -29,87 +66,55 @@ export default async function DashboardLayout({
   if (!membership) redirect('/auth/login?error=insufficient_permissions')
 
   const role = (membership as { role: string }).role
-
-  return (
-    <div className="flex h-screen overflow-hidden bg-background">
-      <Sidebar
-        user={user}
-        membership={membership as unknown as SidebarProps['membership']}
-      />
-      <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
-        <TopBar role={role} />
-        <div className="flex-1 overflow-y-auto px-6 py-7 lg:px-8">
-          <div className="mx-auto w-full max-w-[1400px]">{children}</div>
-        </div>
-        <Footer />
-      </main>
-    </div>
-  )
-}
-
-// Icons are referenced by name — the layout is a Server Component and
-// component functions cannot cross the server/client boundary.
-const operationsNav: NavEntry[] = [
-  { href: '/dashboard', icon: 'LayoutDashboard', label: 'Overview' },
-  { href: '/dashboard/students', icon: 'GraduationCap', label: 'Students' },
-  { href: '/dashboard/teachers', icon: 'Users', label: 'Teachers' },
-  { href: '/dashboard/classes', icon: 'BookOpen', label: 'Classes' },
-  { href: '/dashboard/announcements', icon: 'Megaphone', label: 'Announcements' },
-  { href: '/dashboard/moderation', icon: 'ShieldAlert', label: 'Moderation' },
-  { href: '/dashboard/ml-scoring', icon: 'Sigma', label: 'ML Scoring' },
-  { href: '/dashboard/incidents', icon: 'ShieldAlert', label: 'Incidents' },
-  { href: '/dashboard/audit', icon: 'ClipboardList', label: 'Audit Trail' },
-  { href: '/dashboard/notifications', icon: 'Bell', label: 'Notifications' },
-  { href: '/dashboard/tickets', icon: 'TicketIcon', label: 'Support' },
-  { href: '/dashboard/settings', icon: 'Settings', label: 'Settings' },
-]
-
-// Mentor Desk — academic support operations for the school.
-// Visible to all administrators (school-admin/principal and platform owner).
-const mentorDeskNav: NavEntry[] = [
-  { href: '/dashboard/mentor-desk', icon: 'HelpCircle', label: 'Overview' },
-  { href: '/dashboard/mentor-desk/doubts', icon: 'HelpCircle', label: 'Doubt Requests' },
-  { href: '/dashboard/mentor-desk/sessions', icon: 'Clock', label: 'Session Bookings' },
-  { href: '/dashboard/mentor-desk/mentors', icon: 'Users', label: 'Mentors' },
-  { href: '/dashboard/mentor-desk/ratings', icon: 'CheckCircle', label: 'Feedback & Ratings' },
-  { href: '/dashboard/mentor-desk/exceptions', icon: 'AlertCircle', label: 'Exceptions' },
-  { href: '/dashboard/mentor-desk/settings', icon: 'Percent', label: 'Settings' },
-]
-
-// Super-Admin-only: platform-wide data and control.
-const platformNav: NavEntry[] = [
-  { href: '/dashboard/schools', icon: 'School', label: 'All Schools' },
-  { href: '/dashboard/admins', icon: 'UserCog', label: 'Administrators' },
-  { href: '/dashboard/health', icon: 'Activity', label: 'System Health' },
-]
-
-interface SidebarProps {
-  user: { email?: string | null }
-  membership: {
-    role: string
-    schools: { id: string; name: string; code: string; logo_url?: string | null } | { id: string; name: string; code: string; logo_url?: string | null }[] | null
-  }
-}
-
-function Sidebar({ user, membership }: SidebarProps) {
   const rawSchool = membership?.schools
   const school = Array.isArray(rawSchool) ? rawSchool[0] : rawSchool
   const isSuper = membership?.role === 'platform_owner'
 
   const groups = isSuper
     ? [
-        { section: 'Platform Control', items: platformNav },
+        { section: 'Super Admin', items: platformNav },
         { section: 'Mentor Desk', items: mentorDeskNav },
-        { section: 'Operations', items: operationsNav },
+        { section: 'Management', items: operationsNav },
       ]
     : [
-        { section: 'My School', items: [{ href: '/dashboard/schools', icon: 'School', label: 'School Profile' }] },
+        { section: 'My School', items: [{ href: '/dashboard/settings', icon: 'Settings', label: 'Settings' }] },
         { section: 'Mentor Desk', items: mentorDeskNav },
-        { section: 'Operations', items: operationsNav },
+        { section: 'Management', items: operationsNav },
       ]
 
   const initial = (user?.email ?? 'A').charAt(0).toUpperCase()
 
+  return (
+    <div className="flex h-screen overflow-hidden bg-background">
+      {/* Mobile sidebar drawer (Client Component) */}
+      <MobileSidebar
+        membership={membership as unknown as SidebarProps['membership']}
+        groups={groups}
+        isSuper={isSuper}
+      />
+
+      <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
+        <TopBarClient role={role} isSuper={isSuper} />
+        <div className="flex-1 overflow-y-auto px-4 py-6 lg:px-8">
+          <div className="mx-auto w-full max-w-[1400px]">{children}</div>
+        </div>
+        <Footer />
+      </main>
+
+      {/* Desktop sidebar */}
+      <Sidebar
+        user={user}
+        membership={membership as unknown as SidebarProps['membership']}
+        groups={groups}
+        initial={initial}
+        isSuper={isSuper}
+        school={school}
+      />
+    </div>
+  )
+}
+
+function Sidebar({ user, membership, groups, initial, isSuper, school }: SidebarProps & { groups: { section: string; items: NavEntry[] }[]; initial: string; isSuper: boolean; school: { name?: string; code?: string } | null }) {
   return (
     <aside className="relative hidden w-[268px] shrink-0 flex-col overflow-hidden bg-ink-950 md:flex">
       {/* Ambient depth behind the sidebar. */}
@@ -164,7 +169,7 @@ function Sidebar({ user, membership }: SidebarProps) {
               {group.section}
             </p>
             <div className="space-y-1">
-              {group.items.map((item) => (
+              {group.items.map((item: NavEntry) => (
                 <NavItem key={item.href} {...item} />
               ))}
             </div>
@@ -186,30 +191,5 @@ function Sidebar({ user, membership }: SidebarProps) {
         </div>
       </div>
     </aside>
-  )
-}
-
-function TopBar({ role }: { role: string }) {
-  const isSuper = role === 'platform_owner'
-  return (
-    <div className="sticky top-0 z-20 flex items-center justify-between border-b border-ink-200/70 bg-white/70 px-6 py-3.5 backdrop-blur-xl lg:px-8">
-      <div className="flex items-center gap-2">
-        <span className="text-sm font-medium text-ink-400">
-          SCORE+ Administration
-        </span>
-      </div>
-      <div className="flex items-center gap-3">
-        <span
-          className={[
-            'rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset',
-            isSuper
-              ? 'bg-brand-50 text-brand-700 ring-brand-600/15'
-              : 'bg-ink-100 text-ink-600 ring-ink-500/10',
-          ].join(' ')}
-        >
-          {roleLabel(role)}
-        </span>
-      </div>
-    </div>
   )
 }

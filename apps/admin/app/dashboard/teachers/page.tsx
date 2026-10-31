@@ -34,6 +34,7 @@ export default function TeachersPage() {
   const [importOpen, setImportOpen] = useState(false)
   const [importText, setImportText] = useState('')
   const [importReport, setImportReport] = useState<{ ok: number; errors: { line: number; message: string }[] } | null>(null)
+  const [issuedCode, setIssuedCode] = useState<{ name: string; code: string; expires: string } | null>(null)
   const { show, node } = useToast()
 
   async function load() {
@@ -109,7 +110,7 @@ export default function TeachersPage() {
         }).select('id').single()
         if (error) throw error
         await logAudit(supabase, user!.id, { schoolId, action: 'teacher.create', targetType: 'teacher', targetId: (data as { id: string }).id, outcome: 'success' })
-        show(true, 'Teacher added to roster. They activate via OTP.')
+        show(true, 'Teacher added to roster. Issue an activation code next.')
       }
       setEditing(null)
       load()
@@ -135,6 +136,22 @@ export default function TeachersPage() {
       load()
     } catch (e) {
       show(false, e instanceof Error ? e.message : 'Update failed.')
+    }
+  }
+
+  async function issueCode(t: Teacher) {
+    setIssuedCode(null)
+    try {
+      const res = await fetch('/api/teacher-activation-code', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ teacher_id: t.id }),
+      })
+      const data = await res.json()
+      if (!data.success) throw new Error(data.error ?? 'issue_failed')
+      setIssuedCode({ name: `${t.first_name} ${t.last_name}`, code: data.code, expires: data.expires_at })
+      show(true, 'Code issued — copy it now, it will not be shown again.')
+    } catch (e) {
+      show(false, e instanceof Error ? e.message : 'Could not issue code.')
     }
   }
 
@@ -240,6 +257,7 @@ export default function TeachersPage() {
                   <td>{t.user_id ? 'Yes' : 'No'}</td>
                   <td className="text-right pr-3 whitespace-nowrap">
                     <button onClick={() => setEditing(t)} className="text-brand-600 text-xs mr-2 hover:underline">Edit</button>
+                    <button onClick={() => issueCode(t)} className="text-brand-600 text-xs mr-2 hover:underline">Code</button>
                     <button onClick={() => setAssigning(t)} className="text-brand-600 text-xs mr-2 hover:underline">Assign</button>
                     <button onClick={() => toggleActive(t)} className="text-xs text-ink-700 hover:underline">{t.is_active ? 'Deactivate' : 'Reactivate'}</button>
                   </td>
@@ -288,6 +306,14 @@ export default function TeachersPage() {
               <button onClick={addAssignment} className={btnPrimary}>Add assignment</button>
             </div>
           </div>
+        </Modal>
+      )}
+
+      {issuedCode && (
+        <Modal title="Activation code (show once)" onClose={() => setIssuedCode(null)}>
+          <p className="text-sm text-ink-700">For <b>{issuedCode.name}</b>. Share securely; it expires {new Date(issuedCode.expires).toLocaleDateString()}.</p>
+          <p className="font-mono text-2xl font-bold tracking-widest text-center my-4">{issuedCode.code}</p>
+          <p className="text-xs text-red-600">This code will not be shown again. A new code can be issued if lost.</p>
         </Modal>
       )}
 

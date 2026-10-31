@@ -36,3 +36,7 @@ Thumbs.db
 # Screenshots captured during manual QA
 app_screen.png
 phone_screen*.png
+
+.vercel
+.env*
+**/client_secret_*.json

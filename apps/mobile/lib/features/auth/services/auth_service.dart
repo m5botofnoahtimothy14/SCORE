@@ -4,11 +4,16 @@
 // server-side; nothing trusted from the client).
 // Teachers: OTP request + verification via `send-otp` / `verify-otp`
 // edge functions (real SMS provider required).
+
 import 'package:flutter/foundation.dart' show debugPrint;
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/auth/credential_store.dart';
-import '../../../core/notifications/notification_service.dart';
+
+final authServiceProvider = Provider<AuthService>((ref) {
+  return AuthService(Supabase.instance.client);
+});
 
 class AuthException implements Exception {
   final String code;
@@ -41,9 +46,6 @@ class AuthService {
   }
 
   /// Invokes an edge function and normalizes the response.
-  /// Supabase throws [FunctionException] for non-2xx replies; the real error
-  /// code lives in its `details` body, so surface that instead of labelling
-  /// every business error (e.g. invalid_credentials) as a network failure.
   Future<Map<String, dynamic>?> _invoke(String function, Map<String, dynamic> body) async {
     try {
       final res = await _client.functions.invoke(function, body: body);
@@ -58,36 +60,75 @@ class AuthService {
     }
   }
 
-  /// Student enrollment: verifies school-issued ID + activation code.
-  /// Returns (studentId, classId). Never reveals whether an ID exists.
-  ///
-  /// The activation also turns the anonymous session into a permanent
-  /// account: the device secret is handed to the edge function, which sets
-  /// it as the account's credential. Anonymous Supabase sessions expire
-  /// after about an hour, which would log every student out mid-lesson.
+  /// Direct student sign-in: auto-enrolls from roster using student ID.
   Future<({String studentId, String? classId})> activateStudent({
-    required String schoolId,
     required String studentIdNo,
-    required String activationCode,
+    String? activationCode,
   }) async {
     await ensureSession();
     final secret = CredentialStore.generateSecret();
     final data = await _invoke('activate-student', {
-      'school_id': schoolId,
       'student_id_no': studentIdNo.trim(),
-      'activation_code': activationCode.trim(),
+      if (activationCode != null) 'activation_code': activationCode.trim(),
       'device_secret': secret,
     });
     if (data == null || data['success'] != true) {
       final err = data?['error']?.toString();
-      throw AuthException(err ?? 'invalid_credentials', _activationErrorMessage(err));
+      if (err == 'invalid_credentials') {
+        throw AuthException(err ?? 'invalid_credentials', _activationErrorMessage(err));
+      }
+      if (err == 'student_not_found') {
+        throw AuthException('student_not_found', 'Student ID not found in school roster. Verify with school office.');
+      }
+      throw AuthException(err ?? 'server_error', _activationErrorMessage(err));
     }
     await _adoptPermanentAccount(data, secret);
-    NotificationService.registerToken();
     return (
       studentId: data['student_id'] as String,
       classId: data['class_id'] as String?,
     );
+  }
+
+  /// Teacher activation: staff ID + one-time activation code issued by the school.
+  Future<({String teacherId, String? schoolId})> activateTeacher({
+    required String staffIdNo,
+    String? activationCode,
+  }) async {
+    await ensureSession();
+    final secret = CredentialStore.generateSecret();
+    final data = await _invoke('activate-teacher', {
+      'staff_id_no': staffIdNo.trim(),
+      if (activationCode != null) 'activation_code': activationCode.trim(),
+      'device_secret': secret,
+    });
+    if (data == null || data['success'] != true) {
+      final err = data?['error']?.toString();
+      throw AuthException(err ?? 'server_error', _teacherActivationErrorMessage(err));
+    }
+    await _adoptPermanentAccount(data, secret);
+    return (
+      teacherId: data['teacher_id'] as String,
+      schoolId: data['school_id'] as String?,
+    );
+  }
+
+  String _teacherActivationErrorMessage(String? code) {
+    switch (code) {
+      case 'rate_limited':
+        return 'Too many attempts. Please wait 15 minutes and try again.';
+      case 'code_expired':
+        return 'This activation code has expired. Ask your school office for a new one.';
+      case 'code_already_used':
+        return 'This activation code was already used. Ask your school office for help.';
+      case 'teacher_not_found':
+        return 'Staff ID not found in school roster. Verify with school office.';
+      case 'no_activation_code':
+        return 'No activation code found for this ID. Ask your school office to issue one.';
+      case 'invalid_code':
+        return 'Invalid activation code. Check and try again.';
+      default:
+        return 'Check your Staff ID and activation code, then try again.';
+    }
   }
 
   /// Signs the device in with the account the activation created and keeps
@@ -99,25 +140,23 @@ class AuthService {
     final email = data['email'] as String?;
     if (email == null || email.isEmpty) return;
     try {
-      await _client.auth.signInWithPassword(email: email, password: secret);
+      await Supabase.instance.client.auth.signInWithPassword(
+        email: email,
+        password: secret,
+      );
       await CredentialStore.save(StoredCredential(email: email, secret: secret));
       debugPrint('[CRIMSON] auth: permanent session established for $email');
     } catch (e) {
-      // The account was upgraded server-side; a local sign-in hiccup must
-      // not fail the enrollment. The next launch re-signs in.
       debugPrint('[CRIMSON] auth: permanent sign-in failed: $e');
     }
   }
 
   /// Signs in with the credential stored on this device, if there is one.
-  ///
-  /// Called at startup when no valid session could be restored — the user
-  /// closed the app for longer than the session lifetime.
   Future<bool> signInWithStoredCredential() async {
     final stored = await CredentialStore.read();
     if (stored == null) return false;
     try {
-      await _client.auth.signInWithPassword(
+      await Supabase.instance.client.auth.signInWithPassword(
         email: stored.email,
         password: stored.secret,
       );
@@ -138,10 +177,11 @@ class AuthService {
         return 'This activation code has expired. Ask your school office for a new one.';
       case 'code_already_used':
         return 'This activation code was already used. Ask your school office for help.';
+      case 'student_not_found':
+        return 'Student ID not found in school roster. Verify with school office.';
       case 'no_activation_code':
         return 'No activation code found for this ID. Ask your school office to issue one.';
       default:
-        // Generic: do not reveal whether the ID exists.
         return 'Check your Student ID and activation code, then try again.';
     }
   }
@@ -149,12 +189,10 @@ class AuthService {
   /// Teacher step 1: request an OTP via the configured SMS provider.
   Future<void> requestTeacherOtp({
     required String phone,
-    required String schoolId,
     required String staffIdNo,
   }) async {
     final data = await _invoke('send-otp', {
       'phone': phone.trim(),
-      'school_id': schoolId,
       'staff_id_no': staffIdNo.trim(),
     });
     if (data == null || data['success'] != true) {
@@ -166,6 +204,9 @@ class AuthService {
       if (err == 'rate_limited') {
         throw const AuthException('rate_limited', 'Too many code requests. Please wait an hour and try again.');
       }
+      if (err == 'school_resolution_required') {
+        throw const AuthException('school_resolution_required', 'Your Staff ID matches more than one school. Ask your school office for a school-specific identifier.');
+      }
       throw const AuthException('invalid_credentials', 'Check your Staff ID and phone number, then try again.');
     }
   }
@@ -174,7 +215,6 @@ class AuthService {
   Future<void> verifyTeacherOtp({
     required String phone,
     required String otp,
-    required String schoolId,
     required String staffIdNo,
   }) async {
     await ensureSession();
@@ -182,13 +222,14 @@ class AuthService {
     final data = await _invoke('verify-otp', {
       'phone': phone.trim(),
       'otp': otp.trim(),
-      'school_id': schoolId,
       'staff_id_no': staffIdNo.trim(),
       'device_secret': secret,
     });
     if (data == null || data['success'] != true) {
       final err = data?['error']?.toString();
       switch (err) {
+        case 'school_resolution_required':
+          throw const AuthException('school_resolution_required', 'Your Staff ID matches more than one school. Ask your school office for a school-specific identifier.');
         case 'invalid_otp':
           throw const AuthException('invalid_otp', 'Incorrect code. Please check and try again.');
         case 'otp_expired':
@@ -202,17 +243,10 @@ class AuthService {
       }
     }
     await _adoptPermanentAccount(data, secret);
-    NotificationService.registerToken();
   }
 
-  /// Signs out and deactivates this device's push token server-side.
-  /// Only this device's token is deactivated (never the user's other devices).
+  /// Signs out and clears this device's credentials.
   Future<void> signOut() async {
-    try {
-      await NotificationService.deactivateToken();
-    } catch (_) {
-      // Best effort — still sign out locally.
-    }
     await _client.auth.signOut();
     await CredentialStore.clear();
   }

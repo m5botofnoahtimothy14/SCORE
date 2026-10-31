@@ -80,7 +80,7 @@ export default function ExceptionsPage() {
         id, school_id, status, urgent, urgent_reason, created_at, updated_at,
         students(student_id_no, first_name, last_name),
         subjects(name)
-      `).eq('school_id', sid).eq('status', 'waiting').lt('created_at', new Date(Date.now() - 30 * 60 * 1000).toISOString())
+      `).eq('school_id', sid).in('status', ['pending_assignment', 'waiting']).lt('created_at', new Date(Date.now() - 30 * 60 * 1000).toISOString())
       if (derr) throw derr
 
       const exceptions: ExceptionRow[] = []

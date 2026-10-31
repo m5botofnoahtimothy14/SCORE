@@ -1,0 +1,45 @@
+﻿CREATE TABLE IF NOT EXISTS session_bookings (
+  id                 UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  school_id          UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+  student_id         UUID NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
+  student_record_id  UUID NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+  class_id           UUID REFERENCES classes(id) ON DELETE SET NULL,
+  mentor_id          UUID REFERENCES user_profiles(id),
+  mentor_record_id   UUID REFERENCES teachers(id),
+  subject_id         UUID NOT NULL REFERENCES subjects(id) ON DELETE CASCADE,
+  duration_minutes   INTEGER NOT NULL,
+  reserved_minutes   INTEGER NOT NULL,
+  topic              TEXT NOT NULL,
+  preparation        TEXT,
+  requested_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  scheduled_at       TIMESTAMPTZ,
+  confirmed_at       TIMESTAMPTZ,
+  started_at         TIMESTAMPTZ,
+  ended_at           TIMESTAMPTZ,
+  actual_minutes     INTEGER,
+  meeting_link       TEXT,
+  meeting_room       TEXT,
+  google_meet_link   TEXT,
+  google_calendar_event_id TEXT,
+  google_meet_created_at TIMESTAMPTZ,
+  status             booking_status NOT NULL DEFAULT 'requested',
+  allowance_minutes_used INTEGER NOT NULL DEFAULT 0,
+  cancelled_at       TIMESTAMPTZ,
+  cancelled_by       UUID REFERENCES user_profiles(id),
+  refunded           BOOLEAN NOT NULL DEFAULT FALSE,
+  verification_code  TEXT,
+  code_expires_at    TIMESTAMPTZ,
+  code_attempts      INTEGER NOT NULL DEFAULT 0,
+  code_locked_at     TIMESTAMPTZ,
+  code_visible_at    TIMESTAMPTZ,
+  verified_at        TIMESTAMPTZ,
+  closed_without_code BOOLEAN NOT NULL DEFAULT FALSE,
+  close_reason       TEXT,
+  created_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at         TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_session_bookings_student ON session_bookings(student_id, status);
+CREATE INDEX IF NOT EXISTS idx_session_bookings_mentor  ON session_bookings(mentor_id, status);
+CREATE INDEX IF NOT EXISTS idx_session_bookings_scheduled ON session_bookings(scheduled_at) WHERE status = 'confirmed';
+CREATE INDEX IF NOT EXISTS idx_session_bookings_subject ON session_bookings(subject_id, status);
