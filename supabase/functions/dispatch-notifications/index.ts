@@ -10,7 +10,7 @@ const INTERNAL_WEBHOOK_SECRET = Deno.env.get("INTERNAL_WEBHOOK_SECRET") ?? "";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-webhook-secret, content-type",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
   "Content-Type": "application/json",
 };
@@ -151,8 +151,11 @@ serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: CORS_HEADERS });
   if (req.method !== "POST") return json({ success: false, error: "method_not_allowed" }, 405);
 
-  const authorization = req.headers.get("Authorization");
-  if (!INTERNAL_WEBHOOK_SECRET || authorization !== `Bearer ${INTERNAL_WEBHOOK_SECRET}`) {
+  const authorization = req.headers.get("Authorization") ?? "";
+  const bearerSecret = authorization.replace(/^Bearer\\s+/i, "");
+  const webhookSecret = req.headers.get("x-webhook-secret") ?? "";
+  if (!INTERNAL_WEBHOOK_SECRET ||
+      (bearerSecret !== INTERNAL_WEBHOOK_SECRET && webhookSecret !== INTERNAL_WEBHOOK_SECRET)) {
     return json({ success: false, error: "unauthorized" }, 401);
   }
 
