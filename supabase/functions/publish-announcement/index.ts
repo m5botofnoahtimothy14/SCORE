@@ -4,6 +4,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const INTERNAL_WEBHOOK_SECRET = Deno.env.get("INTERNAL_WEBHOOK_SECRET") ?? "";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -126,10 +127,41 @@ serve(async (req: Request) => {
     created_at: now,
   });
 
+  let dispatchStatus = queueError ? "queue_failed" : "queued_not_dispatched";
+  if (!queueError && INTERNAL_WEBHOOK_SECRET) {
+    const dispatchPromise = fetch(`${SUPABASE_URL}/functions/v1/dispatch-notifications`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${INTERNAL_WEBHOOK_SECRET}`,
+        apikey: SUPABASE_SERVICE_ROLE_KEY,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ school_id: schoolId }),
+    }).then(async (response) => {
+      if (!response.ok) throw new Error("notification_dispatch_request_failed");
+      return response.text();
+    });
+
+    const runtime = (globalThis as any).EdgeRuntime;
+    if (runtime?.waitUntil) {
+      runtime.waitUntil(dispatchPromise.catch((error: unknown) => {
+        console.error("SCORE+ notification dispatch failed:", error);
+      }));
+      dispatchStatus = "dispatch_started";
+    } else {
+      try {
+        await dispatchPromise;
+        dispatchStatus = "dispatched";
+      } catch {
+        dispatchStatus = "dispatch_failed";
+      }
+    }
+  }
+
   return json({
     success: true,
     announcement_id: announcement.id,
     recipient_count: null,
-    dispatch_status: queueError ? "queue_failed" : "queued",
+    dispatch_status: dispatchStatus,
   }, 200);
 });
