@@ -117,10 +117,11 @@ class _RatingScreenState extends ConsumerState<RatingScreen> {
                     const SizedBox(height: 8),
                     TextField(controller: _comment, minLines: 3, maxLines: 5, maxLength: 1000, enabled: !_alreadyRated, decoration: const InputDecoration(hintText: 'Share what helped you or what could improve.')),
                     if (_alreadyRated) const Text('You have already rated this request.', style: TextStyle(color: AppColors.ink500, fontSize: 12)),
+                    if (!_request!.isClosed) const Text('You can rate this request after it is closed.', style: TextStyle(color: AppColors.ink500, fontSize: 12)),
                     if (_error != null) Padding(padding: const EdgeInsets.only(top: 10), child: Text(_error!, style: const TextStyle(color: AppColors.danger, fontSize: 12))),
                     const SizedBox(height: 18),
                     FilledButton(
-                      onPressed: _saving || _alreadyRated ? null : _submit,
+                      onPressed: _saving || _alreadyRated || !_request!.isClosed ? null : _submit,
                       child: _saving ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2)) : const Text('Submit rating'),
                     ),
                   ],
