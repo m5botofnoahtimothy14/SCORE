@@ -175,8 +175,11 @@ CREATE POLICY student_ai_usage_student_admin_read
   );
 
 -- Chunks have no direct client policy. The checked retrieval RPC is the only
--- client path to chunk content.
+-- client path to chunk content. AI usage can only be changed by its RPCs.
 REVOKE ALL ON public.curriculum_chunks FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON public.student_ai_usage FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON public.curriculum_documents FROM PUBLIC, anon;
+REVOKE ALL ON public.curriculum_evaluation_cases FROM PUBLIC, anon;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.curriculum_documents TO authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.curriculum_evaluation_cases TO authenticated;
 GRANT SELECT ON public.student_ai_usage TO authenticated;
