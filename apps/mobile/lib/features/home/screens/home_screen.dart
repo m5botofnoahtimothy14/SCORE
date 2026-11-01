@@ -41,19 +41,23 @@ class HomeScreen extends ConsumerWidget {
   }
 }
 
-class _DashboardContent extends StatelessWidget {
+class _DashboardContent extends ConsumerWidget {
   const _DashboardContent({required this.user});
   final AppIdentity user;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final actions = _actionsFor(user.tier);
     final greeting = user.displayName.trim().isEmpty ? 'Welcome' : 'Welcome, ${user.displayName.trim()}';
 
     return RefreshIndicator(
       onRefresh: () async {
-        // Rebuilding the provider refreshes the account context without changing server data.
-        await Future<void>.delayed(const Duration(milliseconds: 250));
+        ref.invalidate(identityProviderProvider);
+        try {
+          await ref.read(identityProviderProvider.future);
+        } catch (_) {
+          // The screen renders the provider error state after refresh.
+        }
       },
       child: ListView(
         padding: const EdgeInsets.fromLTRB(20, 18, 20, 32),
