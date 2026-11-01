@@ -1,16 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/mentor_desk_design.dart';
-import '../../../core/layout/responsive.dart';
 import '../../../core/widgets/states.dart';
-import '../../../core/models/identity.dart';
-import '../../../core/providers/identity_provider.dart';
-
-final _serviceProvider = Provider((ref) => Supabase.instance.client);
+import '../services/auth_service.dart';
 
 class StudentSignInScreen extends ConsumerStatefulWidget {
   const StudentSignInScreen({super.key});
@@ -33,26 +28,33 @@ class _StudentSignInScreenState extends ConsumerState<StudentSignInScreen> {
   }
 
   Future<void> _submit() async {
-    setState(() { _working = true; _error = null; });
+    if (_idController.text.trim().isEmpty || _codeController.text.trim().isEmpty) {
+      setState(() => _error = 'Enter both your Student ID and activation code.');
+      return;
+    }
+
+    setState(() {
+      _working = true;
+      _error = null;
+    });
+
     try {
-      final supabase = Supabase.instance.client;
-      final data = await supabase.rpc('activate_student', params: {
-        'p_student_id_no': _idController.text.trim(),
-        'p_activation_code': _codeController.text.trim().isEmpty ? null : _codeController.text.trim(),
-        'p_device_secret': '',
-      });
-      if (data == null || data['success'] != true) {
-        setState(() => _error = data?['error'] ?? 'activation_failed');
-        return;
-      }
+      final auth = ref.read(authServiceProvider);
+      await auth.activateStudent(
+        studentIdNo: _idController.text.trim(),
+        activationCode: _codeController.text.trim(),
+      );
+
       if (!mounted) return;
       context.go('/home');
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _error = 'Could not sign in. Check your connection and try again.');
+    } on AuthException catch (error) {
+      if (mounted) setState(() => _error = error.message);
+    } catch (_) {
+      if (mounted) {
+        setState(() => _error = 'Could not sign in. Check your connection and try again.');
+      }
     } finally {
-      if (!mounted) return;
-      setState(() => _working = false);
+      if (mounted) setState(() => _working = false);
     }
   }
 
@@ -85,7 +87,7 @@ class _StudentSignInScreenState extends ConsumerState<StudentSignInScreen> {
                     ),
                     const SizedBox(height: 16),
                     Text(
-                      'Enter your school-issued Student ID to sign in directly. Your role and class are verified from the school roster.',
+                      'Enter your school-issued Student ID and activation code. Your role and class are verified from the school roster.',
                       style: TextStyle(fontSize: 14, color: AppColors.ink500),
                       textAlign: TextAlign.center,
                     ),
@@ -130,7 +132,7 @@ class _StudentSignInScreenState extends ConsumerState<StudentSignInScreen> {
                       child: const Text('Back to role selection'),
                     ),
                     const SizedBox(height: 24),
-                    Text(
+                    const Text(
                       'Contact your school office if your ID or activation code is not recognized.',
                       style: TextStyle(fontSize: 12, color: Colors.black54),
                       textAlign: TextAlign.center,
