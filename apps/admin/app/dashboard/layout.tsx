@@ -41,6 +41,11 @@ const mentorDeskNav: NavEntry[] = [
   { href: '/dashboard/mentor-desk/settings', icon: 'Percent', label: 'Settings' },
 ]
 
+const safetyNav: NavEntry[] = [
+  { href: '/dashboard/moderation', icon: 'ShieldAlert', label: 'Moderation' },
+  { href: '/dashboard/health', icon: 'Activity', label: 'System Health' },
+]
+
 const platformNav: NavEntry[] = [
   { href: '/dashboard/admins', icon: 'UserCog', label: 'Administrators' },
   { href: '/dashboard/audit', icon: 'ClipboardList', label: 'Audit Trail' },
@@ -77,6 +82,7 @@ export default async function DashboardLayout({
     ? [
         { section: 'Super Admin', items: platformNav },
         { section: 'Mentor Desk', items: mentorDeskNav },
+        { section: 'Safety & Health', items: safetyNav },
         { section: 'Management', items: operationsNav },
       ]
     : [
