@@ -780,6 +780,7 @@ BEGIN
    AND ma.status = 'approved'
   WHERE t.school_id = v_school
     AND t.is_active = true
+    AND t.user_id IS NOT NULL
   ORDER BY (
     SELECT count(*)
     FROM public.doubt_requests prior
@@ -913,6 +914,144 @@ BEGIN
   );
 END;
 $$;
+
+-- Participant-scoped read policies for Mentor Desk data.
+-- Remove stale policies first. This prevents permissive legacy policies
+-- from widening access through PostgreSQL's OR-combination of policies.
+DO $
+DECLARE
+  v_table text;
+  v_policy record;
+BEGIN
+  FOREACH v_table IN ARRAY ARRAY[
+    'doubt_requests',
+    'doubt_status_history',
+    'ratings',
+    'mentor_assessments',
+    'mentor_availability',
+    'mentor_subject_approvals',
+    'allowance_transactions',
+    'urgent_pass_usage',
+    'session_no_shows',
+    'mentor_desk_settings'
+  ] LOOP
+    FOR v_policy IN
+      SELECT policyname FROM pg_policies
+      WHERE schemaname = 'public' AND tablename = v_table
+    LOOP
+      EXECUTE format('DROP POLICY IF EXISTS %I ON public.%I', v_policy.policyname, v_table);
+    END LOOP;
+    EXECUTE format('ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY', v_table);
+  END LOOP;
+END;
+$;
+
+CREATE POLICY doubt_requests_participants_read
+  ON public.doubt_requests FOR SELECT TO authenticated
+  USING (
+    student_id = auth.uid()
+    OR assigned_mentor_id = auth.uid()
+    OR public.tc_is_school_admin(school_id)
+  );
+
+CREATE POLICY doubt_status_history_participants_read
+  ON public.doubt_status_history FOR SELECT TO authenticated
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.doubt_requests d
+      WHERE d.id = request_id
+        AND (
+          d.student_id = auth.uid()
+          OR d.assigned_mentor_id = auth.uid()
+          OR public.tc_is_school_admin(d.school_id)
+        )
+    )
+  );
+
+CREATE POLICY ratings_participants_read
+  ON public.ratings FOR SELECT TO authenticated
+  USING (
+    student_id = auth.uid()
+    OR mentor_id = auth.uid()
+    OR public.tc_is_school_admin(school_id)
+  );
+
+-- Mentor private notes are not visible to students.
+CREATE POLICY mentor_assessments_mentor_admin_read
+  ON public.mentor_assessments FOR SELECT TO authenticated
+  USING (
+    mentor_id = auth.uid()
+    OR public.tc_is_school_admin(school_id)
+  );
+
+CREATE POLICY mentor_availability_school_read
+  ON public.mentor_availability FOR SELECT TO authenticated
+  USING (school_id = ANY(public.tc_user_school_ids()));
+
+CREATE POLICY mentor_subject_approvals_school_read
+  ON public.mentor_subject_approvals FOR SELECT TO authenticated
+  USING (
+    public.tc_is_school_admin(school_id)
+    OR (
+      school_id = ANY(public.tc_user_school_ids())
+      AND status = 'approved'
+    )
+    OR EXISTS (
+      SELECT 1 FROM public.teachers t
+      WHERE t.id = teacher_id AND t.user_id = auth.uid()
+    )
+  );
+
+CREATE POLICY allowance_transactions_student_admin_read
+  ON public.allowance_transactions FOR SELECT TO authenticated
+  USING (
+    student_id = auth.uid()
+    OR public.tc_is_school_admin(school_id)
+  );
+
+CREATE POLICY urgent_pass_usage_student_admin_read
+  ON public.urgent_pass_usage FOR SELECT TO authenticated
+  USING (
+    student_id = auth.uid()
+    OR public.tc_is_school_admin(school_id)
+  );
+
+CREATE POLICY session_no_shows_participant_admin_read
+  ON public.session_no_shows FOR SELECT TO authenticated
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.session_bookings b
+      WHERE b.id = booking_id
+        AND (
+          b.student_id = auth.uid()
+          OR b.mentor_id = auth.uid()
+          OR public.tc_is_school_admin(b.school_id)
+        )
+    )
+  );
+
+CREATE POLICY mentor_desk_settings_school_read
+  ON public.mentor_desk_settings FOR SELECT TO authenticated
+  USING (school_id = ANY(public.tc_user_school_ids()));
+
+CREATE POLICY mentor_desk_settings_admin_write
+  ON public.mentor_desk_settings FOR ALL TO authenticated
+  USING (public.tc_is_school_admin(school_id))
+  WITH CHECK (public.tc_is_school_admin(school_id));
+
+GRANT SELECT ON public.doubt_requests,
+  public.doubt_status_history,
+  public.ratings,
+  public.mentor_assessments,
+  public.mentor_availability,
+  public.mentor_subject_approvals,
+  public.allowance_transactions,
+  public.urgent_pass_usage,
+  public.session_no_shows
+TO authenticated;
+
+GRANT SELECT, INSERT, UPDATE, DELETE
+  ON public.mentor_desk_settings TO authenticated;
 
 -- Client RPC allowlist for the Mentor Desk API.
 DO $$
