@@ -135,15 +135,31 @@ serve(async (req: Request) => {
       }
       spaceName = createdSpace.data.name;
       meetLink = createdSpace.data.meetingUri;
-      const { error: spaceSaveError } = await serviceClient.from("session_bookings")
-        .update({
-          google_meet_space_name: spaceName,
-          google_meet_link: meetLink,
-          google_meet_host_email: claim.teacher_email,
-          google_meet_created_at: new Date().toISOString(),
+      const { error: spaceSaveError } = await serviceClient.from("session_google_meet_links")
+        .upsert({
+          booking_id: bookingId,
+          school_id: claim.school_id,
+          meet_link: meetLink,
+          space_name: spaceName,
+          host_email: claim.teacher_email,
+          created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
-        })
-        .eq("id", bookingId);
+        }, { onConflict: "booking_id" });
+      if (!spaceSaveError) {
+        const { error: bookingSpaceError } = await serviceClient.from("session_bookings")
+          .update({
+            google_meet_space_name: spaceName,
+            google_meet_host_email: claim.teacher_email,
+            google_meet_created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", bookingId);
+        if (bookingSpaceError) {
+          console.error("Google Meet booking metadata persistence failed:", bookingSpaceError.message);
+          await resetLease();
+          return json({ success: false, error: "google_meet_persist_failed" }, 500);
+        }
+      }
       if (spaceSaveError) {
         console.error("Google Meet space persistence failed:", spaceSaveError.message);
         await resetLease();
@@ -221,10 +237,23 @@ serve(async (req: Request) => {
       return json({ success: false, error: "google_calendar_event_creation_failed" }, 502);
     }
 
+    const { error: linkSaveError } = await serviceClient.from("session_google_meet_links")
+      .update({
+        meet_link: meetLink,
+        space_name: spaceName,
+        calendar_event_id: event.data.id ?? eventId,
+        host_email: claim.teacher_email,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("booking_id", bookingId);
+    if (linkSaveError) {
+      console.error("Google Meet link persistence failed:", linkSaveError.message);
+      await resetLease();
+      return json({ success: false, error: "google_meet_persist_failed" }, 500);
+    }
     const { error: saveError } = await serviceClient.from("session_bookings")
       .update({
         google_meet_space_name: spaceName,
-        google_meet_link: meetLink,
         google_meet_host_email: claim.teacher_email,
         google_calendar_event_id: event.data.id ?? eventId,
         google_meet_created_at: new Date().toISOString(),
