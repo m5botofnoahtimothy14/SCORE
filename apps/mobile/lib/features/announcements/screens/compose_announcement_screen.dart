@@ -190,6 +190,6 @@ class _ComposeAnnouncementScreenState extends ConsumerState<ComposeAnnouncementS
 
   Widget _fieldLabel(String text) => Padding(
     padding: const EdgeInsets.only(bottom: 7),
-    child: Text(text, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.ink800)),
+    child: Text(text, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.ink700)),
   );
 }
