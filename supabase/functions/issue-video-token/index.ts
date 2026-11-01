@@ -54,10 +54,9 @@ async function signJwt(payload: Record<string, unknown>) {
 
 serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
-    return new Response(null, {
-      headers: CORS_HEADERS,
-    });
+    return new Response(null, { headers: CORS_HEADERS });
   }
+  if (req.method !== "POST") return jsonError("method_not_allowed", 405);
 
   const authHeader = req.headers.get("Authorization");
   if (!authHeader) return jsonError("unauthorized", 401);
@@ -73,7 +72,7 @@ serve(async (req: Request) => {
   const bookingId = body.booking_id;
   if (!bookingId) return jsonError("missing_booking_id", 400);
 
-  if (!LIVEKIT_API_KEY || !LIVEKIT_API_SECRET || !LIVEKIT_URL) {
+  if (!LIVEKIT_API_KEY || !LIVEKIT_API_SECRET || !LIVEKIT_URL || !LIVEKIT_URL.startsWith("wss://")) {
     return jsonError("video_not_configured", 503);
   }
 
@@ -134,5 +133,5 @@ serve(async (req: Request) => {
     token,
     room_name: roomName,
     ttl_seconds: TOKEN_TTL_SECONDS,
-  }), { status: 200, headers: { "Content-Type": "application/json" } });
+  }), { status: 200, headers: CORS_HEADERS });
 });
