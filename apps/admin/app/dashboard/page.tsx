@@ -16,6 +16,7 @@ interface Overview {
   teachers: number
   classes: number
   pendingModeration: number
+  openIncidents: number
   openMentorRequests: number
   announcementsWeek: number
   failedNotifications: number
