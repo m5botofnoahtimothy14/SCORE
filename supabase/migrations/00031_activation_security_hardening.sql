@@ -174,22 +174,30 @@ BEGIN
   ON CONFLICT (user_id, school_id, role) DO UPDATE SET
     is_active = TRUE, joined_at = NOW();
 
-  INSERT INTO conversations(school_id, type, title, created_by, is_active, created_at, updated_at)
-  VALUES (
-    v_student.school_id, 'student_support',
-    'Support: ' || COALESCE(v_student.first_name, 'Student'),
-    p_user_id, TRUE, NOW(), NOW()
-  )
-  RETURNING id INTO v_conversation_id;
-
-  INSERT INTO conversation_members(conversation_id, user_id, role, can_send)
-  VALUES (v_conversation_id, p_user_id, 'student', TRUE);
-
   SELECT ce.class_id INTO v_class_id
   FROM class_enrollments ce
   WHERE ce.student_id = v_student.id AND ce.unenrolled_at IS NULL
   ORDER BY ce.enrolled_at DESC
   LIMIT 1;
+
+  -- Reuse the canonical support-conversation helper so assigned teachers
+  -- receive membership at activation time.
+  SELECT public.create_student_support_conversation(
+    v_student.id, v_class_id, v_student.school_id, p_user_id
+  ) INTO v_conversation_id;
+
+  -- Students can read class channels. The send_message RPC blocks student
+  -- writes to class_channel conversations.
+  IF v_class_id IS NOT NULL THEN
+    INSERT INTO conversation_members(conversation_id, user_id, role, can_send)
+    SELECT c.id, p_user_id, 'student', FALSE
+    FROM conversations c
+    WHERE c.school_id = v_student.school_id
+      AND c.class_id = v_class_id
+      AND c.type = 'class_channel'
+      AND c.is_active
+    ON CONFLICT (conversation_id, user_id) DO NOTHING;
+  END IF;
 
   INSERT INTO audit_events(school_id, actor_id, action, target_type, target_id, outcome, metadata)
   VALUES (
@@ -322,9 +330,24 @@ BEGIN
     updated_at = NOW();
 
   INSERT INTO school_memberships(user_id, school_id, role, is_active, joined_at)
-  VALUES (p_user_id, v_teacher.school_id, 'teacher', TRUE, NOW())
+  VALUES (
+    p_user_id, v_teacher.school_id,
+    CASE WHEN v_teacher.is_leadership THEN 'head_teacher'::school_role ELSE 'teacher'::school_role END,
+    TRUE, NOW()
+  )
   ON CONFLICT (user_id, school_id, role) DO UPDATE SET
     is_active = TRUE, joined_at = NOW();
+
+  -- Restore memberships in class channels and existing student-support threads.
+  INSERT INTO conversation_members(conversation_id, user_id, role, can_send)
+  SELECT c.id, p_user_id, 'teacher', TRUE
+  FROM conversations c
+  JOIN teaching_assignments ta ON ta.class_id = c.class_id
+  WHERE c.school_id = v_teacher.school_id
+    AND ta.teacher_id = v_teacher.id
+    AND c.type IN ('class_channel','student_support')
+    AND c.is_active
+  ON CONFLICT (conversation_id, user_id) DO NOTHING;
 
   INSERT INTO audit_events(school_id, actor_id, action, target_type, target_id, outcome)
   VALUES (
