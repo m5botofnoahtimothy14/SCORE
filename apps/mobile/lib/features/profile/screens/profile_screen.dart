@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../../../core/models/identity.dart';
 import '../../../core/notifications/notification_service.dart';
 import '../../../core/providers/identity_provider.dart';
 import '../../../core/theme/app_theme.dart';
@@ -155,7 +154,7 @@ class _ProfileInfoCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 SizedBox(width: 92, child: Text(row.$1, style: const TextStyle(fontSize: 12, color: AppColors.ink500))),
-                Expanded(child: Text(row.$2, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.ink800))),
+                Expanded(child: Text(row.$2, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.ink700))),
               ],
             ),
             if (row != rows.last) const Divider(height: 18),
