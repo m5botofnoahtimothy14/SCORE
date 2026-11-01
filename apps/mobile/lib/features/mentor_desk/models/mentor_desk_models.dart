@@ -486,9 +486,9 @@ class SubjectWithName {
 class AllowanceSummary {
   final String subjectId;
   final String subjectName;
-  final int allowanceMinutes;
-  final int usedMinutes;
-  final int remainingMinutes;
+  final int weeklyDoubtAllowance;
+  final int usedDoubts;
+  final int remainingDoubts;
   final int openDoubts;
   final bool urgentPassAvailable;
   final int sessionAllowanceMinutes;
@@ -498,9 +498,9 @@ class AllowanceSummary {
   AllowanceSummary({
     required this.subjectId,
     required this.subjectName,
-    required this.allowanceMinutes,
-    required this.usedMinutes,
-    required this.remainingMinutes,
+    required this.weeklyDoubtAllowance,
+    required this.usedDoubts,
+    required this.remainingDoubts,
     required this.openDoubts,
     required this.urgentPassAvailable,
     this.sessionAllowanceMinutes = 60,
