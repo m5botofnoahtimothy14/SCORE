@@ -33,8 +33,10 @@ export async function GET() {
       'conversations',
       'messages',
       'announcements',
-      'moderation_review_cases',
-      'safeguarding_incidents',
+      'moderation_events',
+      'doubt_requests',
+      'session_bookings',
+      'notification_devices',
       'audit_events',
       'notification_jobs',
       'background_jobs',
@@ -56,9 +58,10 @@ export async function GET() {
       .in('status', ['failed', 'retrying'])
       .limit(100)
     const { data: pendingModeration } = await admin
-      .from('moderation_review_cases')
+      .from('moderation_events')
       .select('id')
-      .in('status', ['pending', 'under_review'])
+      .eq('verdict', 'held')
+      .is('reviewed_at', null)
       .limit(1)
     const { data: lastMessage } = await admin
       .from('messages')
@@ -78,7 +81,7 @@ export async function GET() {
         // Presence only — values stay server-side.
         // Both the text and image moderation paths run on OpenAI
         // (omni-moderation for images); APILayer is a fallback.
-        fcmConfigured: Boolean(process.env.FCM_PROJECT_ID && process.env.FCM_CLIENT_EMAIL),
+        fcmConfigured: Boolean(process.env.FCM_PROJECT_ID && process.env.FCM_CLIENT_EMAIL && process.env.FCM_PRIVATE_KEY),
         textModerationConfigured: openAi || apilayer,
         imageSafetyConfigured: openAi || apilayer || vision,
         moderationPrimary: openAi ? 'openai' : apilayer ? 'apilayer' : null,
