@@ -114,6 +114,22 @@ ALTER TABLE public.doubt_status_history
 CREATE INDEX IF NOT EXISTS idx_doubt_status_history_request_created
   ON public.doubt_status_history(request_id, created_at DESC);
 
+-- Compatibility relation used by the booking RPC. Subject enrolment is
+-- derived from the student's active class enrolment and that class's
+-- teacher/subject assignments; no second source of truth is introduced.
+CREATE OR REPLACE VIEW public.student_subject_enrollments
+WITH (security_invoker = true)
+AS
+SELECT ce.student_id, ce.class_id, ta.subject_id, true AS active
+FROM public.class_enrollments ce
+JOIN public.teaching_assignments ta
+  ON ta.class_id = ce.class_id
+ AND ta.school_id = ce.school_id
+WHERE ce.unenrolled_at IS NULL
+  AND ta.subject_id IS NOT NULL;
+
+REVOKE ALL ON public.student_subject_enrollments FROM PUBLIC, anon, authenticated;
+
 -- Add salted, expiring verification-code storage to the existing booking
 -- row. Existing legacy verification_code data is not copied into OTP fields.
 ALTER TABLE public.session_bookings
