@@ -35,8 +35,10 @@ BEGIN
 END;
 $$;
 
--- 2. SECURITY DEFINER is not a reason to expose a function to every API role.
--- Default: revoke all client execution and retain service-role execution.
+-- 2. Establish a safe default for SECURITY DEFINER RPCs.
+-- Keep trusted service-role execution. Restore client execution only for the
+-- explicit application allowlist below. This avoids exposing trigger helpers,
+-- bootstrap routines, and internal webhook functions to API clients.
 DO $$
 DECLARE
   v_function record;
@@ -121,10 +123,7 @@ BEGIN
 END;
 $function$;
 
--- 3. Explicit allowlist for RPCs that are designed for authenticated clients.
--- Every entry is schema-qualified and resolved safely. Missing optional
--- functions are skipped so this migration remains compatible with minor
--- migration-history differences.
+-- 3. Explicit allowlist for authenticated application RPCs and RLS helpers.
 DO $$
 DECLARE
   v_signature text;
@@ -142,7 +141,7 @@ BEGIN
     'public.start_teacher_conversation(uuid)',
     'public.touch_my_presence()',
 
-    -- SECURITY DEFINER helpers used by authenticated RLS policies.
+    -- User-scoped helpers used by authenticated RLS policies.
     'public.tc_can_read_attachment(uuid,uuid)',
     'public.tc_has_school_role(uuid,public.school_role)',
     'public.tc_is_announcement_recipient(uuid)',
@@ -159,15 +158,12 @@ BEGIN
     'public.tc_taught_student_ids()',
     'public.tc_user_school_ids()',
 
-    -- Participant-only Meet link retrieval.
+    -- Participant-checked Meet link retrieval.
     'public.get_google_meet_link(uuid)'
   ] LOOP
     v_function := to_regprocedure(v_signature);
     IF v_function IS NOT NULL THEN
-      EXECUTE format(
-        'GRANT EXECUTE ON FUNCTION %s TO authenticated',
-        v_function
-      );
+      EXECUTE format('GRANT EXECUTE ON FUNCTION %s TO authenticated', v_function);
     END IF;
   END LOOP;
 END;
