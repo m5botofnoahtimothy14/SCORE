@@ -76,3 +76,9 @@ verify_jwt = false
 
 [functions.curriculum-rag]
 verify_jwt = false
+
+[functions.create-google-meet]
+verify_jwt = false
+
+[functions.google-workspace-oauth]
+verify_jwt = false
