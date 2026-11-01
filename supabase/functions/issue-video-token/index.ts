@@ -108,21 +108,24 @@ serve(async (req: Request) => {
   // Provision room name if missing
   let roomName = booking.video_room_name;
   if (!roomName) {
-    const { data: room } = await supabase
+    const { data: room, error: roomError } = await supabase
       .from("video_rooms")
       .select("room_name")
       .eq("booking_id", bookingId)
       .maybeSingle();
+    if (roomError) return jsonError("video_room_lookup_failed", 500);
     roomName = room?.room_name ?? `md-${bookingId.replace(/-/g, "")}`;
     if (!room?.room_name) {
-      await supabase.from("video_rooms").upsert({
+      const { error: roomWriteError } = await supabase.from("video_rooms").upsert({
         school_id: booking.school_id,
         booking_id: bookingId,
         room_name: roomName,
       }, { onConflict: "booking_id" });
-      await supabase.from("session_bookings")
+      if (roomWriteError) return jsonError("video_room_create_failed", 500);
+      const { error: bookingWriteError } = await supabase.from("session_bookings")
         .update({ video_room_name: roomName })
         .eq("id", bookingId);
+      if (bookingWriteError) return jsonError("video_room_link_failed", 500);
     }
   }
 
