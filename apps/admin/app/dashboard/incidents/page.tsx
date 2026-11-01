@@ -9,7 +9,7 @@ type Incident = {
   id: string
   title: string
   severity: string
-  description: string
+  description: string | null
   status: string
   assigned_to: string | null
   resolved_at: string | null
@@ -18,7 +18,7 @@ type Incident = {
 
 export default function IncidentsPage() {
   const [items, setItems] = useState<Incident[]>([])
-  const [filter, setFilter] = useState<'open' | 'investigating' | 'resolved' | 'all'>('open')
+  const [filter, setFilter] = useState<'open' | 'investigating' | 'escalated_external' | 'resolved' | 'closed' | 'all'>('open')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -68,7 +68,7 @@ export default function IncidentsPage() {
     <div>
       <PageHeader title="Safeguarding incidents" subtitle="Restricted school-level incident records. Access is limited to authorised leadership." action={<button onClick={load} className="btn-secondary"><RefreshCw className="h-4 w-4" /> Refresh</button>} />
       <div className="mb-5 flex flex-wrap gap-2">
-        {(['open', 'investigating', 'resolved', 'all'] as const).map((value) => (
+        {(['open', 'investigating', 'escalated_external', 'resolved', 'closed', 'all'] as const).map((value) => (
           <button key={value} onClick={() => setFilter(value)} className={filter === value ? 'btn-primary' : 'btn-secondary'}>{value === 'all' ? 'All incidents' : value}</button>
         ))}
       </div>
@@ -89,7 +89,7 @@ export default function IncidentsPage() {
                     <td className="text-xs font-semibold text-ink-800">{item.title}</td>
                     <td><StatusBadge value={item.severity} /></td>
                     <td><StatusBadge value={item.status} /></td>
-                    <td className="max-w-sm text-xs text-ink-600">{item.description}</td>
+                    <td className="max-w-sm text-xs text-ink-600">{item.description ?? 'No description provided'}</td>
                     <td className="font-mono text-[10px] text-ink-500">{item.assigned_to?.slice(0, 8) ?? 'Unassigned'}</td>
                     <td className="text-xs text-ink-500">{new Date(item.created_at).toLocaleString()}</td>
                   </tr>
