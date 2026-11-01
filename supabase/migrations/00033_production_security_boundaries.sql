@@ -61,6 +61,66 @@ BEGIN
 END;
 $$;
 
+-- Device registration is user-scoped and must prove school membership.
+CREATE OR REPLACE FUNCTION public.register_notification_device(
+  p_school_id uuid,
+  p_fcm_token text,
+  p_platform text DEFAULT 'android',
+  p_app_version text DEFAULT NULL
+)
+RETURNS uuid
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $function$
+DECLARE
+  v_id uuid;
+  v_user_id uuid := auth.uid();
+  v_platform text := lower(COALESCE(p_platform, 'android'));
+BEGIN
+  IF v_user_id IS NULL THEN
+    RAISE EXCEPTION 'not_authenticated' USING ERRCODE = '42501';
+  END IF;
+
+  IF p_school_id IS NULL OR NOT EXISTS (
+    SELECT 1 FROM public.school_memberships sm
+    WHERE sm.user_id = v_user_id
+      AND sm.school_id = p_school_id
+      AND sm.is_active = true
+  ) THEN
+    RAISE EXCEPTION 'not_a_school_member' USING ERRCODE = '42501';
+  END IF;
+
+  IF p_fcm_token IS NULL OR length(p_fcm_token) < 8 OR length(p_fcm_token) > 4096 THEN
+    RAISE EXCEPTION 'invalid_token' USING ERRCODE = '22023';
+  END IF;
+  IF v_platform NOT IN ('android', 'ios', 'macos', 'windows', 'linux', 'other') THEN
+    RAISE EXCEPTION 'invalid_platform' USING ERRCODE = '22023';
+  END IF;
+  IF p_app_version IS NOT NULL AND length(p_app_version) > 64 THEN
+    RAISE EXCEPTION 'invalid_app_version' USING ERRCODE = '22023';
+  END IF;
+
+  INSERT INTO public.notification_devices (
+    user_id, school_id, fcm_token, platform, app_version, is_active, last_seen_at
+  )
+  VALUES (
+    v_user_id, p_school_id, p_fcm_token, v_platform,
+    p_app_version, true, now()
+  )
+  ON CONFLICT (fcm_token) DO UPDATE
+  SET user_id = EXCLUDED.user_id,
+      school_id = EXCLUDED.school_id,
+      platform = EXCLUDED.platform,
+      app_version = EXCLUDED.app_version,
+      is_active = true,
+      last_seen_at = now()
+  RETURNING id INTO v_id;
+
+  RETURN v_id;
+END;
+$function$;
+
 -- 3. Explicit allowlist for RPCs that are designed for authenticated clients.
 -- Every entry is schema-qualified and resolved safely. Missing optional
 -- functions are skipped so this migration remains compatible with minor
@@ -75,6 +135,7 @@ BEGIN
     'public.issue_student_code(uuid,text,integer)',
     'public.mark_conversation_read(uuid)',
     'public.reassign_student_class(uuid,uuid,text)',
+    'public.register_notification_device(uuid,text,text,text)',
     'public.send_message(uuid,uuid,text,text,uuid,uuid)',
     'public.set_staff_active(uuid,boolean)',
     'public.set_student_active(uuid,boolean)',
