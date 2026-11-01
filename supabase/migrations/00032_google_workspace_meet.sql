@@ -27,6 +27,64 @@ ALTER TABLE public.google_meet_config
   ADD COLUMN IF NOT EXISTS time_zone text NOT NULL DEFAULT 'Asia/Kolkata',
   ADD COLUMN IF NOT EXISTS updated_at timestamptz NOT NULL DEFAULT now();
 
+-- Meeting links live in a separate table. A school administrator can inspect bookings,
+-- but only the booked student and assigned teacher can read this table.
+CREATE TABLE IF NOT EXISTS public.session_google_meet_links (
+  booking_id uuid PRIMARY KEY REFERENCES public.session_bookings(id) ON DELETE CASCADE,
+  school_id uuid NOT NULL REFERENCES public.schools(id) ON DELETE CASCADE,
+  meet_link text NOT NULL,
+  space_name text,
+  calendar_event_id text,
+  host_email text NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE OR REPLACE FUNCTION public.tc_is_booking_participant(p_booking_id uuid)
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $
+  SELECT auth.uid() IS NOT NULL AND EXISTS (
+    SELECT 1
+    FROM public.session_bookings b
+    WHERE b.id = p_booking_id
+      AND (b.student_id = auth.uid() OR b.mentor_id = auth.uid())
+  );
+$;
+
+REVOKE ALL ON FUNCTION public.tc_is_booking_participant(uuid) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.tc_is_booking_participant(uuid) TO authenticated;
+
+ALTER TABLE public.session_google_meet_links ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS session_google_meet_links_participants ON public.session_google_meet_links;
+CREATE POLICY session_google_meet_links_participants
+  ON public.session_google_meet_links
+  FOR SELECT
+  TO authenticated
+  USING (public.tc_is_booking_participant(booking_id));
+
+REVOKE ALL ON public.session_google_meet_links FROM anon, authenticated;
+GRANT SELECT ON public.session_google_meet_links TO authenticated;
+GRANT ALL ON public.session_google_meet_links TO service_role;
+
+-- Move any links created by the older implementation out of the booking row.
+INSERT INTO public.session_google_meet_links (
+  booking_id, school_id, meet_link, space_name, calendar_event_id, host_email, created_at
+)
+SELECT id, school_id, google_meet_link, google_meet_space_name,
+       google_calendar_event_id, COALESCE(google_meet_host_email, 'legacy@invalid.local'),
+       COALESCE(google_meet_created_at, now())
+FROM public.session_bookings
+WHERE google_meet_link IS NOT NULL
+ON CONFLICT (booking_id) DO NOTHING;
+
+UPDATE public.session_bookings
+SET google_meet_link = NULL
+WHERE google_meet_link IS NOT NULL;
+
 CREATE INDEX IF NOT EXISTS idx_session_bookings_google_meet_space
   ON public.session_bookings(google_meet_space_name)
   WHERE google_meet_space_name IS NOT NULL;
@@ -57,6 +115,7 @@ SET search_path = public, pg_temp
 AS $$
 DECLARE
   v_booking public.session_bookings%ROWTYPE;
+  v_meet_link text;
   v_uid uuid := auth.uid();
 BEGIN
   IF v_uid IS NULL THEN
@@ -80,10 +139,13 @@ BEGIN
     RETURN jsonb_build_object('success', false, 'error', 'booking_not_confirmed');
   END IF;
 
+  SELECT meet_link INTO v_meet_link
+  FROM public.session_google_meet_links
+  WHERE booking_id = p_booking_id;
+
   RETURN jsonb_build_object(
     'success', true,
-    'meet_link', v_booking.google_meet_link,
-    'calendar_event_id', v_booking.google_calendar_event_id,
+    'meet_link', v_meet_link,
     'status', v_booking.status::text
   );
 END;
@@ -107,6 +169,10 @@ DECLARE
   v_teacher public.teachers%ROWTYPE;
   v_config public.google_meet_config%ROWTYPE;
   v_refresh_token text;
+  v_meet_link text;
+  v_meet_event_id text;
+  v_meet_space_name text;
+  v_meet_host_email text;
 BEGIN
   IF auth.role() IS DISTINCT FROM 'service_role' THEN
     RAISE EXCEPTION 'service_role_required' USING ERRCODE = '42501';
@@ -147,21 +213,25 @@ BEGIN
     RETURN jsonb_build_object('success', false, 'error', 'assigned_teacher_workspace_identity_missing');
   END IF;
 
-  IF v_booking.google_meet_space_name IS NOT NULL
-     AND v_booking.google_meet_host_email IS NOT NULL
-     AND lower(trim(v_booking.google_meet_host_email)) <> lower(trim(v_teacher.email)) THEN
+  SELECT meet_link, calendar_event_id, space_name, host_email
+  INTO v_meet_link, v_meet_event_id, v_meet_space_name, v_meet_host_email
+  FROM public.session_google_meet_links
+  WHERE booking_id = p_booking_id;
+
+  IF v_meet_host_email IS NOT NULL
+     AND lower(trim(v_meet_host_email)) <> lower(trim(v_teacher.email)) THEN
     RETURN jsonb_build_object('success', false, 'error', 'assigned_teacher_changed');
   END IF;
 
-  IF v_booking.google_meet_link IS NOT NULL
-     AND v_booking.google_meet_space_name IS NOT NULL
-     AND v_booking.google_calendar_event_id IS NOT NULL THEN
+  IF v_meet_link IS NOT NULL
+     AND v_meet_space_name IS NOT NULL
+     AND v_meet_event_id IS NOT NULL THEN
     RETURN jsonb_build_object(
       'success', true,
       'already_created', true,
-      'meet_link', v_booking.google_meet_link,
-      'space_name', v_booking.google_meet_space_name,
-      'calendar_event_id', v_booking.google_calendar_event_id
+      'meet_link', v_meet_link,
+      'space_name', v_meet_space_name,
+      'calendar_event_id', v_meet_event_id
     );
   END IF;
 
@@ -211,9 +281,9 @@ BEGIN
     'duration_minutes', v_booking.duration_minutes,
     'topic', v_booking.topic,
     'subject_id', v_booking.subject_id,
-    'space_name', v_booking.google_meet_space_name,
-    'meet_link', v_booking.google_meet_link,
-    'calendar_event_id', v_booking.google_calendar_event_id
+    'space_name', v_meet_space_name,
+    'meet_link', v_meet_link,
+    'calendar_event_id', v_meet_event_id
   );
 END;
 $$;
