@@ -35,10 +35,12 @@ CREATE TABLE IF NOT EXISTS public.session_google_meet_links (
   meet_link text NOT NULL,
   space_name text,
   calendar_event_id text,
-  host_email text NOT NULL,
+  host_email text,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
+
+ALTER TABLE public.session_google_meet_links ALTER COLUMN host_email DROP NOT NULL;
 
 CREATE OR REPLACE FUNCTION public.tc_is_booking_participant(p_booking_id uuid)
 RETURNS boolean
@@ -75,7 +77,7 @@ INSERT INTO public.session_google_meet_links (
   booking_id, school_id, meet_link, space_name, calendar_event_id, host_email, created_at
 )
 SELECT id, school_id, google_meet_link, google_meet_space_name,
-       google_calendar_event_id, COALESCE(google_meet_host_email, 'legacy@invalid.local'),
+       google_calendar_event_id, google_meet_host_email,
        COALESCE(google_meet_created_at, now())
 FROM public.session_bookings
 WHERE google_meet_link IS NOT NULL
