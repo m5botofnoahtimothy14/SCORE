@@ -48,7 +48,7 @@ The redirect URI must exactly match the URI registered in the Google Cloud OAuth
 
 The connected Workspace account owns the Calendar event and Meet space. SCORE+ creates a restricted Meet space with moderation enabled. It adds only the assigned teacher's roster email as a co-host. It does not add a student email or send the meeting link by email. The student signs in with School ID and receives the link inside the booked session screen. The teacher admits the student from the Meet waiting room.
 
-The meeting link is limited to the booked student and assigned teacher in SCORE+. Do not reuse a meeting link between bookings.
+The meeting URL is stored in the separate `session_google_meet_links` table. Its row-level security policy permits reads only by the booked student and assigned teacher while the booking is confirmed or in progress. The URL is not stored in the ordinary booking row. Do not reuse a meeting link between bookings.
 
 ## Other Supabase Edge Function secrets
 
