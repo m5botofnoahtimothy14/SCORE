@@ -44,6 +44,7 @@ const mentorDeskNav: NavEntry[] = [
 const safetyNav: NavEntry[] = [
   { href: '/dashboard/moderation', icon: 'ShieldAlert', label: 'Moderation' },
   { href: '/dashboard/health', icon: 'Activity', label: 'System Health' },
+  { href: '/dashboard/incidents', icon: 'Siren', label: 'Safeguarding' },
 ]
 
 const platformNav: NavEntry[] = [
