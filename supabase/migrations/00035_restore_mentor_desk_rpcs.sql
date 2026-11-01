@@ -132,6 +132,24 @@ BEGIN
       ORDER BY t.id LIMIT 1;
     IF NOT FOUND THEN RETURN jsonb_build_object('success',false,'error','no_authorized_teacher'); END IF;
   END IF;
+  IF EXISTS (
+    SELECT 1 FROM mentor_availability ma
+    WHERE ma.teacher_id = v_teacher.id AND ma.status = 'away'
+  ) THEN
+    RETURN jsonb_build_object('success',false,'error','mentor_unavailable');
+  END IF;
+
+  IF EXISTS (
+    SELECT 1 FROM session_bookings b
+    WHERE b.mentor_id = v_teacher.user_id
+      AND b.status IN ('requested','confirmed')
+      AND b.scheduled_at IS NOT NULL
+      AND b.scheduled_at < p_scheduled_at + make_interval(mins => p_duration_minutes)
+      AND b.scheduled_at + make_interval(mins => b.duration_minutes) > p_scheduled_at
+  ) THEN
+    RETURN jsonb_build_object('success',false,'error','time_slot_unavailable');
+  END IF;
+
   SELECT COALESCE(timezone,'Asia/Kolkata') INTO v_tz FROM school_settings WHERE school_id=v_school;
   v_week:=tc_week_start(NOW(),COALESCE(v_tz,'Asia/Kolkata'));
   SELECT COALESCE(sum(CASE WHEN action='deduct' THEN minutes ELSE -minutes END),0)::INTEGER INTO v_used
@@ -180,6 +198,9 @@ BEGIN
   IF v_booking.refunded THEN RETURN jsonb_build_object('success',true,'status',v_booking.status,'refunded',true); END IF;
   SELECT COALESCE(timezone,'Asia/Kolkata') INTO v_tz FROM school_settings WHERE school_id=v_booking.school_id;
   v_week:=tc_week_start(NOW(),COALESCE(v_tz,'Asia/Kolkata'));
+  IF v_booking.scheduled_at IS NOT NULL AND v_booking.scheduled_at <= NOW() THEN
+    RETURN jsonb_build_object('success',false,'error','booking_time_passed');
+  END IF;
   UPDATE session_bookings SET status=CASE WHEN v_uid=v_booking.student_id THEN 'cancelled_by_student'::booking_status ELSE 'cancelled_by_mentor'::booking_status END,
     refunded=true,cancelled_at=NOW(),cancelled_by=v_uid,updated_at=NOW() WHERE id=p_booking_id;
   INSERT INTO allowance_transactions(school_id,student_id,subject_id,booking_id,week_start,action,minutes,reason)
@@ -419,8 +440,14 @@ BEGIN
     RETURN jsonb_build_object('success', FALSE, 'error', 'teacher_not_found');
   END IF;
 
-  IF NOT public.tc_is_school_admin(v_school) THEN
+  IF NOT (public.tc_is_school_admin(v_school) OR public.tc_is_platform_owner()) THEN
     RETURN jsonb_build_object('success', FALSE, 'error', 'forbidden');
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM subjects WHERE id = p_subject_id AND school_id = v_school
+  ) THEN
+    RETURN jsonb_build_object('success', FALSE, 'error', 'subject_not_found');
   END IF;
 
   INSERT INTO mentor_subject_approvals(
