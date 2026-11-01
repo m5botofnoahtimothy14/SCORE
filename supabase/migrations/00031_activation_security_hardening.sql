@@ -213,6 +213,7 @@ DECLARE
   v_teacher teachers%ROWTYPE;
   v_credential teacher_activation_credentials%ROWTYPE;
   v_submitted_hash TEXT;
+  v_match_count INTEGER;
 BEGIN
   IF auth.role() <> 'service_role' OR p_user_id IS NULL THEN
     RETURN jsonb_build_object('success', FALSE, 'error', 'forbidden');
