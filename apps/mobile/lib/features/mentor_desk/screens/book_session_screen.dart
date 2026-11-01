@@ -25,6 +25,7 @@ class _BookSessionScreenState extends ConsumerState<BookSessionScreen> {
   String? _subjectId;
   DateTime _scheduledAt = DateTime.now().add(const Duration(days: 1));
   int _duration = 15;
+  int _sessionMinutesRemaining = 60;
   bool _loading = true;
   bool _submitting = false;
   String? _error;
@@ -49,11 +50,14 @@ class _BookSessionScreenState extends ConsumerState<BookSessionScreen> {
       if (identity == null || identity.tier != AppTier.student) {
         throw Exception('Session booking is available to student accounts.');
       }
-      final subjects = await ref.read(_mentorServiceProvider).listSubjects(identity.schoolId);
+      final service = ref.read(_mentorServiceProvider);
+      final subjects = await service.listSubjects(identity.schoolId);
+      final allowance = await service.allowanceSummary(schoolId: identity.schoolId, studentId: identity.userId);
       if (!mounted) return;
       setState(() {
         _subjects = subjects;
         _subjectId = subjects.isEmpty ? null : subjects.first.id;
+        _sessionMinutesRemaining = allowance.isEmpty ? 0 : allowance.first.sessionRemainingMinutes;
         _loading = false;
       });
     } catch (_) {
@@ -83,6 +87,10 @@ class _BookSessionScreenState extends ConsumerState<BookSessionScreen> {
   Future<void> _submit() async {
     if (_subjectId == null || _topic.text.trim().isEmpty) {
       setState(() => _error = 'Choose a subject and enter a session topic.');
+      return;
+    }
+    if (_duration > _sessionMinutesRemaining) {
+      setState(() => _error = 'You have $_sessionMinutesRemaining session minutes remaining. Choose a shorter session or check your weekly allowance.');
       return;
     }
     if (_scheduledAt.isBefore(DateTime.now().add(const Duration(minutes: 10)))) {
@@ -124,7 +132,17 @@ class _BookSessionScreenState extends ConsumerState<BookSessionScreen> {
                     const Text('Plan a focused session', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: AppColors.ink900)),
                     const SizedBox(height: 6),
                     const Text('Choose a subject, a time and the support you need. A teacher is assigned by the school rules.', style: TextStyle(fontSize: 13, height: 1.5, color: AppColors.ink500)),
-                    const SizedBox(height: 22),
+                    const SizedBox(height: 18),
+                    Container(
+                      padding: const EdgeInsets.all(13),
+                      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(13), border: Border.all(color: AppColors.ink200)),
+                      child: Row(children: [
+                        const Icon(Icons.timelapse_rounded, color: AppColors.accent, size: 18),
+                        const SizedBox(width: 9),
+                        Text('Weekly session time remaining: $_sessionMinutesRemaining minutes', style: const TextStyle(fontSize: 12, color: AppColors.ink700)),
+                      ]),
+                    ),
+                    const SizedBox(height: 18),
                     _label('Subject'),
                     DropdownButtonFormField<String>(
                       value: _subjectId,
