@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../../../core/providers/identity_provider.dart';
 import '../../../core/theme/app_theme.dart';
 import '../models/mentor_desk_models.dart';
 import '../services/mentor_desk_service.dart';
