@@ -6,6 +6,7 @@
 
 -- Track failed attempts and temporary locks for both activation flows.
 ALTER TABLE public.student_activation_credentials
+  ADD COLUMN IF NOT EXISTS code_salt TEXT,
   ADD COLUMN IF NOT EXISTS failed_attempts INTEGER NOT NULL DEFAULT 0,
   ADD COLUMN IF NOT EXISTS locked_until TIMESTAMPTZ;
 
@@ -14,10 +15,9 @@ ALTER TABLE public.teacher_activation_credentials
   ADD COLUMN IF NOT EXISTS failed_attempts INTEGER NOT NULL DEFAULT 0,
   ADD COLUMN IF NOT EXISTS locked_until TIMESTAMPTZ;
 
--- Invalidate any legacy teacher codes that do not have the new salted format.
-UPDATE public.teacher_activation_credentials
-SET used_at = COALESCE(used_at, NOW())
-WHERE code_salt IS NULL;
+-- Existing credential hashes use unsalted SHA-256. Keep them valid during
+-- migration. The verified RPC accepts that legacy format once and uses the
+-- salted format for all newly issued codes.
 
 COMMENT ON COLUMN public.teacher_activation_credentials.code IS
   'SHA-256 hash of the one-time code plus code_salt. Never store a plaintext code.';
@@ -33,8 +33,16 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.student_activation_credenti
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.teacher_activation_credentials TO service_role;
 
 -- The old student RPC trusted any authenticated caller and did not verify the code.
-REVOKE ALL ON FUNCTION public.activate_student(TEXT, TEXT, TEXT) FROM PUBLIC, anon, authenticated;
-REVOKE ALL ON FUNCTION public.activate_teacher(TEXT, TEXT, TEXT) FROM PUBLIC, anon, authenticated;
+DO $$
+BEGIN
+  IF to_regprocedure('public.activate_student(text,text,text)') IS NOT NULL THEN
+    EXECUTE 'REVOKE ALL ON FUNCTION public.activate_student(text,text,text) FROM PUBLIC, anon, authenticated';
+  END IF;
+  IF to_regprocedure('public.activate_teacher(text,text,text)') IS NOT NULL THEN
+    EXECUTE 'REVOKE ALL ON FUNCTION public.activate_teacher(text,text,text) FROM PUBLIC, anon, authenticated';
+  END IF;
+END;
+$$;
 
 -- Atomically verify, consume and activate a student credential.
 CREATE OR REPLACE FUNCTION public.activate_student_verified(
@@ -60,6 +68,11 @@ BEGIN
   IF p_student_id_no IS NULL OR length(trim(p_student_id_no)) = 0
      OR p_activation_code IS NULL OR length(trim(p_activation_code)) = 0 THEN
     RETURN jsonb_build_object('success', FALSE, 'error', 'invalid_credentials');
+  END IF;
+
+  IF (SELECT count(*) FROM students
+      WHERE student_id_no = trim(p_student_id_no) AND is_active = TRUE) > 1 THEN
+    RETURN jsonb_build_object('success', FALSE, 'error', 'school_resolution_required');
   END IF;
 
   SELECT * INTO v_student
@@ -103,16 +116,21 @@ BEGIN
     RETURN jsonb_build_object('success', FALSE, 'error', 'rate_limited');
   END IF;
 
-  IF v_credential.code_hash IS NULL OR v_credential.code_salt IS NULL THEN
+  IF v_credential.code IS NULL THEN
     RETURN jsonb_build_object('success', FALSE, 'error', 'invalid_credentials');
   END IF;
 
-  v_submitted_hash := encode(
-    digest(trim(p_activation_code) || ':' || v_credential.code_salt, 'sha256'),
-    'hex'
-  );
+  IF v_credential.code_salt IS NULL THEN
+    -- Legacy production rows store SHA-256(code) in the existing code column.
+    v_submitted_hash := encode(digest(trim(p_activation_code), 'sha256'), 'hex');
+  ELSE
+    v_submitted_hash := encode(
+      digest(trim(p_activation_code) || ':' || v_credential.code_salt, 'sha256'),
+      'hex'
+    );
+  END IF;
 
-  IF v_submitted_hash <> v_credential.code_hash THEN
+  IF v_submitted_hash <> v_credential.code THEN
     UPDATE student_activation_credentials
     SET failed_attempts = failed_attempts + 1,
         locked_until = CASE
@@ -156,22 +174,30 @@ BEGIN
   ON CONFLICT (user_id, school_id, role) DO UPDATE SET
     is_active = TRUE, joined_at = NOW();
 
-  INSERT INTO conversations(school_id, type, title, created_by, is_active, created_at, updated_at)
-  VALUES (
-    v_student.school_id, 'student_support',
-    'Support: ' || COALESCE(v_student.first_name, 'Student'),
-    p_user_id, TRUE, NOW(), NOW()
-  )
-  RETURNING id INTO v_conversation_id;
-
-  INSERT INTO conversation_members(conversation_id, user_id, role, can_send)
-  VALUES (v_conversation_id, p_user_id, 'student', TRUE);
-
   SELECT ce.class_id INTO v_class_id
   FROM class_enrollments ce
   WHERE ce.student_id = v_student.id AND ce.unenrolled_at IS NULL
   ORDER BY ce.enrolled_at DESC
   LIMIT 1;
+
+  -- Reuse the canonical support-conversation helper so assigned teachers
+  -- receive membership at activation time.
+  SELECT public.create_student_support_conversation(
+    v_student.id, v_class_id, v_student.school_id, p_user_id
+  ) INTO v_conversation_id;
+
+  -- Students can read class channels. The send_message RPC blocks student
+  -- writes to class_channel conversations.
+  IF v_class_id IS NOT NULL THEN
+    INSERT INTO conversation_members(conversation_id, user_id, role, can_send)
+    SELECT c.id, p_user_id, 'student', FALSE
+    FROM conversations c
+    WHERE c.school_id = v_student.school_id
+      AND c.class_id = v_class_id
+      AND c.type = 'class_channel'
+      AND c.is_active
+    ON CONFLICT (conversation_id, user_id) DO NOTHING;
+  END IF;
 
   INSERT INTO audit_events(school_id, actor_id, action, target_type, target_id, outcome, metadata)
   VALUES (
@@ -214,6 +240,11 @@ BEGIN
     RETURN jsonb_build_object('success', FALSE, 'error', 'invalid_credentials');
   END IF;
 
+  IF (SELECT count(*) FROM teachers
+      WHERE staff_id_no = trim(p_staff_id_no) AND is_active = TRUE) > 1 THEN
+    RETURN jsonb_build_object('success', FALSE, 'error', 'school_resolution_required');
+  END IF;
+
   SELECT * INTO v_teacher
   FROM teachers
   WHERE staff_id_no = trim(p_staff_id_no) AND is_active = TRUE
@@ -250,13 +281,14 @@ BEGIN
   END IF;
 
   IF v_credential.code_salt IS NULL THEN
-    RETURN jsonb_build_object('success', FALSE, 'error', 'no_activation_code');
+    -- Legacy production rows store SHA-256(code) in the existing code column.
+    v_submitted_hash := encode(digest(trim(p_activation_code), 'sha256'), 'hex');
+  ELSE
+    v_submitted_hash := encode(
+      digest(trim(p_activation_code) || ':' || v_credential.code_salt, 'sha256'),
+      'hex'
+    );
   END IF;
-
-  v_submitted_hash := encode(
-    digest(trim(p_activation_code) || ':' || v_credential.code_salt, 'sha256'),
-    'hex'
-  );
 
   IF v_submitted_hash <> v_credential.code THEN
     UPDATE teacher_activation_credentials
@@ -298,9 +330,24 @@ BEGIN
     updated_at = NOW();
 
   INSERT INTO school_memberships(user_id, school_id, role, is_active, joined_at)
-  VALUES (p_user_id, v_teacher.school_id, 'teacher', TRUE, NOW())
+  VALUES (
+    p_user_id, v_teacher.school_id,
+    CASE WHEN v_teacher.is_leadership THEN 'head_teacher'::school_role ELSE 'teacher'::school_role END,
+    TRUE, NOW()
+  )
   ON CONFLICT (user_id, school_id, role) DO UPDATE SET
     is_active = TRUE, joined_at = NOW();
+
+  -- Restore memberships in class channels and existing student-support threads.
+  INSERT INTO conversation_members(conversation_id, user_id, role, can_send)
+  SELECT c.id, p_user_id, 'teacher', TRUE
+  FROM conversations c
+  JOIN teaching_assignments ta ON ta.class_id = c.class_id
+  WHERE c.school_id = v_teacher.school_id
+    AND ta.teacher_id = v_teacher.id
+    AND c.type IN ('class_channel','student_support')
+    AND c.is_active
+  ON CONFLICT (conversation_id, user_id) DO NOTHING;
 
   INSERT INTO audit_events(school_id, actor_id, action, target_type, target_id, outcome)
   VALUES (
@@ -339,7 +386,7 @@ BEGIN
     RETURN jsonb_build_object('success', FALSE, 'error', 'teacher_not_found');
   END IF;
 
-  IF NOT public.tc_is_school_admin(v_teacher.school_id) THEN
+  IF NOT (public.tc_is_school_admin(v_teacher.school_id) OR public.tc_is_platform_owner()) THEN
     RETURN jsonb_build_object('success', FALSE, 'error', 'forbidden');
   END IF;
 
@@ -406,7 +453,7 @@ BEGIN
     RETURN jsonb_build_object('success', FALSE, 'error', 'student_not_found');
   END IF;
 
-  IF NOT public.tc_is_school_admin(v_student.school_id) THEN
+  IF NOT (public.tc_is_school_admin(v_student.school_id) OR public.tc_is_platform_owner()) THEN
     RETURN jsonb_build_object('success', FALSE, 'error', 'forbidden');
   END IF;
 
@@ -421,15 +468,15 @@ BEGIN
   v_expires_at := NOW() + make_interval(days => p_days_valid);
 
   INSERT INTO student_activation_credentials(
-    school_id, student_id, code_hash, code_salt, expires_at,
-    created_by, created_at, failed_attempts, locked_until
+    school_id, student_id, code, code_salt, expires_at,
+    used_at, created_by, created_at, failed_attempts, locked_until
   ) VALUES (
     v_student.school_id, p_student_id, v_code_hash, v_code_salt,
-    v_expires_at, auth.uid(), NOW(), 0, NULL
+    v_expires_at, NULL, auth.uid(), NOW(), 0, NULL
   )
   ON CONFLICT (student_id) DO UPDATE SET
     school_id = EXCLUDED.school_id,
-    code_hash = EXCLUDED.code_hash,
+    code = EXCLUDED.code,
     code_salt = EXCLUDED.code_salt,
     expires_at = EXCLUDED.expires_at,
     used_at = NULL,
