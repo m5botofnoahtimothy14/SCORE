@@ -9,6 +9,7 @@ import '../../features/auth/screens/auth_gate_screen.dart';
 import '../../features/auth/screens/role_select_screen.dart';
 import '../../features/auth/screens/student_signin_screen.dart';
 import '../../features/auth/screens/teacher_signin_screen.dart';
+import '../../features/auth/screens/leadership_signin_screen.dart';
 import '../../features/home/screens/home_screen.dart';
 import '../../features/ai_ask/screens/ai_ask_screen.dart';
 import '../../features/announcements/screens/announcements_screen.dart' show AnnouncementsScreen;
@@ -176,6 +177,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/auth/role-select', builder: (_, __) => const RoleSelectScreen()),
       GoRoute(path: '/auth/student-signin', builder: (_, __) => const StudentSignInScreen()),
       GoRoute(path: '/auth/teacher-signin', builder: (_, __) => const TeacherSignInScreen()),
+      GoRoute(path: '/auth/leadership-signin', builder: (_, __) => const LeadershipSignInScreen()),
       ShellRoute(
         builder: (context, state, child) => AppShell(child: child),
         routes: [
