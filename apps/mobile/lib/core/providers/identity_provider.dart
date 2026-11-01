@@ -3,6 +3,15 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/identity.dart';
 
+String _schoolName(Map<String, dynamic> membership) {
+  final raw = membership['schools'];
+  if (raw is Map) return raw['name']?.toString() ?? '';
+  if (raw is List && raw.isNotEmpty && raw.first is Map) {
+    return (raw.first as Map)['name']?.toString() ?? '';
+  }
+  return '';
+}
+
 /// Provider that resolves the signed-in user's identity (tier, school, etc.)
 /// Reads from `school_memberships` and maps the role to an [AppTier].
 final identityProviderProvider = FutureProvider<AppIdentity?>((ref) async {
@@ -13,7 +22,7 @@ final identityProviderProvider = FutureProvider<AppIdentity?>((ref) async {
 
   final result = await Supabase.instance.client
       .from('school_memberships')
-      .select('role, school_id')
+      .select('role, school_id, schools(name)')
       .eq('user_id', userId)
       .eq('is_active', true)
       .order('joined_at', ascending: false)
@@ -38,11 +47,11 @@ final identityProviderProvider = FutureProvider<AppIdentity?>((ref) async {
 
   return AppIdentity(
     userId: userId,
-    displayName: session.user.userMetadata?['display_name'] ?? 'User',
+    displayName: session.user.userMetadata?['display_name']?.toString() ?? 'User',
     role: role,
     tier: tier,
     schoolId: schoolId,
-    schoolName: '',
+    schoolName: _schoolName(Map<String, dynamic>.from(membership)),
   );
 });
 
