@@ -77,6 +77,15 @@ BEGIN
     RAISE EXCEPTION 'Authenticated users cannot call the participant-checked Meet RPC';
   END IF;
 
+  IF NOT has_function_privilege('authenticated',
+       'public.issue_teacher_activation_code(uuid,text,integer)', 'EXECUTE')
+     OR NOT has_function_privilege('authenticated',
+       'public.set_mentor_availability(public.availability_status)', 'EXECUTE')
+     OR NOT has_function_privilege('authenticated',
+       'public.approve_mentor_subject(uuid,uuid,boolean)', 'EXECUTE') THEN
+    RAISE EXCEPTION 'Teacher activation or Mentor Desk RPC access was removed';
+  END IF;
+
   IF NOT EXISTS (
     SELECT 1 FROM pg_policies
     WHERE schemaname = 'public'
