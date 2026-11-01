@@ -33,8 +33,16 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.student_activation_credenti
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.teacher_activation_credentials TO service_role;
 
 -- The old student RPC trusted any authenticated caller and did not verify the code.
-REVOKE ALL ON FUNCTION public.activate_student(TEXT, TEXT, TEXT) FROM PUBLIC, anon, authenticated;
-REVOKE ALL ON FUNCTION public.activate_teacher(TEXT, TEXT, TEXT) FROM PUBLIC, anon, authenticated;
+DO $$
+BEGIN
+  IF to_regprocedure('public.activate_student(text,text,text)') IS NOT NULL THEN
+    EXECUTE 'REVOKE ALL ON FUNCTION public.activate_student(text,text,text) FROM PUBLIC, anon, authenticated';
+  END IF;
+  IF to_regprocedure('public.activate_teacher(text,text,text)') IS NOT NULL THEN
+    EXECUTE 'REVOKE ALL ON FUNCTION public.activate_teacher(text,text,text) FROM PUBLIC, anon, authenticated';
+  END IF;
+END;
+$$;
 
 -- Atomically verify, consume and activate a student credential.
 CREATE OR REPLACE FUNCTION public.activate_student_verified(
