@@ -24,6 +24,9 @@ class _SessionCallScreenState extends ConsumerState<SessionCallScreen> {
   bool _microphoneEnabled = true;
   bool _cameraEnabled = true;
   bool _ending = false;
+  int _remainingSeconds = 0;
+  DateTime? _callDeadline;
+  Timer? _deadlineTimer;
   String? _error;
 
   @override
@@ -33,7 +36,9 @@ class _SessionCallScreenState extends ConsumerState<SessionCallScreen> {
   }
 
   Future<void> _connect() async {
-    setState(() { _connecting = true; _error = null; });
+    _deadlineTimer?.cancel();
+    _callDeadline = null;
+    setState(() { _connecting = true; _error = null; _remainingSeconds = 0; });
     Room? room;
     try {
       final previousRoom = _room;
@@ -53,8 +58,12 @@ class _SessionCallScreenState extends ConsumerState<SessionCallScreen> {
       }
       final url = data['url']?.toString();
       final token = data['token']?.toString();
-      if (url == null || token == null || url.isEmpty || token.isEmpty) {
+      final expiry = DateTime.tryParse(data['expires_at']?.toString() ?? '');
+      if (url == null || token == null || url.isEmpty || token.isEmpty || expiry == null) {
         throw Exception('The video service returned an invalid connection token.');
+      }
+      if (!expiry.isAfter(DateTime.now())) {
+        throw Exception('The booked session time has ended.');
       }
 
       room = Room();
@@ -77,6 +86,7 @@ class _SessionCallScreenState extends ConsumerState<SessionCallScreen> {
         _connected = true;
         _connecting = false;
       });
+      _startSessionDeadline(expiry);
     } catch (error) {
       if (room != null) {
         room.removeListener(_onRoomChanged);
@@ -98,6 +108,9 @@ class _SessionCallScreenState extends ConsumerState<SessionCallScreen> {
   static String _friendlyError(String? code) => switch (code) {
     'video_not_configured' => 'In-app calling is not configured on the server yet.',
     'booking_not_confirmed' => 'This session is not confirmed for a call.',
+    'booking_not_started' => 'The student must start the session before anyone can join.',
+    'session_time_elapsed' => 'The booked session time has ended.',
+    'invalid_session_duration' => 'This booking has an invalid session duration.',
     'not_a_participant' => 'Your account is not a participant in this session.',
     'booking_not_found' => 'The session could not be found.',
     _ => 'Could not connect to the in-app call. Please try again.',
@@ -105,6 +118,52 @@ class _SessionCallScreenState extends ConsumerState<SessionCallScreen> {
 
   void _onRoomChanged() {
     if (mounted) setState(() {});
+  }
+
+  void _startSessionDeadline(DateTime deadline) {
+    _deadlineTimer?.cancel();
+    _callDeadline = deadline.toLocal();
+    void updateRemaining() {
+      final remaining = _callDeadline!.difference(DateTime.now()).inSeconds;
+      if (remaining <= 0) {
+        _deadlineTimer?.cancel();
+        unawaited(_expireCall());
+      } else if (mounted) {
+        setState(() => _remainingSeconds = remaining);
+      }
+    }
+
+    updateRemaining();
+    _deadlineTimer = Timer.periodic(const Duration(seconds: 1), (_) => updateRemaining());
+  }
+
+  Future<void> _disconnectRoom() async {
+    _deadlineTimer?.cancel();
+    final room = _room;
+    _room = null;
+    if (room != null) {
+      room.removeListener(_onRoomChanged);
+      await room.disconnect();
+      room.dispose();
+    }
+  }
+
+  String _sessionRoute() {
+    final identity = ref.read(identityProviderProvider).valueOrNull;
+    return identity?.isTeacher == true || identity?.isLeadership == true
+        ? '/mentor-desk/session/${widget.bookingId}/mentor'
+        : '/mentor-desk/session/${widget.bookingId}';
+  }
+
+  Future<void> _expireCall() async {
+    if (_ending) return;
+    _ending = true;
+    await _disconnectRoom();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('The booked session time has ended.')),
+    );
+    context.go(_sessionRoute());
   }
 
   Future<void> _toggleMicrophone() async {
@@ -134,23 +193,14 @@ class _SessionCallScreenState extends ConsumerState<SessionCallScreen> {
   Future<void> _endCall() async {
     if (_ending) return;
     setState(() => _ending = true);
-    final room = _room;
-    _room = null;
-    if (room != null) {
-      room.removeListener(_onRoomChanged);
-      await room.disconnect();
-      room.dispose();
-    }
+    await _disconnectRoom();
     if (!mounted) return;
-    final identity = ref.read(identityProviderProvider).valueOrNull;
-    final route = identity?.isTeacher == true || identity?.isLeadership == true
-        ? '/mentor-desk/session/${widget.bookingId}/mentor'
-        : '/mentor-desk/session/${widget.bookingId}';
-    context.go(route);
+    context.go(_sessionRoute());
   }
 
   @override
   void dispose() {
+    _deadlineTimer?.cancel();
     final room = _room;
     if (room != null) {
       room.removeListener(_onRoomChanged);
@@ -179,6 +229,11 @@ class _SessionCallScreenState extends ConsumerState<SessionCallScreen> {
                 Container(width: 7, height: 7, decoration: const BoxDecoration(color: Color(0xFF22C55E), shape: BoxShape.circle)),
                 const SizedBox(width: 7),
                 const Text('LIVE', style: TextStyle(fontSize: 10, letterSpacing: 1, fontWeight: FontWeight.w800)),
+                const SizedBox(width: 10),
+                Text(
+                  '${(_remainingSeconds ~/ 60).toString().padLeft(2, '0')}:${(_remainingSeconds % 60).toString().padLeft(2, '0')}',
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
+                ),
               ]),
             ),
         ],
