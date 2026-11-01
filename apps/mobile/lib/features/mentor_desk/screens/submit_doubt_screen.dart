@@ -178,7 +178,7 @@ class _SubmitDoubtScreenState extends ConsumerState<SubmitDoubtScreen> {
                               const Icon(Icons.info_outline_rounded, color: AppColors.accent, size: 18),
                               const SizedBox(width: 9),
                               Expanded(child: Text(
-                                '${allowance.remainingMinutes} of ${allowance.weeklyDoubtAllowance} weekly doubts remaining · ${allowance.openDoubts} open',
+                                '${allowance.remainingDoubts} of ${allowance.weeklyDoubtAllowance} weekly doubts remaining · ${allowance.openDoubts} open',
                                 style: const TextStyle(fontSize: 12, color: AppColors.ink700),
                               )),
                             ]),
