@@ -70,7 +70,7 @@ class _AnnouncementDetailScreenState extends ConsumerState<AnnouncementDetailScr
                         Container(
                           padding: const EdgeInsets.all(18),
                           decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: AppColors.ink200)),
-                          child: SelectableText(item['body']?.toString() ?? '', style: const TextStyle(fontSize: 15, height: 1.65, color: AppColors.ink800)),
+                          child: SelectableText(item['body']?.toString() ?? '', style: const TextStyle(fontSize: 15, height: 1.65, color: AppColors.ink700)),
                         ),
                         if (item['requires_ack'] == true) ...[
                           const SizedBox(height: 18),
