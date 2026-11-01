@@ -229,7 +229,7 @@ ALTER TABLE public.session_no_shows
   ADD COLUMN IF NOT EXISTS reason text,
   ADD COLUMN IF NOT EXISTS created_at timestamptz NOT NULL DEFAULT now();
 
-DO $
+DO $$
 BEGIN
   IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='session_no_shows' AND column_name='recorded_by')
      AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='session_no_shows' AND column_name='recorded_at') THEN
@@ -246,7 +246,7 @@ BEGIN
     $sql$;
   END IF;
 END;
-$;
+$$;
 
 ALTER TABLE public.mentor_subject_approvals
   ADD COLUMN IF NOT EXISTS updated_at timestamptz NOT NULL DEFAULT now();
