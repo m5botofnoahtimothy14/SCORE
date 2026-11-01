@@ -226,7 +226,7 @@ serve(async (req: Request) => {
         ? await supabase
             .from("notification_devices")
             .select("id, user_id, fcm_token")
-            .eq("school_id", job.school_id)
+            .eq("school_id", schoolId)
             .eq("is_active", true)
             .in("user_id", recipientIds)
         : { data: [], error: null };
