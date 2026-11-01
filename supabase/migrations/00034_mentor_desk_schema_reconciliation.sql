@@ -130,6 +130,32 @@ WHERE ce.unenrolled_at IS NULL
 
 REVOKE ALL ON public.student_subject_enrollments FROM PUBLIC, anon, authenticated;
 
+-- Older no-show rows use recorded_by/recorded_at. Add the current
+-- review fields without removing the legacy audit columns.
+ALTER TABLE public.session_no_shows
+  ADD COLUMN IF NOT EXISTS school_id uuid REFERENCES public.schools(id) ON DELETE CASCADE,
+  ADD COLUMN IF NOT EXISTS reported_by uuid REFERENCES public.user_profiles(id),
+  ADD COLUMN IF NOT EXISTS reported_by_role text,
+  ADD COLUMN IF NOT EXISTS refund_minutes integer NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS review_status text NOT NULL DEFAULT 'pending',
+  ADD COLUMN IF NOT EXISTS created_at timestamptz NOT NULL DEFAULT now();
+
+UPDATE public.session_no_shows ns
+SET school_id = COALESCE(ns.school_id, sb.school_id),
+    reported_by = COALESCE(ns.reported_by, ns.recorded_by),
+    reported_by_role = COALESCE(
+      ns.reported_by_role,
+      CASE WHEN ns.recorded_by = sb.student_id THEN 'student'
+           WHEN ns.recorded_by = sb.mentor_id THEN 'mentor'
+           ELSE NULL END
+    ),
+    created_at = COALESCE(ns.created_at, ns.recorded_at, now())
+FROM public.session_bookings sb
+WHERE sb.id = ns.booking_id;
+
+ALTER TABLE public.mentor_subject_approvals
+  ADD COLUMN IF NOT EXISTS updated_at timestamptz NOT NULL DEFAULT now();
+
 -- Add salted, expiring verification-code storage to the existing booking
 -- row. Existing legacy verification_code data is not copied into OTP fields.
 ALTER TABLE public.session_bookings
