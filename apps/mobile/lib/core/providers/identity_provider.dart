@@ -73,7 +73,7 @@ class IdentityNotifier extends StateNotifier<AsyncValue<AppIdentity?>> {
 
       final result = await Supabase.instance.client
           .from('school_memberships')
-          .select('role, school_id')
+          .select('role, school_id, schools(name)')
           .eq('user_id', userId)
           .eq('is_active', true)
           .order('joined_at', ascending: false)
@@ -101,11 +101,11 @@ class IdentityNotifier extends StateNotifier<AsyncValue<AppIdentity?>> {
 
       state = AsyncValue.data(AppIdentity(
         userId: userId,
-        displayName: session.user.userMetadata?['display_name'] ?? 'User',
+        displayName: session.user.userMetadata?['display_name']?.toString() ?? 'User',
         role: role,
         tier: tier,
         schoolId: schoolId,
-        schoolName: '',
+        schoolName: _schoolName(Map<String, dynamic>.from(membership)),
       ));
     } catch (e, st) {
       state = AsyncValue.error(e, st);
