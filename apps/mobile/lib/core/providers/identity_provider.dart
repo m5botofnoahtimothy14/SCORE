@@ -48,55 +48,61 @@ Future<AppIdentity?> _loadIdentity() async {
   bool isLeadershipFlag = false;
 
   if (role == 'student') {
-    final student = await client
-        .from('students')
-        .select('id, student_id_no, first_name, last_name')
-        .eq('user_id', userId)
-        .eq('school_id', schoolId)
-        .eq('is_active', true)
-        .maybeSingle();
-
-    if (student != null) {
-      studentId = student['id']?.toString();
-      studentIdNo = student['student_id_no']?.toString();
-      final first = student['first_name']?.toString() ?? '';
-      final last = student['last_name']?.toString() ?? '';
-      if (profileName.isEmpty) profileName = '${first} ${last}'.trim();
-
-      final enrollment = await client
-          .from('class_enrollments')
-          .select('class_id, classes(name)')
-          .eq('student_id', studentId!)
-          .isFilter('unenrolled_at', null)
-          .order('enrolled_at', ascending: false)
-          .limit(1)
+    try {
+      final student = await client
+          .from('students')
+          .select('id, student_id_no, first_name, last_name')
+          .eq('user_id', userId)
+          .eq('school_id', schoolId)
+          .eq('is_active', true)
           .maybeSingle();
-      if (enrollment != null) {
-        classId = enrollment['class_id']?.toString();
-        final rawClass = enrollment['classes'];
-        if (rawClass is Map) className = rawClass['name']?.toString();
-        if (rawClass is List && rawClass.isNotEmpty && rawClass.first is Map) {
-          className = (rawClass.first as Map)['name']?.toString();
-        }
-      }
-    }
-  } else if (role == 'teacher' || role == 'head_teacher') {
-    final teacher = await client
-        .from('teachers')
-        .select('id, staff_id_no, first_name, last_name, is_leadership')
-        .eq('user_id', userId)
-        .eq('school_id', schoolId)
-        .eq('is_active', true)
-        .maybeSingle();
 
-    if (teacher != null) {
-      teacherId = teacher['id']?.toString();
-      staffIdNo = teacher['staff_id_no']?.toString();
-      isLeadershipFlag = teacher['is_leadership'] == true;
-      final first = teacher['first_name']?.toString() ?? '';
-      final last = teacher['last_name']?.toString() ?? '';
-      if (profileName.isEmpty) profileName = '${first} ${last}'.trim();
-    }
+      if (student != null) {
+        studentId = student['id']?.toString();
+        studentIdNo = student['student_id_no']?.toString();
+        final first = student['first_name']?.toString() ?? '';
+        final last = student['last_name']?.toString() ?? '';
+        if (profileName.isEmpty) profileName = '${first} ${last}'.trim();
+
+        try {
+          final enrollment = await client
+              .from('class_enrollments')
+              .select('class_id, classes(name)')
+              .eq('student_id', studentId!)
+              .isFilter('unenrolled_at', null)
+              .order('enrolled_at', ascending: false)
+              .limit(1)
+              .maybeSingle();
+          if (enrollment != null) {
+            classId = enrollment['class_id']?.toString();
+            final rawClass = enrollment['classes'];
+            if (rawClass is Map) className = rawClass['name']?.toString();
+            if (rawClass is List && rawClass.isNotEmpty && rawClass.first is Map) {
+              className = (rawClass.first as Map)['name']?.toString();
+            }
+          }
+        } catch (_) {}
+      }
+    } catch (_) {}
+  } else if (role == 'teacher' || role == 'head_teacher') {
+    try {
+      final teacher = await client
+          .from('teachers')
+          .select('id, staff_id_no, first_name, last_name, is_leadership')
+          .eq('user_id', userId)
+          .eq('school_id', schoolId)
+          .eq('is_active', true)
+          .maybeSingle();
+
+      if (teacher != null) {
+        teacherId = teacher['id']?.toString();
+        staffIdNo = teacher['staff_id_no']?.toString();
+        isLeadershipFlag = teacher['is_leadership'] == true;
+        final first = teacher['first_name']?.toString() ?? '';
+        final last = teacher['last_name']?.toString() ?? '';
+        if (profileName.isEmpty) profileName = '${first} ${last}'.trim();
+      }
+    } catch (_) {}
   }
 
   final tier = switch (role) {
