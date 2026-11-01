@@ -116,7 +116,7 @@ class _MentorQueueScreenState extends ConsumerState<MentorQueueScreen> {
                                 const SizedBox(height: 12),
                                 Row(
                                   children: [
-                                    if (request.status == 'waiting' || request.status == 'pending_assignment')
+                                    if (request.status == 'waiting')
                                       OutlinedButton(
                                         onPressed: _claimingId == request.id ? null : () => _claim(request),
                                         child: _claimingId == request.id ? const SizedBox(height: 15, width: 15, child: CircularProgressIndicator(strokeWidth: 2)) : const Text('Claim request'),
