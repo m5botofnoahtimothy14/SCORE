@@ -22,10 +22,14 @@ WHERE code_salt IS NULL;
 COMMENT ON COLUMN public.teacher_activation_credentials.code IS
   'SHA-256 hash of the one-time code plus code_salt. Never store a plaintext code.';
 
--- The old table policy allowed every authenticated user to access credentials.
+-- Activation hashes are never readable through the client API.
+DROP POLICY IF EXISTS student_activation_credentials_admin
+  ON public.student_activation_credentials;
 DROP POLICY IF EXISTS teacher_activation_credentials_admin
   ON public.teacher_activation_credentials;
+REVOKE ALL ON TABLE public.student_activation_credentials FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON TABLE public.teacher_activation_credentials FROM PUBLIC, anon, authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.student_activation_credentials TO service_role;
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.teacher_activation_credentials TO service_role;
 
 -- The old student RPC trusted any authenticated caller and did not verify the code.
@@ -341,7 +345,7 @@ BEGIN
 
   IF p_plain_code IS NULL OR length(trim(p_plain_code)) < 8
      OR length(trim(p_plain_code)) > 128
-     OR p_days_valid < 1 OR p_days_valid > 30 THEN
+     OR p_days_valid IS NULL OR p_days_valid < 1 OR p_days_valid > 30 THEN
     RETURN jsonb_build_object('success', FALSE, 'error', 'invalid_code');
   END IF;
 
@@ -377,3 +381,63 @@ $$;
 
 REVOKE ALL ON FUNCTION public.issue_teacher_activation_code(UUID, TEXT, INTEGER) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.issue_teacher_activation_code(UUID, TEXT, INTEGER) TO authenticated;
+
+
+-- Keep student code issuance aligned with the same salted hash format.
+CREATE OR REPLACE FUNCTION public.issue_student_code(
+  p_student_id UUID,
+  p_plain_code TEXT,
+  p_days_valid INTEGER DEFAULT 7
+) RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_student students%ROWTYPE;
+  v_code_hash TEXT;
+  v_code_salt TEXT;
+  v_expires_at TIMESTAMPTZ;
+BEGIN
+  SELECT * INTO v_student
+  FROM students
+  WHERE id = p_student_id AND is_active = TRUE;
+  IF NOT FOUND THEN
+    RETURN jsonb_build_object('success', FALSE, 'error', 'student_not_found');
+  END IF;
+
+  IF NOT public.tc_is_school_admin(v_student.school_id) THEN
+    RETURN jsonb_build_object('success', FALSE, 'error', 'forbidden');
+  END IF;
+
+  IF p_plain_code IS NULL OR length(trim(p_plain_code)) < 8
+     OR length(trim(p_plain_code)) > 128
+     OR p_days_valid IS NULL OR p_days_valid < 1 OR p_days_valid > 30 THEN
+    RETURN jsonb_build_object('success', FALSE, 'error', 'invalid_code');
+  END IF;
+
+  v_code_salt := encode(gen_random_bytes(16), 'hex');
+  v_code_hash := encode(digest(trim(p_plain_code) || ':' || v_code_salt, 'sha256'), 'hex');
+  v_expires_at := NOW() + make_interval(days => p_days_valid);
+
+  UPDATE student_activation_credentials
+  SET used_at = COALESCE(used_at, NOW())
+  WHERE student_id = p_student_id AND used_at IS NULL;
+
+  INSERT INTO student_activation_credentials(
+    school_id, student_id, code_hash, code_salt, expires_at,
+    created_by, created_at, failed_attempts, locked_until
+  ) VALUES (
+    v_student.school_id, p_student_id, v_code_hash, v_code_salt,
+    v_expires_at, auth.uid(), NOW(), 0, NULL
+  );
+
+  RETURN jsonb_build_object(
+    'success', TRUE, 'student_id', p_student_id,
+    'expires_at', v_expires_at
+  );
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.issue_student_code(UUID, TEXT, INTEGER) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.issue_student_code(UUID, TEXT, INTEGER) TO authenticated;
