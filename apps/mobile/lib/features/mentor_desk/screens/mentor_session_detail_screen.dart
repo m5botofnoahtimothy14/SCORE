@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/providers/identity_provider.dart';
@@ -120,13 +119,30 @@ class _MentorSessionDetailScreenState extends ConsumerState<MentorSessionDetailS
                       const SizedBox(height: 10),
                       FilledButton(onPressed: _working ? null : _confirm, child: Text(_working ? 'Confirming…' : 'Confirm session')),
                     ],
-                    if (booking.isStarted && ['confirmed', 'in_progress'].contains(booking.status)) ...[
+                    if (booking.isConfirmed && booking.hasGoogleMeet) ...[
                       const SizedBox(height: 16),
-                      FilledButton.icon(
-                        onPressed: () => context.go('/mentor-desk/call/${booking.id}'),
-                        icon: const Icon(Icons.video_call_rounded),
-                        label: const Text('Join in-app call'),
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: AppColors.ink200)),
+                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          const Text('GOOGLE MEET SESSION', style: TextStyle(fontSize: 10, letterSpacing: 1, fontWeight: FontWeight.w800, color: AppColors.accent)),
+                          const SizedBox(height: 7),
+                          const Text('Your meeting link is ready. Join at the scheduled time. Your assigned teacher will admit you.', style: TextStyle(fontSize: 12, height: 1.4, color: AppColors.ink600)),
+                          const SizedBox(height: 12),
+                          SizedBox(width: double.infinity, child: FilledButton.icon(
+                            onPressed: _working ? null : () async {
+                              final opened = await MentorDeskService.openMeetLink(booking.googleMeetLink);
+                              if (!opened && mounted) setState(() => _error = 'Could not open the Google Meet link. Check your browser and try again.');
+                            },
+                            icon: const Icon(Icons.video_call_rounded),
+                            label: const Text('Join Google Meet'),
+                          )),
+                        ]),
                       ),
+                    ],
+                    if (booking.isConfirmed && !booking.hasGoogleMeet) ...[
+                      const SizedBox(height: 14),
+                      _InfoCard(title: 'Meeting link pending', body: 'Your assigned teacher is preparing the protected Google Meet session. Refresh this page before the scheduled time.'),
                     ],
                     if (booking.isConfirmed && booking.isStarted && !booking.isVerified) ...[
                       const SizedBox(height: 20),
