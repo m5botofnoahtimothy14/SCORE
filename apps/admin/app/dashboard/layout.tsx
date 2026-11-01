@@ -1,4 +1,7 @@
 import { redirect } from 'next/navigation'
+import type { Metadata } from 'next'
+
+export const metadata: Metadata = { robots: { index: false, follow: false } }
 import { ShieldCheck } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { ADMIN_ROLES, roleLabel } from '@/lib/auth'
@@ -36,6 +39,13 @@ const mentorDeskNav: NavEntry[] = [
   { href: '/dashboard/mentor-desk/ratings', icon: 'CheckCircle', label: 'Feedback & Ratings' },
   { href: '/dashboard/mentor-desk/exceptions', icon: 'AlertCircle', label: 'Exceptions' },
   { href: '/dashboard/mentor-desk/settings', icon: 'Percent', label: 'Settings' },
+  { href: '/dashboard/mentor-desk/google-workspace', icon: 'CalendarDays', label: 'Google Workspace' },
+]
+
+const safetyNav: NavEntry[] = [
+  { href: '/dashboard/moderation', icon: 'ShieldAlert', label: 'Moderation' },
+  { href: '/dashboard/health', icon: 'Activity', label: 'System Health' },
+  { href: '/dashboard/incidents', icon: 'Siren', label: 'Safeguarding' },
 ]
 
 const platformNav: NavEntry[] = [
@@ -74,11 +84,13 @@ export default async function DashboardLayout({
     ? [
         { section: 'Super Admin', items: platformNav },
         { section: 'Mentor Desk', items: mentorDeskNav },
+        { section: 'Safety & Health', items: safetyNav },
         { section: 'Management', items: operationsNav },
       ]
     : [
         { section: 'My School', items: [{ href: '/dashboard/settings', icon: 'Settings', label: 'Settings' }] },
         { section: 'Mentor Desk', items: mentorDeskNav },
+        { section: 'Safety & Health', items: safetyNav },
         { section: 'Management', items: operationsNav },
       ]
 

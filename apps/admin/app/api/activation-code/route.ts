@@ -1,4 +1,4 @@
-import { createHash, randomBytes } from 'crypto'
+import { randomBytes } from 'crypto'
 import { NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { logAudit } from '@/lib/audit'
@@ -38,21 +38,17 @@ export async function POST(req: Request) {
   if (!membership) return NextResponse.json({ success: false, error: 'forbidden' }, { status: 403 })
 
   const code = randomBytes(4).toString('hex').toUpperCase() // 8 chars, shown once
-  const hash = createHash('sha256').update(code).digest('hex')
-  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
-
-  const { error } = await admin.from('student_activation_credentials').upsert(
-    {
-      school_id: (student as { school_id: string }).school_id,
-      student_id: studentId,
-      code: hash,
-      expires_at: expiresAt,
-      used_at: null,
-      created_by: user.id,
-    },
-    { onConflict: 'student_id' }
-  )
-  if (error) return NextResponse.json({ success: false, error: 'issue_failed' }, { status: 500 })
+  const { data: issued, error } = await supabase.rpc('issue_student_code', {
+    p_student_id: studentId,
+    p_plain_code: code,
+    p_days_valid: 7,
+  })
+  if (error || !issued?.success) {
+    const reason = issued?.error?.toString()
+    const status = reason === 'forbidden' ? 403 : reason === 'student_not_found' ? 404 : 500
+    return NextResponse.json({ success: false, error: reason ?? 'issue_failed' }, { status })
+  }
+  const expiresAt = issued.expires_at as string
 
   // The code is already valid at this point. An audit failure must not turn
   // a working code into a client-visible error, so it is reported but not

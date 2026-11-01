@@ -53,7 +53,7 @@ Future<GoRouter> _bootShell(
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
-        identityProvider.overrideWith((ref) async => _identity(tier)),
+        identityProviderProvider.overrideWith((ref) async => _identity(tier)),
       ],
       child: MaterialApp.router(
         theme: AppTheme.light(),
@@ -76,17 +76,17 @@ void main() {
     test('student sees exactly the student surface', () {
       expect(
         destinationsFor(AppTier.student).map((d) => d.label),
-        ['Mentor Desk', 'Notices', 'Profile'],
+        ['Home', 'Mentor Desk', 'Notices', 'Profile'],
       );
       expect(
         destinationsFor(AppTier.student).map((d) => d.route),
-        ['/mentor-desk', '/announcements', '/profile'],
+        ['/home', '/mentor-desk', '/announcements', '/profile'],
       );
     });
 
     test('teacher sees mentor desk surfaces only', () {
       final routes = destinationsFor(AppTier.teacher).map((d) => d.route).toList();
-      expect(routes, ['/mentor-desk/queue', '/mentor-desk/availability', '/announcements', '/profile']);
+      expect(routes, ['/home', '/mentor-desk/queue', '/mentor-desk/availability', '/announcements', '/profile']);
       expect(routes, isNot(contains('/staff')));
       expect(routes, isNot(contains('/insights')));
     });
@@ -94,7 +94,7 @@ void main() {
     test('leadership sees oversight and notices', () {
       expect(
         destinationsFor(AppTier.leadership).map((d) => d.label),
-        ['Oversight', 'Notices', 'Profile'],
+        ['Home', 'Oversight', 'Notices', 'Profile'],
       );
     });
   });
@@ -105,6 +105,8 @@ void main() {
       expect(canAccessRoute(AppTier.student, '/mentor-desk/queue'), isFalse);
       expect(canAccessRoute(AppTier.student, '/mentor-desk/availability'), isFalse);
       expect(canAccessRoute(AppTier.student, '/mentor-desk'), isTrue);
+      expect(canAccessRoute(AppTier.student, '/mentor-desk/session/booking-1'), isTrue);
+      expect(canAccessRoute(AppTier.student, '/mentor-desk/session/booking-1/mentor'), isFalse);
     });
 
     test('teachers are blocked from leadership-only surfaces', () {
@@ -137,7 +139,7 @@ void main() {
       expect(rail.extended, isFalse, reason: 'a tablet keeps the compact rail');
       expect(
         rail.destinations.map((d) => (d.label as Text).data),
-        ['Mentor Desk', 'Notices', 'Profile'],
+        ['Home', 'Mentor Desk', 'Notices', 'Profile'],
       );
     });
 
@@ -149,7 +151,7 @@ void main() {
       expect(rail.selectedIndex, 0);
       expect(
         rail.destinations.map((d) => (d.label as Text).data),
-        ['Oversight', 'Notices', 'Profile'],
+        ['Home', 'Oversight', 'Notices', 'Profile'],
       );
     });
 
@@ -162,7 +164,7 @@ void main() {
       );
 
       final rail = tester.widget<NavigationRail>(find.byType(NavigationRail));
-      expect(rail.selectedIndex, 0);
+      expect(rail.selectedIndex, 1);
     });
 
     testWidgets('bottom bar index still maps nested routes to Mentor Desk', (tester) async {
@@ -173,7 +175,7 @@ void main() {
         location: '/mentor-desk/doubt/abc123',
       );
 
-      expect(tester.widget<NavigationBar>(find.byType(NavigationBar)).selectedIndex, 0);
+      expect(tester.widget<NavigationBar>(find.byType(NavigationBar)).selectedIndex, 1);
     });
 
     testWidgets('tapping a rail destination navigates', (tester) async {
@@ -191,7 +193,7 @@ void main() {
       expect(router.routerDelegate.currentConfiguration.uri.path, '/mentor-desk/availability');
       expect(
         tester.widget<NavigationRail>(find.byType(NavigationRail)).selectedIndex,
-        1,
+        2,
       );
     });
 

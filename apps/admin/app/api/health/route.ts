@@ -33,8 +33,13 @@ export async function GET() {
       'conversations',
       'messages',
       'announcements',
+      'moderation_results',
       'moderation_review_cases',
       'safeguarding_incidents',
+      'message_reports',
+      'doubt_requests',
+      'session_bookings',
+      'notification_devices',
       'audit_events',
       'notification_jobs',
       'background_jobs',
@@ -78,7 +83,7 @@ export async function GET() {
         // Presence only — values stay server-side.
         // Both the text and image moderation paths run on OpenAI
         // (omni-moderation for images); APILayer is a fallback.
-        fcmConfigured: Boolean(process.env.FCM_PROJECT_ID && process.env.FCM_CLIENT_EMAIL),
+        fcmConfigured: Boolean(process.env.FCM_PROJECT_ID && process.env.FCM_CLIENT_EMAIL && process.env.FCM_PRIVATE_KEY),
         textModerationConfigured: openAi || apilayer,
         imageSafetyConfigured: openAi || apilayer || vision,
         moderationPrimary: openAi ? 'openai' : apilayer ? 'apilayer' : null,

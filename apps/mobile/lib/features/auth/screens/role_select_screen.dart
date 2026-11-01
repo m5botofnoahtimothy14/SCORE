@@ -1,31 +1,23 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/models/identity.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/mentor_desk_design.dart';
-import '../../../core/layout/responsive.dart';
-import '../../../core/widgets/states.dart';
-import '../../../core/models/identity.dart';
-import '../services/auth_service.dart';
 
-final _authServiceProvider = authServiceProvider;
-
-class RoleSelectScreen extends ConsumerStatefulWidget {
+class RoleSelectScreen extends StatefulWidget {
   const RoleSelectScreen({super.key});
 
   @override
-  ConsumerState<RoleSelectScreen> createState() => _RoleSelectScreenState();
+  State<RoleSelectScreen> createState() => _RoleSelectScreenState();
 }
 
-class _RoleSelectScreenState extends ConsumerState<RoleSelectScreen> {
+class _RoleSelectScreenState extends State<RoleSelectScreen> {
   AppTier? _selected;
-  bool _loading = false;
-  String? _error;
 
   @override
   Widget build(BuildContext context) {
-    final tierAccent = _selected != null ? TierAccent.of(_selected!) : TierAccent.of(AppTier.student);
+    final tierAccent = TierAccent.of(_selected ?? AppTier.student);
 
     return Scaffold(
       backgroundColor: MDColors.ink50,
@@ -34,92 +26,101 @@ class _RoleSelectScreenState extends ConsumerState<RoleSelectScreen> {
         elevation: 0,
         title: const Text('Sign in to SCORE+'),
       ),
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 520),
-          child: ListView(
-            padding: const EdgeInsets.all(24),
-            shrinkWrap: true,
-            children: [
-              Container(
-                width: 80,
-                height: 80,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: tierAccent.gradient,
-                  ),
-                  borderRadius: BorderRadius.circular(24),
-                  boxShadow: [
-                    BoxShadow(
-                      color: tierAccent.solid.withValues(alpha: 0.5),
-                      blurRadius: 20,
-                      offset: const Offset(0, 8),
+      body: SafeArea(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 540),
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(24, 18, 24, 28),
+              shrinkWrap: true,
+              children: [
+                Center(
+                  child: Container(
+                    width: 76,
+                    height: 76,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(colors: tierAccent.gradient),
+                      borderRadius: BorderRadius.circular(22),
+                      boxShadow: [
+                        BoxShadow(
+                          color: tierAccent.solid.withValues(alpha: 0.20),
+                          blurRadius: 22,
+                          offset: const Offset(0, 8),
+                        ),
+                      ],
                     ),
-                  ],
+                    child: const Icon(Icons.school_rounded, size: 38, color: Colors.white),
+                  ),
                 ),
-                child: const Icon(Icons.school, size: 40, color: Colors.white),
-              ),
-              const SizedBox(height: 24),
-              Text(
-                'Welcome to SCORE+',
-                style: Theme.of(context).textTheme.headlineSmall,
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Select your role to continue.',
-                style: TextStyle(fontSize: 14, color: MDColors.ink600),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 32),
-              _RoleCard(
-                title: 'Student',
-                subtitle: 'Student ID + activation code',
-                icon: Icons.person,
-                selected: _selected == AppTier.student,
-                onTap: () => setState(() => _selected = AppTier.student),
-              ),
-              const SizedBox(height: 12),
-              _RoleCard(
-                title: 'Teacher / Staff',
-                subtitle: 'Staff ID + phone verification',
-                icon: Icons.person_outline,
-                selected: _selected == AppTier.teacher,
-                onTap: () => setState(() => _selected = AppTier.teacher),
-              ),
-              const SizedBox(height: 32),
-              if (_error != null) ...[
+                const SizedBox(height: 24),
                 Text(
-                  _error!,
-                  style: TextStyle(color: MDColors.danger, fontSize: 13),
+                  'Welcome to SCORE+',
+                  style: Theme.of(context).textTheme.headlineMedium,
                   textAlign: TextAlign.center,
                 ),
-                const SizedBox(height: 16),
-              ],
-              SizedBox(
-                width: double.infinity,
-                height: 56,
-                child: FilledButton(
-                  onPressed: _selected == null || _loading
-                      ? null
-                      : () {
-                          if (_selected == AppTier.student) {
-                            context.go('/auth/student-signin');
-                          } else {
-                            context.go('/auth/teacher-signin');
-                          }
-                        },
-                  child: const Text('Continue'),
+                const SizedBox(height: 8),
+                Text(
+                  'Choose the account type issued by your school.',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: MDColors.ink600),
+                  textAlign: TextAlign.center,
                 ),
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'New accounts are activated against the official roster. '
-                'Contact your school office if your ID is not recognized.',
-                style: TextStyle(fontSize: 12, color: Colors.black54),
-                textAlign: TextAlign.center,
-              ),
-            ],
+                const SizedBox(height: 28),
+                _RoleCard(
+                  title: 'Student',
+                  subtitle: 'Student ID and activation code',
+                  icon: Icons.school_outlined,
+                  tier: MDTier.student,
+                  selected: _selected == AppTier.student,
+                  onTap: () => setState(() => _selected = AppTier.student),
+                ),
+                const SizedBox(height: 12),
+                _RoleCard(
+                  title: 'Teacher / Staff',
+                  subtitle: 'Staff ID and activation code',
+                  icon: Icons.co_present_outlined,
+                  tier: MDTier.teacher,
+                  selected: _selected == AppTier.teacher,
+                  onTap: () => setState(() => _selected = AppTier.teacher),
+                ),
+                const SizedBox(height: 12),
+                _RoleCard(
+                  title: 'School Leadership',
+                  subtitle: 'Administrator email and password',
+                  icon: Icons.admin_panel_settings_outlined,
+                  tier: MDTier.leadership,
+                  selected: _selected == AppTier.leadership,
+                  onTap: () => setState(() => _selected = AppTier.leadership),
+                ),
+                const SizedBox(height: 24),
+                SizedBox(
+                  height: 54,
+                  child: FilledButton(
+                    onPressed: _selected == null
+                        ? null
+                        : () {
+                            switch (_selected!) {
+                              case AppTier.student:
+                                context.go('/auth/student-signin');
+                                break;
+                              case AppTier.teacher:
+                                context.go('/auth/teacher-signin');
+                                break;
+                              case AppTier.leadership:
+                                context.go('/auth/leadership-signin');
+                                break;
+                            }
+                          },
+                    child: const Text('Continue'),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'Your access is checked against your school account. Contact your school office if your details are not recognised.',
+                  style: TextStyle(fontSize: 12, height: 1.5, color: Colors.black54),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -128,86 +129,68 @@ class _RoleSelectScreenState extends ConsumerState<RoleSelectScreen> {
 }
 
 class _RoleCard extends StatelessWidget {
-  final String title;
-  final String subtitle;
-  final IconData icon;
-  final bool selected;
-  final VoidCallback onTap;
-
   const _RoleCard({
     required this.title,
     required this.subtitle,
     required this.icon,
+    required this.tier,
     required this.selected,
     required this.onTap,
   });
 
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final MDTier tier;
+  final bool selected;
+  final VoidCallback onTap;
+
   @override
   Widget build(BuildContext context) {
-    final tier = MDTier.student;
-    return InkWell(
+    return Material(
+      color: Colors.white,
       borderRadius: BorderRadius.circular(16),
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: selected ? tier.solid : MDColors.ink200,
-            width: selected ? 2 : 1,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 160),
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: selected ? tier.solid : MDColors.ink200,
+              width: selected ? 1.8 : 1,
+            ),
+            boxShadow: selected
+                ? [BoxShadow(color: tier.solid.withValues(alpha: 0.10), blurRadius: 16, offset: const Offset(0, 4))]
+                : null,
           ),
-          boxShadow: selected
-              ? [
-                  BoxShadow(
-                    color: tier.solid.withValues(alpha: 0.15),
-                    blurRadius: 12,
-                    offset: const Offset(0, 4),
-                  ),
-                ]
-              : null,
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                color: selected ? tier.solid : MDColors.ink100,
-                borderRadius: BorderRadius.circular(12),
+          child: Row(
+            children: [
+              Container(
+                width: 46,
+                height: 46,
+                decoration: BoxDecoration(
+                  color: selected ? tier.solid : MDColors.ink100,
+                  borderRadius: BorderRadius.circular(13),
+                ),
+                child: Icon(icon, color: selected ? Colors.white : MDColors.ink600, size: 23),
               ),
-              child: Icon(
-                icon,
-                color: selected ? Colors.white : MDColors.ink600,
-                size: 24,
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: selected ? tier.solid : MDColors.ink900)),
+                    const SizedBox(height: 4),
+                    Text(subtitle, style: TextStyle(fontSize: 12, color: MDColors.ink600)),
+                  ],
+                ),
               ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                      color: selected ? tier.solid : MDColors.ink900,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    subtitle,
-                    style: TextStyle(fontSize: 13, color: MDColors.ink600),
-                  ),
-                ],
-              ),
-            ),
-            Icon(
-              Icons.chevron_right,
-              color: selected ? tier.solid : MDColors.ink400,
-            ),
-          ],
+              Icon(selected ? Icons.radio_button_checked : Icons.radio_button_unchecked, color: selected ? tier.solid : MDColors.ink300),
+            ],
+          ),
         ),
       ),
     );

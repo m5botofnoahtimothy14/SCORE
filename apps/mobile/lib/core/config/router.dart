@@ -9,7 +9,9 @@ import '../../features/auth/screens/auth_gate_screen.dart';
 import '../../features/auth/screens/role_select_screen.dart';
 import '../../features/auth/screens/student_signin_screen.dart';
 import '../../features/auth/screens/teacher_signin_screen.dart';
+import '../../features/auth/screens/leadership_signin_screen.dart';
 import '../../features/home/screens/home_screen.dart';
+import '../../features/ai_ask/screens/ai_ask_screen.dart';
 import '../../features/announcements/screens/announcements_screen.dart' show AnnouncementsScreen;
 import '../../features/announcements/screens/announcement_detail_screen.dart' show AnnouncementDetailScreen;
 import '../../features/announcements/screens/compose_announcement_screen.dart' show ComposeAnnouncementScreen;
@@ -18,6 +20,7 @@ import '../../features/profile/screens/notification_settings_screen.dart' show N
 import '../../features/search/screens/search_screen.dart';
 import '../../features/mentor_desk/screens/mentor_desk_home_screen.dart';
 import '../../features/mentor_desk/screens/submit_doubt_screen.dart';
+import '../../features/mentor_desk/screens/student_doubts_sessions_screen.dart';
 import '../../features/mentor_desk/screens/doubt_conversation_screen.dart';
 import '../../features/mentor_desk/screens/book_session_screen.dart';
 import '../../features/mentor_desk/screens/session_detail_screen.dart';
@@ -58,7 +61,6 @@ String? _routeForPayload(String payload) {
 const _staffOnlyPrefixes = <String>[
   '/mentor-desk/queue',
   '/mentor-desk/availability',
-  '/mentor-desk/session/',
   '/mentor-desk/assessment',
 ];
 
@@ -152,7 +154,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     ),
     redirect: (context, state) async {
       final session = auth.currentSession;
-      return resolveRedirect(
+      final baseRedirect = await resolveRedirect(
         location: state.matchedLocation,
         signedIn: session != null,
         anonymous: session?.user.isAnonymous ?? false,
@@ -161,6 +163,38 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           return _isOnboarded(session.user.id);
         },
       );
+      if (baseRedirect != null) return baseRedirect;
+
+      final path = state.matchedLocation;
+      final pathParts = path.split('/');
+      final mentorSessionRoute = pathParts.length == 5 &&
+          pathParts[1] == 'mentor-desk' &&
+          pathParts[2] == 'session' &&
+          pathParts[4] == 'mentor';
+      final staffRoute = _staffOnlyPrefixes.any(path.startsWith) || mentorSessionRoute;
+      final leadershipRoute = _leadershipOnlyPrefixes.any(path.startsWith);
+
+      if (session != null && (staffRoute || leadershipRoute)) {
+        try {
+          final membership = await Supabase.instance.client
+              .from('school_memberships')
+              .select('role')
+              .eq('user_id', session.user.id)
+              .eq('is_active', true)
+              .order('joined_at', ascending: false)
+              .limit(1)
+              .maybeSingle();
+          final role = membership?['role'] as String?;
+          final leadership = ['platform_owner', 'school_admin', 'principal'].contains(role);
+          final staff = leadership || ['teacher', 'head_teacher'].contains(role);
+          if ((leadershipRoute && !leadership) || (staffRoute && !staff)) {
+            return '/access-denied';
+          }
+        } catch (_) {
+          return '/access-denied';
+        }
+      }
+      return null;
     },
     routes: [
       GoRoute(path: '/', builder: (_, __) => const SplashSequence()),
@@ -175,10 +209,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/auth/role-select', builder: (_, __) => const RoleSelectScreen()),
       GoRoute(path: '/auth/student-signin', builder: (_, __) => const StudentSignInScreen()),
       GoRoute(path: '/auth/teacher-signin', builder: (_, __) => const TeacherSignInScreen()),
+      GoRoute(path: '/auth/leadership-signin', builder: (_, __) => const LeadershipSignInScreen()),
       ShellRoute(
         builder: (context, state, child) => AppShell(child: child),
         routes: [
           GoRoute(path: '/home', builder: (_, __) => const HomeScreen()),
+          GoRoute(path: '/ai-ask', builder: (_, __) => const AiAskScreen()),
           GoRoute(path: '/announcements', builder: (_, __) => const AnnouncementsScreen()),
           GoRoute(path: '/announcements/compose', builder: (_, __) => const ComposeAnnouncementScreen()),
           GoRoute(
@@ -188,6 +224,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             ),
           ),
           GoRoute(path: '/mentor-desk', builder: (_, __) => const MentorDeskHomeScreen()),
+          GoRoute(path: '/mentor-desk/doubts', builder: (_, __) => const StudentDoubtsScreen()),
+          GoRoute(path: '/mentor-desk/sessions', builder: (_, __) => const StudentSessionsScreen()),
           GoRoute(path: '/mentor-desk/doubt/submit', builder: (_, __) => const SubmitDoubtScreen()),
           GoRoute(
             path: '/mentor-desk/doubt/:id',
@@ -280,17 +318,20 @@ class NavDest {
 
 List<NavDest> destinationsFor(AppTier tier) => switch (tier) {
   AppTier.student => const [
+    NavDest('/home', Icons.home_outlined, Icons.home, 'Home'),
     NavDest('/mentor-desk', Icons.support_agent_outlined, Icons.support_agent, 'Mentor Desk'),
     NavDest('/announcements', Icons.campaign_outlined, Icons.campaign, 'Notices'),
     NavDest('/profile', Icons.person_outline, Icons.person, 'Profile'),
   ],
   AppTier.teacher => const [
+    NavDest('/home', Icons.home_outlined, Icons.home, 'Home'),
     NavDest('/mentor-desk/queue', Icons.list_outlined, Icons.list, 'Queue'),
     NavDest('/mentor-desk/availability', Icons.accessibility_outlined, Icons.accessibility, 'Availability'),
     NavDest('/announcements', Icons.campaign_outlined, Icons.campaign, 'Notices'),
     NavDest('/profile', Icons.person_outline, Icons.person, 'Profile'),
   ],
   AppTier.leadership => const [
+    NavDest('/home', Icons.home_outlined, Icons.home, 'Home'),
     NavDest('/mentor-desk/slt', Icons.insights_outlined, Icons.insights, 'Oversight'),
     NavDest('/announcements', Icons.campaign_outlined, Icons.campaign, 'Notices'),
     NavDest('/profile', Icons.person_outline, Icons.person, 'Profile'),
@@ -423,7 +464,9 @@ class AppShell extends ConsumerWidget {
     if (_leadershipOnlyPrefixes.any(path.startsWith)) {
       return tier == AppTier.leadership;
     }
-    if (_staffOnlyPrefixes.any(path.startsWith)) {
+    final parts = path.split('/');
+    final mentorSessionRoute = parts.length == 5 && parts[1] == 'mentor-desk' && parts[2] == 'session' && parts[4] == 'mentor';
+    if (_staffOnlyPrefixes.any(path.startsWith) || mentorSessionRoute) {
       return tier != AppTier.student;
     }
     return true;
