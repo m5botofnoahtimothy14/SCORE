@@ -237,7 +237,7 @@ CREATE POLICY session_bookings_participant_read
     OR public.tc_is_school_admin(school_id)
   );
 
-REVOKE INSERT, UPDATE, DELETE ON public.session_bookings FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON public.session_bookings FROM PUBLIC, anon, authenticated;
 GRANT SELECT ON public.session_bookings TO authenticated;
 GRANT ALL ON public.session_bookings TO service_role;
 
