@@ -387,7 +387,15 @@ class MentorDeskService {
         .eq('id', bookingId)
         .maybeSingle();
     if (row == null) return null;
-    return SessionBooking.fromJson(Map<String, dynamic>.from(row));
+    final payload = Map<String, dynamic>.from(row);
+    // The meeting URL is stored in a participant-only table, not in the booking row.
+    try {
+      final meet = await getGoogleMeetLink(bookingId);
+      payload['google_meet_link'] = meet['meet_link'];
+    } catch (_) {
+      payload['google_meet_link'] = null;
+    }
+    return SessionBooking.fromJson(payload);
   }
 
   // =========================================================================
