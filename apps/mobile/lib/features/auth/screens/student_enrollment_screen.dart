@@ -1,10 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:supabase_flutter/supabase_flutter.dart' hide AuthException;
 
-import '../../../core/auth/credential_store.dart';
-import '../../../core/notifications/notification_service.dart';
 import '../services/auth_service.dart';
 
 final _authServiceProvider = authServiceProvider;
@@ -97,6 +94,10 @@ class _StudentEnrollmentScreenState extends ConsumerState<StudentEnrollmentScree
                       labelText: 'Activation Code (optional)',
                     ),
                   ),
+                ],
+                if (_error != null) ...[
+                  Text(_error!, style: const TextStyle(color: Colors.red, fontSize: 12)),
+                  const SizedBox(height: 12),
                 ],
                 const Spacer(),
                 FilledButton(
