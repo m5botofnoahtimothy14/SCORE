@@ -6,7 +6,7 @@ import '../notifications/notification_service.dart';
 
 class StartupCoordinator {
   static bool _started = false;
-  static StreamSubscription<AuthState>? _authSubscription;
+  static StreamSubscription<dynamic>? _authSubscription;
 
   static Future<void> ensureStarted() async {
     if (_started) return;
