@@ -1,7 +1,3 @@
-import 'package:flutter/material.dart';
-
-import 'app_theme.dart';
-
 // Re-export the consolidated design tokens from app_theme.dart
 // This file exists for backwards compatibility with screens that import from it.
 export 'app_theme.dart'
