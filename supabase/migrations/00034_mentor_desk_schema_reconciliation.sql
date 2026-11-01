@@ -120,7 +120,7 @@ CREATE INDEX IF NOT EXISTS idx_doubt_status_history_request_created
 CREATE OR REPLACE VIEW public.student_subject_enrollments
 WITH (security_invoker = true)
 AS
-SELECT ce.student_id, ce.class_id, ta.subject_id, true AS active
+SELECT DISTINCT ce.student_id, ce.class_id, ta.subject_id, true AS active
 FROM public.class_enrollments ce
 JOIN public.teaching_assignments ta
   ON ta.class_id = ce.class_id
