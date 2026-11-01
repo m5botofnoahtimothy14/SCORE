@@ -286,3 +286,30 @@ COMMENT ON COLUMN public.session_bookings.otp_hash IS
   'Salted SHA-256 hash of the one-time session closure code. Never store plaintext.';
 COMMENT ON COLUMN public.session_bookings.otp_salt IS
   'Per-code random salt used to verify otp_hash.';
+
+-- Publish the restored Mentor Desk tables for Supabase Realtime. Add only
+-- tables that are not already members of the publication.
+DO $$
+DECLARE
+  v_table text;
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_publication WHERE pubname = 'supabase_realtime') THEN
+    CREATE PUBLICATION supabase_realtime;
+  END IF;
+
+  FOREACH v_table IN ARRAY ARRAY[
+    'doubt_requests','session_bookings','mentor_availability','ratings',
+    'announcements','messages','background_jobs'
+  ] LOOP
+    IF to_regclass('public.' || v_table) IS NOT NULL
+       AND NOT EXISTS (
+         SELECT 1 FROM pg_publication_tables
+         WHERE pubname = 'supabase_realtime'
+           AND schemaname = 'public'
+           AND tablename = v_table
+       ) THEN
+      EXECUTE format('ALTER PUBLICATION supabase_realtime ADD TABLE public.%I', v_table);
+    END IF;
+  END LOOP;
+END;
+$$;
