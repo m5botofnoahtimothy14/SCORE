@@ -88,6 +88,7 @@ export default async function DashboardLayout({
     : [
         { section: 'My School', items: [{ href: '/dashboard/settings', icon: 'Settings', label: 'Settings' }] },
         { section: 'Mentor Desk', items: mentorDeskNav },
+        { section: 'Safety & Health', items: safetyNav },
         { section: 'Management', items: operationsNav },
       ]
 
