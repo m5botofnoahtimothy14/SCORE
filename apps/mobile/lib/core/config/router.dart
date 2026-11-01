@@ -24,6 +24,7 @@ import '../../features/mentor_desk/screens/student_doubts_sessions_screen.dart';
 import '../../features/mentor_desk/screens/doubt_conversation_screen.dart';
 import '../../features/mentor_desk/screens/book_session_screen.dart';
 import '../../features/mentor_desk/screens/session_detail_screen.dart';
+import '../../features/mentor_desk/screens/session_call_screen.dart';
 import '../../features/mentor_desk/screens/rating_screen.dart';
 import '../../features/mentor_desk/screens/mentor_queue_screen.dart';
 import '../../features/mentor_desk/screens/mentor_session_detail_screen.dart';
