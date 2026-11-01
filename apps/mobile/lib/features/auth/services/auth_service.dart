@@ -2,14 +2,14 @@
 // Students: anonymous sign-in, then server-verified activation via the
 // `activate-student` edge function (roster + activation code checked
 // server-side; nothing trusted from the client).
-// Teachers: OTP request + verification via `send-otp` / `verify-otp`
-// edge functions (real SMS provider required).
+// Teachers: one-time activation codes are checked by the activate-teacher edge function.
 
 import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/auth/credential_store.dart';
+import '../../../core/notifications/notification_service.dart';
 
 final authServiceProvider = Provider<AuthService>((ref) {
   return AuthService(Supabase.instance.client);
@@ -83,6 +83,7 @@ class AuthService {
       throw AuthException(err ?? 'server_error', _activationErrorMessage(err));
     }
     await _adoptPermanentAccount(data, secret);
+    await NotificationService.registerCurrentDevice();
     return (
       studentId: data['student_id'] as String,
       classId: data['class_id'] as String?,
@@ -243,6 +244,7 @@ class AuthService {
       }
     }
     await _adoptPermanentAccount(data, secret);
+    await NotificationService.registerCurrentDevice();
   }
 
   /// Leadership sign-in uses an existing administrator account.
@@ -277,6 +279,7 @@ class AuthService {
           'This account does not have school leadership access.',
         );
       }
+      await NotificationService.registerCurrentDevice();
     } on AuthException {
       rethrow;
     } catch (_) {
