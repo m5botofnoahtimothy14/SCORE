@@ -133,8 +133,8 @@ class _SessionCallScreenState extends ConsumerState<SessionCallScreen> {
       }
     }
 
-    updateRemaining();
     _deadlineTimer = Timer.periodic(const Duration(seconds: 1), (_) => updateRemaining());
+    updateRemaining();
   }
 
   Future<void> _disconnectRoom() async {
