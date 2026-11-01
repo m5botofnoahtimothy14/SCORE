@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../../../core/models/identity.dart';
 import '../../../core/providers/identity_provider.dart';
@@ -26,6 +27,7 @@ class _SessionDetailScreenState extends ConsumerState<SessionDetailScreen> {
   String? _error;
   String? _verificationCode;
   DateTime? _codeExpiresAt;
+  static const _secureStorage = FlutterSecureStorage();
 
   @override
   void initState() {
@@ -37,8 +39,21 @@ class _SessionDetailScreenState extends ConsumerState<SessionDetailScreen> {
     setState(() { _loading = true; _error = null; });
     try {
       final booking = await ref.read(_mentorServiceProvider).getSessionBooking(widget.bookingId);
+      final savedCode = await _secureStorage.read(key: 'scoreplus_session_code_${widget.bookingId}');
+      final savedExpiry = await _secureStorage.read(key: 'scoreplus_session_code_expiry_${widget.bookingId}');
+      final expiry = DateTime.tryParse(savedExpiry ?? '');
       if (!mounted) return;
-      setState(() { _booking = booking; _loading = false; });
+      setState(() {
+        _booking = booking;
+        if (savedCode != null && expiry != null && expiry.isAfter(DateTime.now())) {
+          _verificationCode = savedCode;
+          _codeExpiresAt = expiry;
+        } else {
+          _verificationCode = null;
+          _codeExpiresAt = expiry;
+        }
+        _loading = false;
+      });
     } catch (_) {
       if (!mounted) return;
       setState(() { _error = 'Could not load this session.'; _loading = false; });
@@ -52,12 +67,22 @@ class _SessionDetailScreenState extends ConsumerState<SessionDetailScreen> {
       if (_booking?.isStarted != true) {
         await service.startTeacherSession(widget.bookingId);
       }
-      final code = await service.generateVerificationCode(widget.bookingId);
-      if (!mounted) return;
-      setState(() {
-        _verificationCode = code['verification_code']?.toString();
-        _codeExpiresAt = DateTime.tryParse(code['expires_at']?.toString() ?? '');
-      });
+      final expiry = _codeExpiresAt;
+      if (_verificationCode == null || expiry == null || !expiry.isAfter(DateTime.now())) {
+        final code = await service.generateVerificationCode(widget.bookingId);
+        final value = code['verification_code']?.toString();
+        final expiresAt = DateTime.tryParse(code['expires_at']?.toString() ?? '');
+        if (value == null || expiresAt == null) {
+          throw Exception('The server did not return a valid session code.');
+        }
+        await _secureStorage.write(key: 'scoreplus_session_code_${widget.bookingId}', value: value);
+        await _secureStorage.write(key: 'scoreplus_session_code_expiry_${widget.bookingId}', value: expiresAt.toIso8601String());
+        if (!mounted) return;
+        setState(() {
+          _verificationCode = value;
+          _codeExpiresAt = expiresAt;
+        });
+      }
       await _load();
     } on MentorDeskException catch (error) {
       if (mounted) setState(() => _error = error.message);
@@ -146,7 +171,7 @@ class _SessionDetailScreenState extends ConsumerState<SessionDetailScreen> {
                           const SizedBox(height: 8),
                           SelectableText(_verificationCode!, style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.w900, letterSpacing: 6)),
                           const SizedBox(height: 6),
-                          Text('Share this code with your assigned teacher. It expires at ${_dateTime(_codeExpiresAt)}.', style: const TextStyle(color: Colors.white70, fontSize: 12, height: 1.4)),
+                          Text('Share this code with your assigned teacher. It is stored securely on this device and expires at ${_dateTime(_codeExpiresAt)}.', style: const TextStyle(color: Colors.white70, fontSize: 12, height: 1.4)),
                         ]),
                       ),
                     ],
