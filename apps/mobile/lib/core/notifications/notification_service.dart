@@ -146,7 +146,7 @@ class NotificationService {
 
     final route = message.data['route']?.toString();
     await plugin.show(
-      message.messageId?.hashCode ?? message.hashCode & 0x7fffffff,
+      (message.messageId?.hashCode ?? message.hashCode) & 0x7fffffff,
       message.notification?.title ?? 'SCORE+',
       message.notification?.body ?? 'You have a new school update.',
       details,
