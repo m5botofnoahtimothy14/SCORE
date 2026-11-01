@@ -147,6 +147,12 @@ BEGIN
     RETURN jsonb_build_object('success', false, 'error', 'assigned_teacher_workspace_identity_missing');
   END IF;
 
+  IF v_booking.google_meet_space_name IS NOT NULL
+     AND v_booking.google_meet_host_email IS NOT NULL
+     AND lower(trim(v_booking.google_meet_host_email)) <> lower(trim(v_teacher.email)) THEN
+    RETURN jsonb_build_object('success', false, 'error', 'assigned_teacher_changed');
+  END IF;
+
   IF v_booking.google_meet_link IS NOT NULL
      AND v_booking.google_meet_space_name IS NOT NULL
      AND v_booking.google_calendar_event_id IS NOT NULL THEN
