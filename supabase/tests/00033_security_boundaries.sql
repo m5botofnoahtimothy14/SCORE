@@ -22,6 +22,33 @@ BEGIN
     RAISE EXCEPTION 'A service-only RPC is executable by a client role';
   END IF;
 
+  IF has_function_privilege('anon',
+       'public.register_notification_device(uuid,text,text,text)', 'EXECUTE')
+     OR NOT has_function_privilege('authenticated',
+       'public.register_notification_device(uuid,text,text,text)', 'EXECUTE') THEN
+    RAISE EXCEPTION 'Notification registration is not restricted to authenticated users';
+  END IF;
+
+  IF has_function_privilege('anon',
+       'public.send_message(uuid,uuid,text,text,uuid,uuid)', 'EXECUTE')
+     OR NOT has_function_privilege('authenticated',
+       'public.send_message(uuid,uuid,text,text,uuid,uuid)', 'EXECUTE') THEN
+    RAISE EXCEPTION 'Message RPC permissions are incorrect';
+  END IF;
+
+  IF has_function_privilege('anon',
+       'public.issue_student_code(uuid,text,integer)', 'EXECUTE')
+     OR NOT has_function_privilege('authenticated',
+       'public.issue_student_code(uuid,text,integer)', 'EXECUTE') THEN
+    RAISE EXCEPTION 'Student activation-code issuance is not authenticated/admin-only';
+  END IF;
+
+  IF has_table_privilege('anon', 'public.session_bookings', 'SELECT')
+     OR has_table_privilege('anon', 'public.session_google_meet_links', 'SELECT')
+     OR has_table_privilege('anon', 'public.google_meet_config', 'SELECT') THEN
+    RAISE EXCEPTION 'Anonymous users can read booking or Google Meet records';
+  END IF;
+
   IF NOT has_function_privilege('authenticated',
        'public.get_google_meet_link(uuid)', 'EXECUTE') THEN
     RAISE EXCEPTION 'Authenticated users cannot call the participant-checked Meet RPC';
