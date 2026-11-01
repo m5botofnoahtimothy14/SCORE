@@ -9,8 +9,10 @@ import '../../../core/layout/responsive.dart';
 import '../../../core/widgets/states.dart';
 import '../../../core/models/identity.dart';
 import '../../../core/providers/identity_provider.dart';
+import '../models/mentor_desk_models.dart';
+import '../services/mentor_desk_service.dart';
 
-final _serviceProvider = Provider((ref) => Supabase.instance.client);
+final _serviceProvider = Provider((ref) => MentorDeskService(Supabase.instance.client));
 
 class MentorDeskHomeScreen extends ConsumerStatefulWidget {
   const MentorDeskHomeScreen({super.key});
@@ -25,6 +27,9 @@ class _MentorDeskHomeScreenState extends ConsumerState<MentorDeskHomeScreen> {
   int _openDoubts = 0;
   int _sessionMinutesLeft = 0;
   bool _urgentPassAvailable = false;
+  String _displayName = 'Student';
+  List<DoubtRequest> _openDoubtItems = [];
+  List<SessionBooking> _upcomingBookings = [];
 
   @override
   void initState() {
@@ -36,47 +41,39 @@ class _MentorDeskHomeScreenState extends ConsumerState<MentorDeskHomeScreen> {
     setState(() { _loading = true; _error = null; });
     try {
       final identity = await ref.read(identityProviderProvider.future);
-      if (identity == null) {
-        if (!mounted) return;
-        setState(() { _loading = false; _error = 'No identity found'; });
-        return;
+      if (identity == null || identity.tier != AppTier.student) {
+        throw Exception('Student account not found');
       }
 
-      final supabase = Supabase.instance.client;
-      final doubts = await supabase
-          .from('doubt_requests')
-          .select('id, status, question, created_at')
-          .eq('student_id', identity.userId)
-          .filter('status', 'in', '("pending_assignment","waiting","assigned","in_progress")');
-
-      final sessions = await supabase
-          .from('session_bookings')
-          .select('allowance_minutes_used, status')
-          .eq('student_id', identity.userId)
-          .filter('status', 'in', '("confirmed","completed")');
-
-      final settings = await supabase
-          .from('mentor_desk_settings')
-          .select('session_allowance_minutes')
-          .eq('school_id', identity.schoolId)
-          .maybeSingle();
-
-      final allowance = settings?['session_allowance_minutes'] ?? 120;
-      final used = sessions.fold<int>(
-        0,
-        (sum, s) => sum + ((s['allowance_minutes_used'] as num?)?.toInt() ?? 0),
+      final service = ref.read(_serviceProvider);
+      final summaries = await service.allowanceSummary(
+        schoolId: identity.schoolId,
+        studentId: identity.userId,
       );
+      final doubts = await service.listDoubtRequests(
+        schoolId: identity.schoolId,
+        studentId: identity.userId,
+      );
+      final sessions = await service.listSessionBookings(studentId: identity.userId);
+      final openDoubts = doubts.where((item) =>
+          ['pending_assignment', 'waiting', 'assigned', 'in_progress', 'reopened'].contains(item.status)).toList();
+      final upcoming = sessions.where((item) =>
+          (item.status == 'requested' || item.status == 'confirmed') &&
+          (item.scheduledAt == null || item.scheduledAt!.isAfter(DateTime.now()))).toList();
 
       if (!mounted) return;
       setState(() {
-        _openDoubts = doubts.length;
-        _sessionMinutesLeft = allowance - used;
-        _urgentPassAvailable = true;
+        _displayName = identity.displayName.isEmpty ? 'Student' : identity.displayName;
+        _openDoubtItems = openDoubts.take(5).toList();
+        _upcomingBookings = upcoming.take(5).toList();
+        _openDoubts = openDoubts.length;
+        _sessionMinutesLeft = summaries.isEmpty ? 0 : summaries.first.sessionRemainingMinutes;
+        _urgentPassAvailable = summaries.any((item) => item.urgentPassAvailable);
         _loading = false;
       });
     } catch (e) {
       if (!mounted) return;
-      setState(() { _error = e.toString(); _loading = false; });
+      setState(() { _error = 'Could not load your Mentor Desk overview. Check your connection and try again.'; _loading = false; });
     }
   }
 
@@ -157,7 +154,7 @@ class _MentorDeskHomeScreenState extends ConsumerState<MentorDeskHomeScreen> {
                                           ),
                                           const SizedBox(height: 6),
                                           Text(
-                                            'Good morning, Student',
+                                            'Good morning, $_displayName',
                                             style: const TextStyle(
                                               color: Colors.white,
                                               fontSize: 26,
@@ -293,10 +290,10 @@ class _MentorDeskHomeScreenState extends ConsumerState<MentorDeskHomeScreen> {
             Expanded(
               child: _GlossActionTile(
                 icon: Icons.rate_review_outlined,
-                label: 'Give Feedback',
-                subtitle: 'Rate closed support',
+                label: 'My Sessions',
+                subtitle: 'View upcoming bookings',
                 tier: MDTier.student,
-                onTap: () => context.go('/mentor-desk/rating'),
+                onTap: () => context.go('/mentor-desk/sessions'),
               ),
             ),
           ],
@@ -315,15 +312,24 @@ class _MentorDeskHomeScreenState extends ConsumerState<MentorDeskHomeScreen> {
           onAction: () => context.go('/mentor-desk/doubts'),
         ),
         const SizedBox(height: kGutter),
-        const SizedBox(
-          height: 160,
-          child: EmptyView(
+        if (_openDoubtItems.isEmpty)
+          const EmptyView(
             title: 'No open doubts',
-            subtitle: 'Ask a doubt to get started.',
+            subtitle: 'Ask a doubt to get support from your school.',
             icon: Icons.question_answer_outlined,
-            actionLabel: 'Ask a Doubt',
-          ),
-        ),
+          )
+        else
+          ..._openDoubtItems.map((item) => Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: ListTile(
+              tileColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14), side: const BorderSide(color: MDColors.ink200)),
+              leading: Icon(item.urgent ? Icons.priority_high_rounded : Icons.question_answer_outlined, color: item.urgent ? AppColors.danger : AppColors.accent),
+              title: Text(item.question, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+              subtitle: Text(item.statusLabel, style: const TextStyle(fontSize: 11)),
+              onTap: () => context.go('/mentor-desk/doubt/${item.id}'),
+            ),
+          )),
       ],
     );
   }
@@ -338,18 +344,28 @@ class _MentorDeskHomeScreenState extends ConsumerState<MentorDeskHomeScreen> {
           onAction: () => context.go('/mentor-desk/sessions'),
         ),
         const SizedBox(height: kGutter),
-        const SizedBox(
-          height: 160,
-          child: EmptyView(
+        if (_upcomingBookings.isEmpty)
+          const EmptyView(
             title: 'No upcoming sessions',
-            subtitle: 'Book a session with a mentor.',
+            subtitle: 'Book a session with a mentor when you need help.',
             icon: Icons.schedule_outlined,
-            actionLabel: 'Book a Session',
-          ),
-        ),
+          )
+        else
+          ..._upcomingBookings.map((booking) => Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: ListTile(
+              tileColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14), side: const BorderSide(color: MDColors.ink200)),
+              leading: const Icon(Icons.calendar_month_outlined, color: AppColors.accent),
+              title: Text(booking.topic, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+              subtitle: Text('${booking.durationMinutes} min · ${booking.statusLabel}', style: const TextStyle(fontSize: 11)),
+              onTap: () => context.go('/mentor-desk/session/${booking.id}'),
+            ),
+          )),
       ],
     );
   }
+
 }
 
 class _GlossActionTile extends StatelessWidget {
