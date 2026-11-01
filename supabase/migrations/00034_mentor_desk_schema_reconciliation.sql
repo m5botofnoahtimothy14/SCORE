@@ -91,21 +91,25 @@ ALTER TABLE public.doubt_status_history
   ADD COLUMN IF NOT EXISTS from_status public.doubt_status,
   ADD COLUMN IF NOT EXISTS to_status public.doubt_status,
   ADD COLUMN IF NOT EXISTS reason text,
-  ADD COLUMN IF NOT EXISTS created_at timestamptz NOT NULL DEFAULT now();
+  ADD COLUMN IF NOT EXISTS created_at timestamptz;
 
 UPDATE public.doubt_status_history
 SET actor_id = COALESCE(actor_id, changed_by),
     from_status = COALESCE(
       from_status,
-      CASE WHEN old_status = ANY (enum_range(NULL::public.doubt_status)::text[])
+      CASE WHEN old_status IN ('waiting', 'assigned', 'resolved', 'closed')
         THEN old_status::public.doubt_status ELSE NULL END
     ),
     to_status = COALESCE(
       to_status,
-      CASE WHEN new_status = ANY (enum_range(NULL::public.doubt_status)::text[])
+      CASE WHEN new_status IN ('waiting', 'assigned', 'resolved', 'closed')
         THEN new_status::public.doubt_status ELSE NULL END
     ),
     created_at = COALESCE(created_at, changed_at, now());
+
+ALTER TABLE public.doubt_status_history
+  ALTER COLUMN created_at SET DEFAULT now(),
+  ALTER COLUMN created_at SET NOT NULL;
 
 CREATE INDEX IF NOT EXISTS idx_doubt_status_history_request_created
   ON public.doubt_status_history(request_id, created_at DESC);
