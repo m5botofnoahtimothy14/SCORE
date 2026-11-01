@@ -2,14 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../core/auth/credential_store.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/mentor_desk_design.dart';
-import '../../../core/layout/responsive.dart';
 import '../../../core/widgets/states.dart';
 import '../services/auth_service.dart';
-
-final _authServiceProvider = authServiceProvider;
 
 class TeacherSignInScreen extends ConsumerStatefulWidget {
   const TeacherSignInScreen({super.key});
@@ -32,9 +28,13 @@ class _TeacherSignInScreenState extends ConsumerState<TeacherSignInScreen> {
   }
 
   Future<void> _submit() async {
+    if (_idController.text.trim().isEmpty || _codeController.text.trim().isEmpty) {
+      setState(() => _error = 'Enter both your Staff ID and activation code.');
+      return;
+    }
     setState(() { _working = true; _error = null; });
     try {
-      final auth = ref.read(_authServiceProvider);
+      final auth = ref.read(authServiceProvider);
       final data = await auth.activateTeacher(
         staffIdNo: _idController.text.trim(),
         activationCode: _codeController.text.trim().isEmpty ? null : _codeController.text.trim(),
