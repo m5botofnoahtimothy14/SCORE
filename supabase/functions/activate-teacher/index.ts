@@ -1,3 +1,9 @@
+// ============================================================
+// Edge Function: activate-teacher
+// Authenticates the device session, verifies the one-time code in
+// an atomic service-role RPC, and converts the anonymous session into
+// a persistent password-backed account.
+// ============================================================
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -29,7 +35,7 @@ serve(async (req: Request) => {
   const { data: { user }, error: authError } = await userClient.auth.getUser();
   if (authError || !user) return json({ success: false, error: "unauthorized" }, 401);
 
-  let body: { staff_id_no?: string; activation_code?: string };
+  let body: { staff_id_no?: string; activation_code?: string; device_secret?: string };
   try {
     body = await req.json();
   } catch {
@@ -38,11 +44,39 @@ serve(async (req: Request) => {
 
   const staffIdNo = body.staff_id_no?.trim();
   const activationCode = body.activation_code?.trim();
-  if (!staffIdNo || !activationCode || activationCode.length > 128) {
+  const deviceSecret = body.device_secret;
+  if (!staffIdNo || !activationCode || activationCode.length > 128
+      || !deviceSecret || deviceSecret.length < 24 || deviceSecret.length > 128) {
     return json({ success: false, error: "invalid_credentials" }, 400);
   }
 
   const adminClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+  const { data: rosterRows, error: rosterError } = await adminClient
+    .from("teachers")
+    .select("id, user_id")
+    .eq("staff_id_no", staffIdNo)
+    .eq("is_active", true)
+    .limit(2);
+
+  if (rosterError) {
+    console.error("Teacher roster lookup failed:", rosterError.message);
+    return json({ success: false, error: "activation_failed" }, 500);
+  }
+  if (!rosterRows || rosterRows.length === 0) {
+    return json({ success: false, error: "teacher_not_found" }, 404);
+  }
+  if (rosterRows.length > 1) {
+    return json({ success: false, error: "school_resolution_required" }, 409);
+  }
+
+  const rosterUserId = rosterRows[0].user_id as string | null;
+  if (rosterUserId && rosterUserId !== user.id) {
+    return json({ success: false, error: "teacher_already_linked" }, 409);
+  }
+  if (!rosterUserId && user.is_anonymous !== true) {
+    return json({ success: false, error: "activation_requires_new_session" }, 409);
+  }
+
   const { data, error } = await adminClient.rpc("activate_teacher_verified", {
     p_staff_id_no: staffIdNo,
     p_activation_code: activationCode,
@@ -50,18 +84,33 @@ serve(async (req: Request) => {
   });
 
   if (error) {
-    console.error("Teacher activation RPC failed:", error);
-    return json({ success: false, error: "activation_failed" }, 400);
+    console.error("Teacher activation RPC failed:", error.message);
+    return json({ success: false, error: "activation_failed" }, 500);
   }
   if (!data || data.success !== true) {
     const code = data?.error?.toString() ?? "activation_failed";
-    const status = code === "teacher_not_found" ? 404 : code === "forbidden" ? 403 : 400;
+    const status = code === "teacher_not_found" ? 404
+      : code === "forbidden" ? 403
+      : code === "school_resolution_required" || code === "teacher_already_linked" ? 409 : 400;
     return json({ success: false, error: code }, status);
+  }
+
+  const email = `teacher.${data.teacher_id}@staff.scoreplus.invalid`;
+  const { error: accountError } = await adminClient.auth.admin.updateUserById(user.id, {
+    email,
+    password: deviceSecret,
+    email_confirm: true,
+    user_metadata: { scoreplus_role: "teacher", school_id: data.school_id },
+  });
+  if (accountError) {
+    console.error("Teacher account credential setup failed:", accountError.message);
+    return json({ success: false, error: "account_setup_failed" }, 503);
   }
 
   return json({
     success: true,
     teacher_id: data.teacher_id,
     school_id: data.school_id,
+    email,
   });
 });
