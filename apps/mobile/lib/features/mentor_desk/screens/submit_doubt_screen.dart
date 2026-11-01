@@ -107,7 +107,7 @@ class _SubmitDoubtScreenState extends ConsumerState<SubmitDoubtScreen> {
       return;
     }
     final allowance = _selectedAllowance;
-    if (allowance != null && allowance.remainingMinutes <= 0) {
+    if (allowance != null && allowance.remainingDoubts <= 0) {
       setState(() => _error = 'You have used this subject’s weekly doubt allowance.');
       return;
     }
@@ -178,7 +178,7 @@ class _SubmitDoubtScreenState extends ConsumerState<SubmitDoubtScreen> {
                               const Icon(Icons.info_outline_rounded, color: AppColors.accent, size: 18),
                               const SizedBox(width: 9),
                               Expanded(child: Text(
-                                '${allowance.remainingMinutes} of ${allowance.allowanceMinutes} weekly doubts remaining · ${allowance.openDoubts} open',
+                                '${allowance.remainingMinutes} of ${allowance.weeklyDoubtAllowance} weekly doubts remaining · ${allowance.openDoubts} open',
                                 style: const TextStyle(fontSize: 12, color: AppColors.ink700),
                               )),
                             ]),
