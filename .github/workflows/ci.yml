@@ -43,6 +43,18 @@ jobs:
       - name: Test Flutter app
         run: flutter test --no-pub
         working-directory: apps/mobile
+      - name: Set up Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Typecheck Supabase Edge Functions
+        run: >-
+          deno check --no-lock
+          supabase/functions/activate-student/index.ts
+          supabase/functions/activate-teacher/index.ts
+          supabase/functions/issue-video-token/index.ts
+          supabase/functions/dispatch-notifications/index.ts
+          supabase/functions/publish-announcement/index.ts
       - name: Lint admin DMS
         run: npm --prefix apps/admin run lint
       - name: Secret scan (gitleaks)
