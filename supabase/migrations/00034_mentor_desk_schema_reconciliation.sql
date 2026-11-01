@@ -8,6 +8,9 @@
 -- is additive and retains all legacy columns.
 -- ============================================================
 
+-- Mentor Desk threads use a dedicated conversation type.
+ALTER TYPE public.conversation_type ADD VALUE IF NOT EXISTS 'mentor_desk';
+
 -- Extend legacy enums to the state model used by the current app.
 ALTER TYPE public.booking_status ADD VALUE IF NOT EXISTS 'cancelled_by_student';
 ALTER TYPE public.booking_status ADD VALUE IF NOT EXISTS 'cancelled_by_mentor';
@@ -250,6 +253,26 @@ $$;
 
 ALTER TABLE public.mentor_subject_approvals
   ADD COLUMN IF NOT EXISTS updated_at timestamptz NOT NULL DEFAULT now();
+-- The urgent-pass ledger is one row per student/subject/week. Add the
+-- request link and a canonical consumption timestamp while retaining used_at.
+ALTER TABLE public.urgent_pass_usage
+  ADD COLUMN IF NOT EXISTS request_id uuid REFERENCES public.doubt_requests(id) ON DELETE CASCADE,
+  ADD COLUMN IF NOT EXISTS consumed_at timestamptz;
+
+UPDATE public.urgent_pass_usage
+SET consumed_at = COALESCE(consumed_at, used_at, now())
+WHERE consumed_at IS NULL;
+
+ALTER TABLE public.urgent_pass_usage
+  ALTER COLUMN consumed_at SET DEFAULT now(),
+  ALTER COLUMN consumed_at SET NOT NULL;
+
+-- Extend the no-show review record without removing the legacy reporter fields.
+ALTER TABLE public.session_no_shows
+  ADD COLUMN IF NOT EXISTS refunded boolean NOT NULL DEFAULT false,
+  ADD COLUMN IF NOT EXISTS reviewed_by uuid REFERENCES public.user_profiles(id),
+  ADD COLUMN IF NOT EXISTS reviewed_at timestamptz;
+
 -- Add salted, expiring verification-code storage to the existing booking
 -- row. Existing legacy verification_code data is not copied into OTP fields.
 ALTER TABLE public.session_bookings
