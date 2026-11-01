@@ -181,7 +181,6 @@ serve(async (req: Request) => {
         "SCORE+ Mentor Desk session.",
         `Join Google Meet: ${meetLink}`,
         `Booking reference: ${bookingId}`,
-        `Teacher staff ID: ${claim.teacher_staff_id_no}`,
         `Duration: ${duration} minutes`,
         "The student joins through SCORE+ and is admitted by the assigned teacher.",
       ].join("\n"),
