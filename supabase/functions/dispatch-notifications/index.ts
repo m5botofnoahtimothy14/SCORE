@@ -166,13 +166,13 @@ serve(async (req: Request) => {
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
   let jobsQuery = supabase
     .from("background_jobs")
-    .select("id, school_id, payload, attempts, max_attempts")
+    .select("id, payload, attempts, max_attempts")
     .eq("type", "dispatch-notifications")
     .in("status", ["queued", "retrying"])
     .lte("scheduled_for", new Date().toISOString())
     .order("scheduled_for", { ascending: true })
     .limit(50);
-  if (requestBody.school_id) jobsQuery = jobsQuery.eq("school_id", requestBody.school_id);
+  if (requestBody.school_id) jobsQuery = jobsQuery.eq("payload->>school_id", requestBody.school_id);
 
   const { data: jobs, error: jobsError } = await jobsQuery;
   if (jobsError) return json({ success: false, error: "queue_read_failed" }, 500);
@@ -199,13 +199,15 @@ serve(async (req: Request) => {
     try {
       const payload = typeof job.payload === "string" ? JSON.parse(job.payload) : job.payload;
       const announcementId = payload?.announcement_id;
+      const schoolId = payload?.school_id;
       if (typeof announcementId !== "string") throw new Error("announcement_id_missing");
+      if (typeof schoolId !== "string") throw new Error("school_id_missing");
 
       const { data: announcement, error: announcementError } = await supabase
         .from("announcements")
         .select("id, school_id, title, body, audience_type, class_id, is_published")
         .eq("id", announcementId)
-        .eq("school_id", job.school_id)
+        .eq("school_id", schoolId)
         .maybeSingle();
       if (announcementError || !announcement || announcement.is_published !== true) {
         throw new Error("announcement_unavailable");
@@ -263,7 +265,7 @@ serve(async (req: Request) => {
             );
 
             const values = {
-              school_id: job.school_id,
+              school_id: schoolId,
               recipient_id: device.user_id,
               device_id: device.id,
               type: "announcement",
