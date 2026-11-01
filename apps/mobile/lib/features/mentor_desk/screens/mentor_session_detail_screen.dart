@@ -119,7 +119,7 @@ class _MentorSessionDetailScreenState extends ConsumerState<MentorSessionDetailS
                       const SizedBox(height: 10),
                       FilledButton(onPressed: _working ? null : _confirm, child: Text(_working ? 'Confirming…' : 'Confirm session')),
                     ],
-                    if (booking.isConfirmed && booking.hasGoogleMeet) ...[
+                    if (['confirmed', 'in_progress'].contains(booking.status) && booking.hasGoogleMeet) ...[
                       const SizedBox(height: 16),
                       Container(
                         padding: const EdgeInsets.all(16),
@@ -140,7 +140,7 @@ class _MentorSessionDetailScreenState extends ConsumerState<MentorSessionDetailS
                         ]),
                       ),
                     ],
-                    if (booking.isConfirmed && !booking.hasGoogleMeet) ...[
+                    if (['confirmed', 'in_progress'].contains(booking.status) && !booking.hasGoogleMeet) ...[
                       const SizedBox(height: 14),
                       _InfoCard(title: 'Meeting link pending', body: 'Your assigned teacher is preparing the protected Google Meet session. Refresh this page before the scheduled time.'),
                     ],
