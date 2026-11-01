@@ -831,11 +831,19 @@ class MentorDeskService {
       case 'not_a_participant': return 'Only a participant can access the meeting link.';
       case 'booking_not_found': return 'Booking not found.';
       case 'booking_not_confirmed': return 'The session is not confirmed.';
-      case 'google_meet_not_configured': return 'Google Meet is not configured for your school.';
-      case 'google_credentials_not_configured': return 'Google Calendar credentials are not configured.';
-      case 'google_calendar_api_failed': return 'Google Calendar API request failed.';
-      case 'google_meet_link_not_created': return 'Could not create a Google Meet link.';
-      case 'db_update_failed': return 'Could not save the meeting link.';
+      case 'google_workspace_not_connected': return 'Your school administrator must connect the school Google Workspace first.';
+      case 'google_workspace_credentials_unavailable': return 'The school Workspace connection needs to be renewed.';
+      case 'assigned_teacher_workspace_identity_missing': return 'The assigned teacher needs an active School ID and school email address.';
+      case 'creation_in_progress': return 'The meeting is already being created. Wait a moment and refresh.';
+      case 'invalid_session_schedule': return 'This booking must have a confirmed 15- or 30-minute time slot.';
+      case 'google_oauth_not_configured': return 'Google Workspace integration is not configured on the server.';
+      case 'google_meet_space_creation_failed': return 'Google Meet could not create the protected meeting space.';
+      case 'google_meet_teacher_host_assignment_failed': return 'Google Meet could not assign the teacher as co-host. Check the teacher school email.';
+      case 'google_calendar_event_creation_failed': return 'Google Calendar could not create the school session event.';
+      case 'google_calendar_event_conflict': return 'The calendar event ID is already in use. Contact your school administrator.';
+      case 'google_meet_persist_failed': return 'The meeting was created, but SCORE+ could not save all meeting details.';
+      case 'meeting_booking_validation_failed': return 'SCORE+ could not validate this booking.';
+      case 'not_a_participant': return 'Only the booked student or assigned teacher can create or access this meeting.';
       default: return 'Could not create the Google Meet link. Please try again.';
     }
   }
