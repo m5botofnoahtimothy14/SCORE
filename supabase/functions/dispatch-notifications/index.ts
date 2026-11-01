@@ -1,8 +1,3 @@
-// ============================================================
-// Edge Function: dispatch-notifications
-// Sends queued school-announcement notifications through FCM.
-// Uses a service credential to obtain a real Google OAuth token.
-// ============================================================
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -20,33 +15,21 @@ const CORS_HEADERS = {
   "Content-Type": "application/json",
 };
 
-function jsonError(code: string, status = 400) {
-  return new Response(JSON.stringify({ success: false, error: code }), {
-    status,
-    headers: CORS_HEADERS,
-  });
-}
-
-function jsonOk(data: Record<string, unknown>, status = 200) {
-  return new Response(JSON.stringify({ success: true, ...data }), {
-    status,
-    headers: CORS_HEADERS,
-  });
+function json(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), { status, headers: CORS_HEADERS });
 }
 
 function base64Url(value: string | Uint8Array): string {
   const bytes = typeof value === "string" ? new TextEncoder().encode(value) : value;
   let binary = "";
   for (const byte of bytes) binary += String.fromCharCode(byte);
-  return btoa(binary).replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
+  return btoa(binary).replaceAll("=", "").replaceAll("+", "-").replaceAll("/", "_");
 }
 
-let cachedAccessToken: { token: string; expiresAt: number } | null = null;
+let tokenCache: { value: string; expiresAt: number } | null = null;
 
-async function getFCMAccessToken(): Promise<string> {
-  if (cachedAccessToken && cachedAccessToken.expiresAt > Date.now() + 60_000) {
-    return cachedAccessToken.token;
-  }
+async function getAccessToken(): Promise<string> {
+  if (tokenCache && tokenCache.expiresAt > Date.now() + 60_000) return tokenCache.value;
   if (!FCM_PROJECT_ID || !FCM_CLIENT_EMAIL || !FCM_PRIVATE_KEY) {
     throw new Error("fcm_credentials_not_configured");
   }
@@ -61,13 +44,13 @@ async function getFCMAccessToken(): Promise<string> {
     exp: now + 3600,
   }));
   const unsigned = header + "." + claims;
-
-  const pem = FCM_PRIVATE_KEY.replace(/\\n/g, "\n")
-    .replace("-----BEGIN PRIVATE KEY-----", "")
-    .replace("-----END PRIVATE KEY-----", "")
-    .replace(/\s/g, "");
+  const pem = FCM_PRIVATE_KEY.replaceAll("\\n", "\n")
+    .replaceAll("-----BEGIN PRIVATE KEY-----", "")
+    .replaceAll("-----END PRIVATE KEY-----", "")
+    .replaceAll(" ", "")
+    .replaceAll("\n", "");
   const der = Uint8Array.from(atob(pem), (character) => character.charCodeAt(0));
-  const privateKey = await crypto.subtle.importKey(
+  const key = await crypto.subtle.importKey(
     "pkcs8",
     der,
     { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
@@ -76,7 +59,7 @@ async function getFCMAccessToken(): Promise<string> {
   );
   const signature = new Uint8Array(await crypto.subtle.sign(
     "RSASSA-PKCS1-v1_5",
-    privateKey,
+    key,
     new TextEncoder().encode(unsigned),
   ));
   const assertion = unsigned + "." + base64Url(signature);
@@ -89,33 +72,23 @@ async function getFCMAccessToken(): Promise<string> {
       assertion,
     }),
   });
-  const payload = await response.json();
-  if (!response.ok || typeof payload.access_token !== "string") {
+  const result = await response.json();
+  if (!response.ok || typeof result.access_token !== "string") {
     throw new Error("fcm_oauth_exchange_failed");
   }
-
-  cachedAccessToken = {
-    token: payload.access_token,
-    expiresAt: Date.now() + Math.max(60, Number(payload.expires_in) || 3600) * 1000,
+  tokenCache = {
+    value: result.access_token,
+    expiresAt: Date.now() + Math.max(60, Number(result.expires_in) || 3600) * 1000,
   };
-  return cachedAccessToken.token;
+  return tokenCache.value;
 }
 
-async function sendFCM(
-  accessToken: string,
-  token: string,
-  title: string,
-  body: string,
-  data: Record<string, string>,
-): Promise<{ ok: boolean; invalidToken: boolean }> {
+async function sendPush(accessToken: string, token: string, title: string, body: string, data: Record<string, string>) {
   const response = await fetch(
     `https://fcm.googleapis.com/v1/projects/${FCM_PROJECT_ID}/messages:send`,
     {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        "Content-Type": "application/json",
-      },
+      headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
       body: JSON.stringify({
         message: {
           token,
@@ -127,31 +100,23 @@ async function sendFCM(
       }),
     },
   );
-
-  if (response.ok) return { ok: true, invalidToken: false };
-  const detail = await response.text().catch(() => "");
-  return {
-    ok: false,
-    invalidToken: detail.includes("UNREGISTERED"),
-  };
+  const detail = response.ok ? "" : await response.text().catch(() => "");
+  return { ok: response.ok, invalidToken: detail.includes("UNREGISTERED") };
 }
 
-async function resolveRecipientIds(
-  supabase: ReturnType<typeof createClient>,
-  announcement: Record<string, unknown>,
-): Promise<string[]> {
+async function getRecipients(supabase: ReturnType<typeof createClient>, announcement: any): Promise<string[]> {
   const schoolId = String(announcement.school_id);
-  const audience = String(announcement.audience_type);
-  let ids: string[] = [];
-
-  if (audience === "custom") {
-    const { data } = await supabase
+  if (announcement.audience_type === "custom") {
+    const { data, error } = await supabase
       .from("announcement_recipients")
       .select("user_id")
       .eq("announcement_id", announcement.id);
-    ids = (data ?? []).map((row: { user_id: string }) => row.user_id);
-  } else if (audience === "class") {
-    if (typeof announcement.class_id !== "string" || !announcement.class_id) return [];
+    if (error) throw new Error("custom_recipient_lookup_failed");
+    return [...new Set((data ?? []).map((row: any) => row.user_id))];
+  }
+
+  if (announcement.audience_type === "class") {
+    if (!announcement.class_id) return [];
     const { data, error } = await supabase
       .from("class_enrollments")
       .select("students!inner(user_id)")
@@ -159,50 +124,46 @@ async function resolveRecipientIds(
       .eq("class_id", announcement.class_id)
       .is("unenrolled_at", null);
     if (error) throw new Error("class_recipient_lookup_failed");
-    ids = (data ?? [])
-      .map((row: any) => row.students?.user_id)
-      .filter((value: unknown): value is string => typeof value === "string");
-  } else {
-    let query = supabase
-      .from("school_memberships")
-      .select("user_id, role")
-      .eq("school_id", schoolId)
-      .eq("is_active", true);
-
-    if (audience === "staff") {
-      query = query.in("role", ["teacher", "head_teacher", "school_admin", "principal", "platform_owner"]);
-    } else if (audience === "leadership") {
-      query = query.in("role", ["school_admin", "principal", "platform_owner"]);
-    } else if (audience !== "school_wide") {
-      return [];
-    }
-
-    const { data, error } = await query;
-    if (error) throw new Error("school_recipient_lookup_failed");
-    ids = (data ?? []).map((row: { user_id: string }) => row.user_id);
+    return [...new Set((data ?? []).map((row: any) => row.students?.user_id).filter((id: unknown) => typeof id === "string"))];
   }
 
-  return [...new Set(ids)];
+  let query = supabase
+    .from("school_memberships")
+    .select("user_id, role")
+    .eq("school_id", schoolId)
+    .eq("is_active", true);
+
+  if (announcement.audience_type === "staff") {
+    query = query.in("role", ["teacher", "head_teacher", "school_admin", "principal", "platform_owner"]);
+  } else if (announcement.audience_type === "leadership") {
+    query = query.in("role", ["school_admin", "principal", "platform_owner"]);
+  } else if (announcement.audience_type !== "school_wide") {
+    return [];
+  }
+
+  const { data, error } = await query;
+  if (error) throw new Error("school_recipient_lookup_failed");
+  return [...new Set((data ?? []).map((row: any) => row.user_id))];
 }
 
 serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: CORS_HEADERS });
-  if (req.method !== "POST") return jsonError("method_not_allowed", 405);
+  if (req.method !== "POST") return json({ success: false, error: "method_not_allowed" }, 405);
 
-  const authHeader = req.headers.get("Authorization");
-  if (!INTERNAL_WEBHOOK_SECRET || authHeader !== `Bearer ${INTERNAL_WEBHOOK_SECRET}`) {
-    return jsonError("unauthorized", 401);
+  const authorization = req.headers.get("Authorization");
+  if (!INTERNAL_WEBHOOK_SECRET || authorization !== `Bearer ${INTERNAL_WEBHOOK_SECRET}`) {
+    return json({ success: false, error: "unauthorized" }, 401);
   }
 
-  let body: { school_id?: string } = {};
+  let requestBody: { school_id?: string } = {};
   try {
-    body = await req.json();
+    requestBody = await req.json();
   } catch {
-    return jsonError("invalid_body", 400);
+    return json({ success: false, error: "invalid_body" }, 400);
   }
 
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-  let query = supabase
+  let jobsQuery = supabase
     .from("background_jobs")
     .select("id, school_id, payload, attempts")
     .eq("type", "dispatch-notifications")
@@ -210,12 +171,11 @@ serve(async (req: Request) => {
     .lte("scheduled_for", new Date().toISOString())
     .order("scheduled_for", { ascending: true })
     .limit(50);
+  if (requestBody.school_id) jobsQuery = jobsQuery.eq("school_id", requestBody.school_id);
 
-  if (body.school_id) query = query.eq("school_id", body.school_id);
-
-  const { data: jobs, error: jobsError } = await query;
-  if (jobsError) return jsonError("queue_read_failed", 500);
-  if (!jobs?.length) return jsonOk({ processed: 0, sent: 0, failed: 0 });
+  const { data: jobs, error: jobsError } = await jobsQuery;
+  if (jobsError) return json({ success: false, error: "queue_read_failed" }, 500);
+  if (!jobs?.length) return json({ success: true, processed: 0, sent: 0, failed: 0 });
 
   let processed = 0;
   let sent = 0;
@@ -233,27 +193,20 @@ serve(async (req: Request) => {
         .eq("id", announcementId)
         .eq("school_id", job.school_id)
         .maybeSingle();
-
       if (announcementError || !announcement || announcement.is_published !== true) {
         throw new Error("announcement_unavailable");
       }
 
-      const recipientIds = await resolveRecipientIds(supabase, announcement);
-      if (recipientIds.length > 0) {
-        const recipientRows = recipientIds.map((userId) => ({
-          announcement_id: announcement.id,
-          user_id: userId,
-        }));
-        const { error: recipientWriteError } = await supabase
-          .from("announcement_recipients")
-          .upsert(recipientRows, {
-            onConflict: "announcement_id,user_id",
-            ignoreDuplicates: true,
-          });
-        if (recipientWriteError) throw new Error("recipient_write_failed");
+      const recipientIds = await getRecipients(supabase, announcement);
+      if (recipientIds.length) {
+        const { error } = await supabase.from("announcement_recipients").upsert(
+          recipientIds.map((userId) => ({ announcement_id: announcement.id, user_id: userId })),
+          { onConflict: "announcement_id,user_id", ignoreDuplicates: true },
+        );
+        if (error) throw new Error("recipient_write_failed");
       }
 
-      const { data: devices, error: deviceError } = recipientIds.length
+      const { data: devices, error: devicesError } = recipientIds.length
         ? await supabase
             .from("notification_devices")
             .select("id, user_id, fcm_token")
@@ -261,16 +214,25 @@ serve(async (req: Request) => {
             .eq("is_active", true)
             .in("user_id", recipientIds)
         : { data: [], error: null };
+      if (devicesError) throw new Error("device_lookup_failed");
 
-      if (deviceError) throw new Error("device_lookup_failed");
-
-      let accessToken: string | null = null;
-      if ((devices ?? []).length > 0) accessToken = await getFCMAccessToken();
-
-      const successUsers = new Set<string>();
+      const accessToken = devices?.length ? await getAccessToken() : null;
+      const successfulUsers = new Set<string>();
 
       for (const device of devices ?? []) {
-        const result = await sendFCM(
+        const idempotencyKey = `${announcement.id}:${device.id}`;
+        const { data: existing } = await supabase
+          .from("notification_jobs")
+          .select("id, status")
+          .eq("idempotency_key", idempotencyKey)
+          .maybeSingle();
+
+        if (existing?.status === "sent") {
+          successfulUsers.add(device.user_id);
+          continue;
+        }
+
+        const result = await sendPush(
           accessToken!,
           device.fcm_token,
           announcement.title,
@@ -282,8 +244,7 @@ serve(async (req: Request) => {
           },
         );
 
-        const status = result.ok ? "sent" : "failed";
-        const { error: logError } = await supabase.from("notification_jobs").insert({
+        const values = {
           school_id: job.school_id,
           recipient_id: device.user_id,
           device_id: device.id,
@@ -291,35 +252,30 @@ serve(async (req: Request) => {
           title: announcement.title,
           body: announcement.body.slice(0, 180),
           data: { announcement_id: announcement.id, route: `announcement:${announcement.id}` },
-          status,
+          status: result.ok ? "sent" : "failed",
           sent_at: result.ok ? new Date().toISOString() : null,
           failed_at: result.ok ? null : new Date().toISOString(),
           failure_reason: result.ok ? null : "fcm_delivery_failed",
           idempotency_key: idempotencyKey,
         };
-        const logWrite = existingLog
-          ? await supabase.from("notification_jobs").update(logValues).eq("id", existingLog.id)
-          : await supabase.from("notification_jobs").insert(logValues);
-        if (logWrite.error) throw new Error("notification_log_failed");
+        const write = existing
+          ? await supabase.from("notification_jobs").update(values).eq("id", existing.id)
+          : await supabase.from("notification_jobs").insert(values);
+        if (write.error) throw new Error("notification_log_failed");
 
         if (result.invalidToken) {
           await supabase.from("notification_devices").update({ is_active: false }).eq("id", device.id);
         }
         if (result.ok) {
-          successUsers.add(device.user_id);
+          successfulUsers.add(device.user_id);
           sent += 1;
         } else {
           failed += 1;
         }
       }
 
-      const noDeviceUsers = recipientIds.filter((id) => !devices?.some((device) => device.user_id === id));
-      if (noDeviceUsers.length > 0) {
-        // Recipients without a registered device remain unnotified.
-      }
-
       for (const userId of recipientIds) {
-        const delivered = successUsers.has(userId);
+        const delivered = successfulUsers.has(userId);
         await supabase
           .from("announcement_recipients")
           .update({
@@ -332,13 +288,8 @@ serve(async (req: Request) => {
 
       await supabase
         .from("background_jobs")
-        .update({
-          status: "completed",
-          completed_at: new Date().toISOString(),
-          last_error: null,
-        })
+        .update({ status: "completed", completed_at: new Date().toISOString(), last_error: null })
         .eq("id", job.id);
-
       processed += 1;
     } catch (error) {
       failed += 1;
@@ -353,5 +304,5 @@ serve(async (req: Request) => {
     }
   }
 
-  return jsonOk({ processed, sent, failed });
+  return json({ success: true, processed, sent, failed });
 });
