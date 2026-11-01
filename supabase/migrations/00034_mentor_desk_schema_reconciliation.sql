@@ -114,48 +114,78 @@ ALTER TABLE public.doubt_status_history
 CREATE INDEX IF NOT EXISTS idx_doubt_status_history_request_created
   ON public.doubt_status_history(request_id, created_at DESC);
 
--- Compatibility relation used by the booking RPC. Subject enrolment is
--- derived from the student's active class enrolment and that class's
--- teacher/subject assignments; no second source of truth is introduced.
-CREATE OR REPLACE VIEW public.student_subject_enrollments
-WITH (security_invoker = true)
-AS
-SELECT DISTINCT ce.student_id, ce.class_id, ta.subject_id, true AS active
+-- Explicit subject enrolment. The live database did not contain this table,
+-- while migration 00023 defines it. Recreate the intended table shape and seed
+-- only subjects assigned to each student's active class.
+CREATE TABLE IF NOT EXISTS public.student_subject_enrollments (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  school_id uuid NOT NULL REFERENCES public.schools(id) ON DELETE CASCADE,
+  student_id uuid NOT NULL REFERENCES public.students(id) ON DELETE CASCADE,
+  class_id uuid NOT NULL REFERENCES public.classes(id) ON DELETE CASCADE,
+  subject_id uuid NOT NULL REFERENCES public.subjects(id) ON DELETE CASCADE,
+  assigned_by uuid REFERENCES public.user_profiles(id),
+  active boolean NOT NULL DEFAULT true,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE(student_id, subject_id)
+);
+
+CREATE INDEX IF NOT EXISTS student_subject_enrollment_lookup
+  ON public.student_subject_enrollments(student_id, active, subject_id);
+
+INSERT INTO public.student_subject_enrollments(
+  school_id, student_id, class_id, subject_id, active
+)
+SELECT DISTINCT ce.school_id, ce.student_id, ce.class_id, ta.subject_id, true
 FROM public.class_enrollments ce
+JOIN public.classes c ON c.id = ce.class_id AND c.is_active = true
 JOIN public.teaching_assignments ta
   ON ta.class_id = ce.class_id
  AND ta.school_id = ce.school_id
 WHERE ce.unenrolled_at IS NULL
-  AND ta.subject_id IS NOT NULL;
+  AND ta.subject_id IS NOT NULL
+ON CONFLICT (student_id, subject_id) DO NOTHING;
 
-REVOKE ALL ON public.student_subject_enrollments FROM PUBLIC, anon, authenticated;
+DO $$
+DECLARE
+  v_policy record;
+BEGIN
+  FOR v_policy IN
+    SELECT policyname FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'student_subject_enrollments'
+  LOOP
+    EXECUTE format('DROP POLICY IF EXISTS %I ON public.student_subject_enrollments', v_policy.policyname);
+  END LOOP;
+END;
+$$;
 
--- Older no-show rows use recorded_by/recorded_at. Add the current
--- review fields without removing the legacy audit columns.
-ALTER TABLE public.session_no_shows
-  ADD COLUMN IF NOT EXISTS school_id uuid REFERENCES public.schools(id) ON DELETE CASCADE,
-  ADD COLUMN IF NOT EXISTS reported_by uuid REFERENCES public.user_profiles(id),
-  ADD COLUMN IF NOT EXISTS reported_by_role text,
-  ADD COLUMN IF NOT EXISTS refund_minutes integer NOT NULL DEFAULT 0,
-  ADD COLUMN IF NOT EXISTS review_status text NOT NULL DEFAULT 'pending',
-  ADD COLUMN IF NOT EXISTS reason text,
-  ADD COLUMN IF NOT EXISTS created_at timestamptz NOT NULL DEFAULT now();
+ALTER TABLE public.student_subject_enrollments ENABLE ROW LEVEL SECURITY;
 
-UPDATE public.session_no_shows ns
-SET school_id = COALESCE(ns.school_id, sb.school_id),
-    reported_by = COALESCE(ns.reported_by, ns.recorded_by),
-    reported_by_role = COALESCE(
-      ns.reported_by_role,
-      CASE WHEN ns.recorded_by = sb.student_id THEN 'student'
-           WHEN ns.recorded_by = sb.mentor_id THEN 'mentor'
-           ELSE NULL END
-    ),
-    created_at = COALESCE(ns.created_at, ns.recorded_at, now())
-FROM public.session_bookings sb
-WHERE sb.id = ns.booking_id;
+CREATE POLICY student_subject_enrollment_read
+  ON public.student_subject_enrollments FOR SELECT TO authenticated
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.students s
+      WHERE s.id = student_id AND s.user_id = auth.uid()
+    )
+    OR public.tc_is_school_admin(school_id)
+    OR EXISTS (
+      SELECT 1 FROM public.teachers t
+      JOIN public.teaching_assignments ta ON ta.teacher_id = t.id
+      WHERE t.user_id = auth.uid()
+        AND t.is_active
+        AND ta.class_id = student_subject_enrollments.class_id
+        AND ta.subject_id = student_subject_enrollments.subject_id
+    )
+  );
 
-ALTER TABLE public.mentor_subject_approvals
-  ADD COLUMN IF NOT EXISTS updated_at timestamptz NOT NULL DEFAULT now();
+CREATE POLICY student_subject_enrollment_admin
+  ON public.student_subject_enrollments FOR ALL TO authenticated
+  USING (public.tc_is_school_admin(school_id))
+  WITH CHECK (public.tc_is_school_admin(school_id));
+
+GRANT SELECT, INSERT, UPDATE, DELETE
+  ON public.student_subject_enrollments TO authenticated;
 
 -- Add salted, expiring verification-code storage to the existing booking
 -- row. Existing legacy verification_code data is not copied into OTP fields.
