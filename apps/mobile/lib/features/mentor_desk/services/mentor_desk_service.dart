@@ -852,7 +852,8 @@ class MentorDeskService {
       case 'google_calendar_event_conflict': return 'The calendar event ID is already in use. Contact your school administrator.';
       case 'google_meet_persist_failed': return 'The meeting was created, but SCORE+ could not save all meeting details.';
       case 'meeting_booking_validation_failed': return 'SCORE+ could not validate this booking.';
-      case 'not_a_participant': return 'Only the booked student or assigned teacher can create or access this meeting.';
+      case 'not_a_participant': return 'Only the booked student or assigned teacher can access this meeting.';
+      case 'not_assigned_teacher': return 'Only the assigned teacher can create the Google Meet session.';
       default: return 'Could not create the Google Meet link. Please try again.';
     }
   }
