@@ -286,7 +286,9 @@ BEGIN
     approved_at=CASE WHEN p_approved THEN NOW() ELSE NULL END,updated_at=NOW() WHERE id=p_document_id;
   IF p_approved THEN
     UPDATE curriculum_documents SET approval_status='inactive',updated_at=NOW()
-      WHERE document_identifier=v_doc.document_identifier AND id<>v_doc.id AND approval_status='approved';
+      WHERE document_identifier=v_doc.document_identifier
+        AND school_id IS NOT DISTINCT FROM v_doc.school_id
+        AND id<>v_doc.id AND approval_status='approved';
   END IF;
   INSERT INTO audit_events(school_id,actor_id,action,target_type,target_id,outcome,metadata)
     VALUES(v_doc.school_id,auth.uid(),'curriculum.approval','curriculum_document',p_document_id::TEXT,'success',
