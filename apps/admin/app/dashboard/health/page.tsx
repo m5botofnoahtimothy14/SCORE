@@ -68,7 +68,7 @@ export default function HealthPage() {
         action={<button onClick={load} className="btn-secondary"><RefreshCw className="h-4 w-4" /> Refresh</button>}
       />
       <div className="mb-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card className="p-5"><Database className="mb-3 h-5 w-5 text-brand-600" /><p className="text-2xl font-bold text-ink-950">{data.db ? 'Healthy' : 'Attention'}</p><p className="mt-1 text-xs text-ink-500">Database checks</p></Card>
+        <Card className="p-5"><Database className="mb-3 h-5 w-5 text-brand-600" /><p className="text-2xl font-bold text-ink-950">{data.db.ok ? 'Healthy' : 'Attention'}</p><p className="mt-1 text-xs text-ink-500">Database checks</p></Card>
         <Card className="p-5"><Activity className="mb-3 h-5 w-5 text-brand-600" /><p className="text-2xl font-bold text-ink-950">{data.latencyMs} ms</p><p className="mt-1 text-xs text-ink-500">Health endpoint latency</p></Card>
         <Card className="p-5"><Bell className="mb-3 h-5 w-5 text-brand-600" /><p className="text-2xl font-bold text-ink-950">{data.queues.failedNotificationJobs}</p><p className="mt-1 text-xs text-ink-500">Failed notification jobs</p></Card>
         <Card className="p-5"><BrainCircuit className="mb-3 h-5 w-5 text-brand-600" /><p className="text-2xl font-bold text-ink-950">{data.queues.retryableBackgroundJobs}</p><p className="mt-1 text-xs text-ink-500">Retryable background jobs</p></Card>
