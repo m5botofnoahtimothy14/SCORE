@@ -132,6 +132,9 @@ BEGIN
   FOREACH v_signature IN ARRAY ARRAY[
     'public.deactivate_notification_device(text)',
     'public.issue_student_code(uuid,text,integer)',
+    'public.issue_teacher_activation_code(uuid,text,integer)',
+    'public.approve_mentor_subject(uuid,uuid,boolean)',
+    'public.set_mentor_availability(public.availability_status)',
     'public.mark_conversation_read(uuid)',
     'public.reassign_student_class(uuid,uuid,text)',
     'public.register_notification_device(uuid,text,text,text)',
