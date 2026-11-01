@@ -7,7 +7,7 @@ import { PageHeader, Card, StatusBadge, LoadingState, ErrorState } from '@/compo
 
 type Incident = {
   id: string
-  incident_type: string
+  title: string
   severity: string
   description: string
   status: string
@@ -41,7 +41,7 @@ export default function IncidentsPage() {
       if (!membership) throw new Error('No administrator access.')
       const { data, error: queryError } = await supabase
         .from('safeguarding_incidents')
-        .select('id, incident_type, severity, description, status, assigned_to, resolved_at, created_at')
+        .select('id, title, severity, description, status, assigned_to, resolved_at, created_at')
         .eq('school_id', membership.school_id)
         .order('created_at', { ascending: false })
         .limit(200)
@@ -86,7 +86,7 @@ export default function IncidentsPage() {
               <tbody>
                 {filtered.map((item) => (
                   <tr key={item.id}>
-                    <td className="text-xs font-semibold text-ink-800">{item.incident_type.replaceAll('_', ' ')}</td>
+                    <td className="text-xs font-semibold text-ink-800">{item.title}</td>
                     <td><StatusBadge value={item.severity} /></td>
                     <td><StatusBadge value={item.status} /></td>
                     <td className="max-w-sm text-xs text-ink-600">{item.description}</td>
