@@ -39,6 +39,7 @@ const mentorDeskNav: NavEntry[] = [
   { href: '/dashboard/mentor-desk/ratings', icon: 'CheckCircle', label: 'Feedback & Ratings' },
   { href: '/dashboard/mentor-desk/exceptions', icon: 'AlertCircle', label: 'Exceptions' },
   { href: '/dashboard/mentor-desk/settings', icon: 'Percent', label: 'Settings' },
+  { href: '/dashboard/mentor-desk/google-workspace', icon: 'CalendarDays', label: 'Google Workspace' },
 ]
 
 const safetyNav: NavEntry[] = [
