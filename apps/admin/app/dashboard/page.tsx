@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import {
   GraduationCap, Users, BookOpen, Megaphone, ShieldAlert,
-  Siren, BellOff, ArrowUpRight, AlertTriangle,
+  Siren, BellOff, ArrowUpRight, AlertTriangle, MessageCircleQuestion,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { PageHeader, Card, StatusBadge, LoadingState, ErrorState } from '@/components/ui'
@@ -49,13 +49,13 @@ export default function OverviewPage() {
       const m = membership as unknown as { role: string; schools: { name: string } }
 
       const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
-      const [students, teachers, classes, pendingModeration, openIncidents, announcementsWeek, failedNotifications, recentAudit, healthRes] =
+      const [students, teachers, classes, pendingModeration, openMentorRequests, announcementsWeek, failedNotifications, recentAudit, healthRes] =
         await Promise.all([
           supabase.from('students').select('id', { count: 'exact', head: true }).eq('school_id', schoolId),
           supabase.from('teachers').select('id', { count: 'exact', head: true }).eq('school_id', schoolId),
           supabase.from('classes').select('id', { count: 'exact', head: true }).eq('school_id', schoolId),
-          supabase.from('moderation_review_cases').select('id', { count: 'exact', head: true }).eq('school_id', schoolId).in('status', ['pending', 'under_review']),
-          supabase.from('safeguarding_incidents').select('id', { count: 'exact', head: true }).eq('school_id', schoolId).in('status', ['open', 'investigating']),
+          supabase.from('moderation_events').select('id', { count: 'exact', head: true }).eq('school_id', schoolId).eq('verdict', 'held').is('reviewed_at', null),
+          supabase.from('doubt_requests').select('id', { count: 'exact', head: true }).eq('school_id', schoolId).in('status', ['pending_assignment', 'waiting', 'assigned', 'in_progress', 'reopened']),
           supabase.from('announcements').select('id', { count: 'exact', head: true }).eq('school_id', schoolId).gte('created_at', weekAgo),
           supabase.from('notification_jobs').select('id', { count: 'exact', head: true }).eq('school_id', schoolId).eq('status', 'failed'),
           supabase
@@ -74,7 +74,7 @@ export default function OverviewPage() {
         teachers: teachers.count ?? 0,
         classes: classes.count ?? 0,
         pendingModeration: pendingModeration.count ?? 0,
-        openIncidents: openIncidents.count ?? 0,
+        openMentorRequests: openMentorRequests.count ?? 0,
         announcementsWeek: announcementsWeek.count ?? 0,
         failedNotifications: failedNotifications.count ?? 0,
         recentAudit: ((recentAudit.data ?? []) as Overview['recentAudit']) ?? [],
@@ -101,8 +101,8 @@ export default function OverviewPage() {
     { label: 'Teachers', value: data.teachers, href: '/dashboard/teachers', icon: Users, tone: 'brand' },
     { label: 'Classes', value: data.classes, href: '/dashboard/classes', icon: BookOpen, tone: 'brand' },
     { label: 'Notices (7d)', value: data.announcementsWeek, href: '/dashboard/announcements', icon: Megaphone, tone: 'brand' },
-    { label: 'Pending moderation', value: data.pendingModeration, href: '/dashboard/moderation', icon: ShieldAlert, tone: 'amber' },
-    { label: 'Open incidents', value: data.openIncidents, href: '/dashboard/incidents', icon: Siren, tone: 'rose' },
+    { label: 'Held for review', value: data.pendingModeration, href: '/dashboard/moderation', icon: ShieldAlert, tone: 'amber' },
+    { label: 'Open mentor requests', value: data.openMentorRequests, href: '/dashboard/mentor-desk/doubts', icon: MessageCircleQuestion, tone: 'brand' },
     { label: 'Failed notifications', value: data.failedNotifications, href: '/dashboard/notifications', icon: BellOff, tone: 'rose' },
   ] as const
 
