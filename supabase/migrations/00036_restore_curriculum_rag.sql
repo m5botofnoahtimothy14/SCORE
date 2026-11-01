@@ -213,7 +213,7 @@ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM class_enrollments ce JOIN classes c ON c.id=ce.class_id
     JOIN student_subject_enrollments e ON e.student_id=ce.student_id AND e.class_id=ce.class_id AND e.subject_id IN
-      (SELECT id FROM subjects WHERE school_id=v_student.school_id AND lower(name)=lower(p_subject) AND is_active)
+      (SELECT id FROM subjects WHERE school_id=v_student.school_id AND lower(name)=lower(p_subject))
     WHERE ce.student_id=v_student.id AND ce.unenrolled_at IS NULL AND c.is_active
       AND c.grade=p_class_grade::TEXT AND e.active
   ) THEN RAISE EXCEPTION 'subject_not_enrolled'; END IF;
