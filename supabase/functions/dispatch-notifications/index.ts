@@ -167,6 +167,13 @@ serve(async (req: Request) => {
   }
 
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+  const staleBefore = new Date(Date.now() - 10 * 60_000).toISOString();
+  await supabase.from("background_jobs")
+    .update({ status: "retrying", scheduled_for: new Date().toISOString(), last_error: "stale_running_recovered" })
+    .eq("type", "dispatch-notifications")
+    .eq("status", "running")
+    .lt("started_at", staleBefore);
+
   let jobsQuery = supabase
     .from("background_jobs")
     .select("id, payload, attempts, max_attempts")
