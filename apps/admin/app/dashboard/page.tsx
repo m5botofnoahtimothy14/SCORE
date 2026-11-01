@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import {
   GraduationCap, Users, BookOpen, Megaphone, ShieldAlert,
-  Siren, BellOff, ArrowUpRight, AlertTriangle, MessageCircleQuestion,
+  BellOff, ArrowUpRight, AlertTriangle, MessageCircleQuestion,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { PageHeader, Card, StatusBadge, LoadingState, ErrorState } from '@/components/ui'
