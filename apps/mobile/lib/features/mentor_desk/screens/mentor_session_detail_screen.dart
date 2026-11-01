@@ -144,11 +144,6 @@ class _MentorSessionDetailScreenState extends ConsumerState<MentorSessionDetailS
                     ],
                     if (booking.isVerified)
                       Container(margin: const EdgeInsets.only(top: 18), padding: const EdgeInsets.all(14), decoration: BoxDecoration(color: AppColors.success.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(14)), child: const Text('Student code verified. The session is confirmed as attended.', style: TextStyle(color: AppColors.success, fontWeight: FontWeight.w700))),
-                    if (booking.meetUrl != null && booking.meetUrl!.isNotEmpty)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 14),
-                        child: SelectableText('Meeting link: ${booking.meetUrl}', style: const TextStyle(color: AppColors.accent, fontSize: 12)),
-                      ),
                     if (_error != null) Padding(padding: const EdgeInsets.only(top: 12), child: Text(_error!, style: const TextStyle(color: AppColors.danger, fontSize: 12))),
                   ],
                 ),
