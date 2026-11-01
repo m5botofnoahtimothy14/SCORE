@@ -126,6 +126,12 @@ class AuthService {
         return 'Staff ID not found in school roster. Verify with school office.';
       case 'school_resolution_required':
         return 'This Staff ID matches more than one school. Contact your school office for a school-specific activation code.';
+      case 'activation_requires_new_session':
+        return 'Start activation from a signed-out session. Then enter your Staff ID and code again.';
+      case 'teacher_already_linked':
+        return 'This Staff ID is already linked to another account. Contact your school office for an activation reset.';
+      case 'account_setup_failed':
+        return 'Your account setup did not finish. Retry on this device. If it fails again, contact your school office.';
       case 'no_activation_code':
         return 'No activation code found for this ID. Ask your school office to issue one.';
       case 'invalid_code':
@@ -185,6 +191,12 @@ class AuthService {
         return 'Student ID not found in school roster. Verify with school office.';
       case 'school_resolution_required':
         return 'This Student ID matches more than one school. Contact your school office for a school-specific activation code.';
+      case 'activation_requires_new_session':
+        return 'Start activation from a signed-out session. Then enter your Student ID and code again.';
+      case 'student_already_linked':
+        return 'This Student ID is already linked to another account. Contact your school office for an activation reset.';
+      case 'account_setup_failed':
+        return 'Your account setup did not finish. Retry on this device. If it fails again, contact your school office.';
       case 'no_activation_code':
         return 'No activation code found for this ID. Ask your school office to issue one.';
       default:
