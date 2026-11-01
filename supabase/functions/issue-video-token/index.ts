@@ -129,9 +129,17 @@ serve(async (req: Request) => {
     }
   }
 
+  const { data: profile } = await supabase
+    .from('user_profiles')
+    .select('display_name')
+    .eq('id', user.id)
+    .maybeSingle();
+  const participantName = profile?.display_name?.toString() || user.user_metadata?.display_name?.toString() || `SCORE+ participant ${user.id.slice(0, 8)}`;
+
   const token = await signJwt({
     iss: LIVEKIT_API_KEY,
     sub: user.id,
+    name: participantName,
     iat: now,
     nbf: now,
     exp: expiresAt,
