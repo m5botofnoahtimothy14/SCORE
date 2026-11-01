@@ -251,6 +251,21 @@ BEGIN
 END;
 $$;
 
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM public.session_no_shows
+    WHERE school_id IS NULL OR reported_by IS NULL OR reported_by_role IS NULL
+  ) THEN
+    RAISE EXCEPTION 'session_no_shows contains legacy rows without complete reporter context';
+  END IF;
+END;
+$$;
+ALTER TABLE public.session_no_shows
+  ALTER COLUMN school_id SET NOT NULL,
+  ALTER COLUMN reported_by SET NOT NULL,
+  ALTER COLUMN reported_by_role SET NOT NULL;
+
 ALTER TABLE public.mentor_subject_approvals
   ADD COLUMN IF NOT EXISTS updated_at timestamptz NOT NULL DEFAULT now();
 -- The urgent-pass ledger is one row per student/subject/week. Add the
@@ -266,6 +281,17 @@ WHERE consumed_at IS NULL;
 ALTER TABLE public.urgent_pass_usage
   ALTER COLUMN consumed_at SET DEFAULT now(),
   ALTER COLUMN consumed_at SET NOT NULL;
+
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM public.urgent_pass_usage WHERE request_id IS NULL) THEN
+    RAISE EXCEPTION 'urgent_pass_usage contains legacy rows without a linked doubt request';
+  END IF;
+END;
+$$;
+ALTER TABLE public.urgent_pass_usage ALTER COLUMN request_id SET NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_urgent_pass_usage_request
+  ON public.urgent_pass_usage(request_id);
 
 -- Extend the no-show review record without removing the legacy reporter fields.
 ALTER TABLE public.session_no_shows
