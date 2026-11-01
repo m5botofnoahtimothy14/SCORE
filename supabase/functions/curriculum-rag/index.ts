@@ -37,7 +37,10 @@ Deno.serve(async (req) => {
   if (!supabaseUrl || !anonKey) return json({ success: false, error: 'server_configuration_error' }, 500);
   const client = createClient(supabaseUrl, anonKey, { global: { headers: { Authorization: authorization } } });
   const { data: authData, error: authError } = await client.auth.getUser();
-  if (authError || !authData.user || authData.user.is_anonymous) return json({ success: false, error: 'unauthorized' }, 401);
+  // Student activation uses a device-bound Supabase anonymous session.
+  // The following student_learning_context RPC verifies active membership
+  // and class eligibility before any quota or curriculum data is returned.
+  if (authError || !authData.user) return json({ success: false, error: 'unauthorized' }, 401);
 
   const { data: context, error: contextError } = await client.rpc('student_learning_context');
   if (contextError || !context || !Array.isArray(context.subjects)) return json({ success: false, error: 'student_context_unavailable' }, 403);
