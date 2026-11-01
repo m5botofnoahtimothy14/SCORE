@@ -1,11 +1,23 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { ShieldAlert, Image, MessageSquare, RefreshCw } from 'lucide-react'
+import { ShieldAlert, RefreshCw } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { PageHeader, Card, StatusBadge, LoadingState, ErrorState } from '@/components/ui'
 
-type ModerationEvent = {
+type ReviewCase = {
+  id: string
+  moderation_result_id: string
+  status: string
+  reason_code: string | null
+  reviewer_notes: string | null
+  disposition: string | null
+  assigned_to: string | null
+  closed_at: string | null
+  created_at: string
+}
+
+type ModerationResult = {
   id: string
   verdict: string
   provider: string
@@ -13,14 +25,13 @@ type ModerationEvent = {
   categories: Record<string, unknown> | null
   message_id: string | null
   attachment_id: string | null
-  reviewed_by: string | null
-  reviewed_at: string | null
-  created_at: string
+  processed_at: string
 }
 
 export default function ModerationPage() {
-  const [events, setEvents] = useState<ModerationEvent[]>([])
-  const [filter, setFilter] = useState<'all' | 'held' | 'blocked'>('held')
+  const [cases, setCases] = useState<ReviewCase[]>([])
+  const [results, setResults] = useState<Record<string, ModerationResult>>({})
+  const [filter, setFilter] = useState<'pending' | 'under_review' | 'closed' | 'all'>('pending')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -42,15 +53,27 @@ export default function ModerationPage() {
         .maybeSingle()
       if (!membership) throw new Error('No administrator access.')
       const { data, error: queryError } = await supabase
-        .from('moderation_events')
-        .select('id, verdict, provider, confidence, categories, message_id, attachment_id, reviewed_by, reviewed_at, created_at')
+        .from('moderation_review_cases')
+        .select('id, moderation_result_id, status, reason_code, reviewer_notes, disposition, assigned_to, closed_at, created_at')
         .eq('school_id', membership.school_id)
         .order('created_at', { ascending: false })
         .limit(200)
       if (queryError) throw queryError
-      setEvents((data ?? []) as ModerationEvent[])
+      const rows = (data ?? []) as ReviewCase[]
+      const ids = rows.map((row) => row.moderation_result_id).filter(Boolean)
+      if (ids.length) {
+        const { data: resultRows, error: resultError } = await supabase
+          .from('moderation_results')
+          .select('id, verdict, provider, confidence, categories, message_id, attachment_id, processed_at')
+          .in('id', ids)
+        if (resultError) throw resultError
+        setResults(Object.fromEntries(((resultRows ?? []) as ModerationResult[]).map((row) => [row.id, row])))
+      } else {
+        setResults({})
+      }
+      setCases(rows)
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not load moderation events.')
+      setError(e instanceof Error ? e.message : 'Could not load moderation cases.')
     } finally {
       setLoading(false)
     }
@@ -59,65 +82,56 @@ export default function ModerationPage() {
   useEffect(() => { load() }, [])
 
   const filtered = useMemo(() => {
-    if (filter === 'all') return events
-    return events.filter((event) => event.verdict === filter)
-  }, [events, filter])
+    if (filter === 'all') return cases
+    return cases.filter((item) => item.status === filter)
+  }, [cases, filter])
 
-  if (loading) return <LoadingState message="Loading moderation events…" />
+  if (loading) return <LoadingState message="Loading moderation cases…" />
   if (error) return <ErrorState message={error} onRetry={load} />
 
   return (
     <div>
-      <PageHeader
-        title="Moderation review"
-        subtitle="Held and blocked content events for your school."
-        action={<button onClick={load} className="btn-secondary"><RefreshCw className="h-4 w-4" /> Refresh</button>}
-      />
+      <PageHeader title="Moderation review" subtitle="Review cases raised by automated content safety checks." action={<button onClick={load} className="btn-secondary"><RefreshCw className="h-4 w-4" /> Refresh</button>} />
       <div className="mb-5 flex flex-wrap gap-2">
-        {(['held', 'blocked', 'all'] as const).map((value) => (
+        {(['pending', 'under_review', 'closed', 'all'] as const).map((value) => (
           <button key={value} onClick={() => setFilter(value)} className={filter === value ? 'btn-primary' : 'btn-secondary'}>
-            {value === 'all' ? 'All events' : value === 'held' ? 'Held for review' : 'Blocked'}
+            {value === 'all' ? 'All cases' : value.replace('_', ' ')}
           </button>
         ))}
       </div>
       <Card>
         <div className="flex items-center justify-between border-b border-ink-200/70 px-5 py-4">
-          <div>
-            <h2 className="text-sm font-semibold text-ink-900">Moderation event log</h2>
-            <p className="mt-1 text-xs text-ink-500">{filtered.length} events in the latest 200 records</p>
-          </div>
+          <div><h2 className="text-sm font-semibold text-ink-900">Review queue</h2><p className="mt-1 text-xs text-ink-500">{filtered.length} cases in the latest 200 records</p></div>
           <ShieldAlert className="h-5 w-5 text-amber-600" />
         </div>
         {filtered.length === 0 ? (
-          <p className="px-5 py-10 text-center text-sm text-ink-500">No events match this filter.</p>
+          <p className="px-5 py-10 text-center text-sm text-ink-500">No cases match this filter.</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="data-table">
-              <thead><tr><th>Verdict</th><th>Content reference</th><th>Provider</th><th>Confidence</th><th>Reviewed</th><th>Created</th></tr></thead>
+              <thead><tr><th>Case</th><th>Status</th><th>Reason</th><th>Verdict</th><th>Provider</th><th>Confidence</th><th>Assigned</th><th>Created</th></tr></thead>
               <tbody>
-                {filtered.map((event) => (
-                  <tr key={event.id}>
-                    <td><StatusBadge value={event.verdict} /></td>
-                    <td>
-                      <span className="inline-flex items-center gap-2 font-mono text-[11px] text-ink-600">
-                        {event.message_id ? <MessageSquare className="h-3.5 w-3.5" /> : <Image className="h-3.5 w-3.5" />}
-                        {(event.message_id ?? event.attachment_id ?? event.id).slice(0, 12)}
-                      </span>
-                    </td>
-                    <td className="text-xs text-ink-600">{event.provider}</td>
-                    <td className="text-xs tabular-nums text-ink-600">{event.confidence == null ? '—' : String(Math.round(event.confidence * 100)) + '%'}</td>
-                    <td className="text-xs text-ink-500">{event.reviewed_at ? new Date(event.reviewed_at).toLocaleString() : 'Not reviewed'}</td>
-                    <td className="text-xs text-ink-500">{new Date(event.created_at).toLocaleString()}</td>
-                  </tr>
-                ))}
+                {filtered.map((item) => {
+                  const result = results[item.moderation_result_id]
+                  return (
+                    <tr key={item.id}>
+                      <td className="font-mono text-[11px] text-ink-500">{item.id.slice(0, 10)}</td>
+                      <td><StatusBadge value={item.status} /></td>
+                      <td className="text-xs text-ink-600">{item.reason_code ?? '—'}</td>
+                      <td>{result ? <StatusBadge value={result.verdict} /> : '—'}</td>
+                      <td className="text-xs text-ink-600">{result?.provider ?? '—'}</td>
+                      <td className="text-xs tabular-nums text-ink-600">{result?.confidence == null ? '—' : String(Math.round(result.confidence * 100)) + '%'}</td>
+                      <td className="font-mono text-[10px] text-ink-500">{item.assigned_to?.slice(0, 8) ?? 'Unassigned'}</td>
+                      <td className="text-xs text-ink-500">{new Date(item.created_at).toLocaleString()}</td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>
         )}
       </Card>
-      <p className="mt-4 text-xs leading-5 text-ink-500">
-        This page is a read-only event log. Review and override actions are not available until the server-side moderation workflow is implemented and secured.
-      </p>
+      <p className="mt-4 text-xs leading-5 text-ink-500">This screen displays the current review queue. Case assignment and disposition actions must use the secured review workflow; no client-side status override is exposed here.</p>
     </div>
   )
 }
