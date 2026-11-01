@@ -60,7 +60,6 @@ String? _routeForPayload(String payload) {
 const _staffOnlyPrefixes = <String>[
   '/mentor-desk/queue',
   '/mentor-desk/availability',
-  '/mentor-desk/session/',
   '/mentor-desk/assessment',
 ];
 
@@ -430,7 +429,9 @@ class AppShell extends ConsumerWidget {
     if (_leadershipOnlyPrefixes.any(path.startsWith)) {
       return tier == AppTier.leadership;
     }
-    if (_staffOnlyPrefixes.any(path.startsWith)) {
+    final parts = path.split('/');
+    final mentorSessionRoute = parts.length == 5 && parts[1] == 'mentor-desk' && parts[2] == 'session' && parts[4] == 'mentor';
+    if (_staffOnlyPrefixes.any(path.startsWith) || mentorSessionRoute) {
       return tier != AppTier.student;
     }
     return true;
