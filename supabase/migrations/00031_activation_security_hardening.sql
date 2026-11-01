@@ -52,6 +52,7 @@ DECLARE
   v_class_id UUID;
   v_conversation_id UUID;
   v_submitted_hash TEXT;
+  v_match_count INTEGER;
 BEGIN
   IF auth.role() <> 'service_role' OR p_user_id IS NULL THEN
     RETURN jsonb_build_object('success', FALSE, 'error', 'forbidden');
@@ -60,6 +61,14 @@ BEGIN
   IF p_student_id_no IS NULL OR length(trim(p_student_id_no)) = 0
      OR p_activation_code IS NULL OR length(trim(p_activation_code)) = 0 THEN
     RETURN jsonb_build_object('success', FALSE, 'error', 'invalid_credentials');
+  END IF;
+
+  SELECT COUNT(*) INTO v_match_count
+  FROM students
+  WHERE student_id_no = trim(p_student_id_no) AND is_active = TRUE;
+
+  IF v_match_count > 1 THEN
+    RETURN jsonb_build_object('success', FALSE, 'error', 'school_resolution_required');
   END IF;
 
   SELECT * INTO v_student
@@ -214,6 +223,14 @@ BEGIN
     RETURN jsonb_build_object('success', FALSE, 'error', 'invalid_credentials');
   END IF;
 
+  SELECT COUNT(*) INTO v_match_count
+  FROM teachers
+  WHERE staff_id_no = trim(p_staff_id_no) AND is_active = TRUE;
+
+  IF v_match_count > 1 THEN
+    RETURN jsonb_build_object('success', FALSE, 'error', 'school_resolution_required');
+  END IF;
+
   SELECT * INTO v_teacher
   FROM teachers
   WHERE staff_id_no = trim(p_staff_id_no) AND is_active = TRUE
@@ -298,7 +315,14 @@ BEGIN
     updated_at = NOW();
 
   INSERT INTO school_memberships(user_id, school_id, role, is_active, joined_at)
-  VALUES (p_user_id, v_teacher.school_id, 'teacher', TRUE, NOW())
+  VALUES (
+    p_user_id,
+    v_teacher.school_id,
+    CASE WHEN v_teacher.is_leadership THEN 'head_teacher'::school_role
+         ELSE 'teacher'::school_role END,
+    TRUE,
+    NOW()
+  )
   ON CONFLICT (user_id, school_id, role) DO UPDATE SET
     is_active = TRUE, joined_at = NOW();
 
