@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/notifications/notification_service.dart';
+import '../../../core/models/identity.dart';
 import '../../../core/providers/identity_provider.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../auth/services/auth_service.dart';

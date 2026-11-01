@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class EulaStore {
@@ -17,6 +18,13 @@ class EulaStore {
   static String? get acceptedVersion => _acceptedVersion;
   static DateTime? get acceptedAt => _acceptedAt;
   static bool get isAccepted => _loaded && _acceptedVersion == version;
+
+  @visibleForTesting
+  static void debugReset() {
+    _loaded = false;
+    _acceptedVersion = null;
+    _acceptedAt = null;
+  }
 
   static Future<void> load() async {
     if (_loaded) return;

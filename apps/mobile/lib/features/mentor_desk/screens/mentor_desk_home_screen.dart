@@ -5,7 +5,6 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/mentor_desk_design.dart';
-import '../../../core/layout/responsive.dart';
 import '../../../core/widgets/states.dart';
 import '../../../core/models/identity.dart';
 import '../../../core/providers/identity_provider.dart';
@@ -376,7 +375,6 @@ class _GlossActionTile extends StatelessWidget {
   final VoidCallback onTap;
 
   const _GlossActionTile({
-    super.key,
     required this.icon,
     required this.label,
     required this.subtitle,

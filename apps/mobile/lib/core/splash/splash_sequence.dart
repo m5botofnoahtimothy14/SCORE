@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import '../config/app_config.dart';
 import '../theme/app_theme.dart';
 
 const Duration _kSplashDuration = Duration(seconds: 3);

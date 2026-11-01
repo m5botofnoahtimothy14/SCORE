@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../../../core/providers/identity_provider.dart';
 import '../../../core/theme/app_theme.dart';
 import '../models/mentor_desk_models.dart';
 import '../services/mentor_desk_service.dart';
@@ -169,5 +168,41 @@ class _MentorSessionDetailScreenState extends ConsumerState<MentorSessionDetailS
   String _date(DateTime date) {
     final local = date.toLocal();
     return '${local.day.toString().padLeft(2, '0')}/${local.month.toString().padLeft(2, '0')}/${local.year} · ${TimeOfDay.fromDateTime(local).format(context)}';
+  }
+}
+
+class _InfoCard extends StatelessWidget {
+  final String title;
+  final String body;
+
+  const _InfoCard({required this.title, required this.body});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.info.withValues(alpha: 0.07),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.info.withValues(alpha: 0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title, style: const TextStyle(
+            color: AppColors.ink900,
+            fontWeight: FontWeight.w800,
+            fontSize: 13,
+          )),
+          const SizedBox(height: 5),
+          Text(body, style: const TextStyle(
+            color: AppColors.ink600,
+            fontSize: 12,
+            height: 1.45,
+          )),
+        ],
+      ),
+    );
   }
 }

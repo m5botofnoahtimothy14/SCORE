@@ -74,17 +74,29 @@ Firebase configuration is still required for push notifications and APNs on iOS.
 
 ## Database migration and deployment order
 
-The new additive migration is `00032_google_workspace_meet.sql`. It adds school Workspace settings, Vault-backed credential references, meeting-space identifiers, server-only meeting creation claims, and participant-only meeting-link retrieval.
+Migrations `00027`–`00036` add the redesigned school and Mentor Desk schema, activation credential hardening, Google Workspace integration, production access boundaries, the missing Mentor Desk RPC contract, and the curriculum RAG/AI quota backend.
 
-**Database drift warning:** the live project migration history was checked. It currently records migrations through `00026`, while this repository also contains `00027`–`00031`. Those later migrations have not been verified against the live schema. Do not run a blind production `supabase db push`. Review and reconcile migrations `00027`–`00031` against the live database first. This PR does not apply migrations or change production data.
+- `00032_google_workspace_meet.sql` adds school Workspace settings, Vault-backed credential references, meeting-space identifiers, server-only meeting creation claims, and participant-only meeting-link retrieval.
+- `00033_production_security_boundaries.sql` removes client access to activation hashes and OTP records, restricts sensitive `SECURITY DEFINER` functions, and restores participant-only booking reads. It also hardens notification-device registration.
+- `00034_mentor_desk_schema_reconciliation.sql` repairs partial legacy Mentor Desk tables. It retains old columns and stops if it finds doubt rows that need a manual backfill.
+- `00035_restore_mentor_desk_rpcs.sql` restores the RPCs used by the mobile app, applies the 3-normal-plus-1-urgent weekly doubt rule, and adds participant-scoped read policies.
+- `00036_restore_curriculum_rag.sql` restores the curriculum document/chunk store, vector search, student AI usage ledger, and quota RPCs. The curriculum corpus stays empty until an authorised admin uploads and approves properly licensed source material.
+- `supabase/tests/00033_security_boundaries.sql`, `supabase/tests/00035_mentor_desk_api.sql`, and `supabase/tests/00036_curriculum_rag.sql` contain SQL regression checks. Run all three in a non-production test project after the migrations.
+
+**Database drift warning:** the live project migration history was checked. It currently records migrations through `00026`, while this repository contains `00027`–`00033`. The live schema already contains some objects from later work, so migration history alone does not prove which DDL is safe to apply. Do not run a blind production `supabase db push`. First compare every migration with the live schema, resolve duplicate migration-history entries, and prepare a reviewed baseline or forward-only reconciliation plan. Preserve all existing records.
+
+### Activation account behaviour
+
+The student and teacher activation Edge Functions verify one-time codes through service-role-only database RPCs. After successful activation, they set a password-backed Supabase account using a device-generated secret. The synthetic `.invalid` email is an account identifier, not a mailbox. The mobile app stores the credential in the platform keystore. If a user loses the device credential, the school must issue a fresh activation code through the approved admin process. Duplicate IDs across schools are rejected rather than resolved to an arbitrary school.
 
 After migration history is reconciled:
 1. Apply and verify migrations in a development Supabase project.
-2. Set Google OAuth and existing notification secrets.
-3. Deploy `create-google-meet` and `google-workspace-oauth`.
-4. Connect a test school's Workspace account.
-5. Test 15-minute and 30-minute bookings with separate student and teacher accounts.
-6. Run `flutter pub get`, build the app, and test Meet launching on Android and iOS.
-7. Deploy the Next.js admin website after its build passes.
+2. Run `supabase/tests/00033_security_boundaries.sql`, `supabase/tests/00035_mentor_desk_api.sql`, `supabase/tests/00036_curriculum_rag.sql`, and the application test suites.
+3. Set Google OAuth, notification, and internal webhook secrets.
+4. Deploy the activation, OTP, notification, AI, and Google Workspace Edge Functions from the reviewed release.
+5. Connect a test school's Workspace account.
+6. Test activation, returning-device sign-in, 15-minute and 30-minute bookings, OTP closure, and participant-only Meet access with separate student and teacher accounts.
+7. Run `flutter pub get`, build the app, and test on Android and iOS.
+8. Build and deploy the Next.js admin website after its checks pass.
 
-No production migration, Edge Function deployment, or Vercel deployment was performed by this PR update.
+No production migration, Edge Function deployment, or Vercel deployment was performed by this recovery branch.

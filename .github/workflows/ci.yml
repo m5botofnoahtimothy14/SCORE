@@ -47,14 +47,15 @@ jobs:
         uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
-      - name: Typecheck Supabase Edge Functions
-        run: >-
-          deno check --no-lock
-          supabase/functions/activate-student/index.ts
-          supabase/functions/activate-teacher/index.ts
-          supabase/functions/issue-video-token/index.ts
-          supabase/functions/dispatch-notifications/index.ts
-          supabase/functions/publish-announcement/index.ts
+      - name: Typecheck all Supabase Edge Functions
+        shell: bash
+        run: |
+          mapfile -t functions < <(find supabase/functions -name 'index.ts' -type f | sort)
+          if [ "${#functions[@]}" -eq 0 ]; then
+            echo "No Supabase Edge Functions were found."
+            exit 1
+          fi
+          deno check --no-lock "${functions[@]}"
       - name: Lint admin DMS
         run: npm --prefix apps/admin run lint
       - name: Secret scan (gitleaks)

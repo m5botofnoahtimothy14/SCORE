@@ -2,16 +2,13 @@
 // and tables (RLS). Every mutation goes through a SECURITY DEFINER RPC.
 // Updated for migration 00024 (class-based assignments, OTP verification) +
 // migration 00025 (Google Meet calendar scheduling).
-import 'dart:convert';
 import 'dart:io';
 
-import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../../../core/models/models.dart';
 import '../models/mentor_desk_models.dart';
 
 class MentorDeskException implements Exception {
@@ -96,12 +93,6 @@ class MentorDeskService {
         nextResetAt: DateTime.tryParse(payload['next_reset_at'] as String? ?? ''),
       );
     }).toList();
-  }
-
-  DateTime _weekStart(DateTime d) {
-    final iso = d.toUtc();
-    final dow = iso.weekday; // 1=Mon .. 7=Sun
-    return DateTime.utc(iso.year, iso.month, iso.day).subtract(Duration(days: dow - 1));
   }
 
   // =========================================================================
@@ -314,7 +305,7 @@ class MentorDeskService {
     }
     final res = await _client.rpc('book_session', params: {
       'p_subject_id': subjectId,
-      if (mentorId != null) 'p_mentor_id': mentorId,
+      'p_mentor_id': mentorId,
       'p_duration_minutes': durationMinutes,
       'p_scheduled_at': scheduledAt.toUtc().toIso8601String(),
       'p_topic': topic,
@@ -852,7 +843,6 @@ class MentorDeskService {
       case 'google_calendar_event_conflict': return 'The calendar event ID is already in use. Contact your school administrator.';
       case 'google_meet_persist_failed': return 'The meeting was created, but SCORE+ could not save all meeting details.';
       case 'meeting_booking_validation_failed': return 'SCORE+ could not validate this booking.';
-      case 'not_a_participant': return 'Only the booked student or assigned teacher can access this meeting.';
       case 'not_assigned_teacher': return 'Only the assigned teacher can create the Google Meet session.';
       default: return 'Could not create the Google Meet link. Please try again.';
     }
