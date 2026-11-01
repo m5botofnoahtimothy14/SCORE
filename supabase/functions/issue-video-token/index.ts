@@ -14,11 +14,17 @@ const LIVEKIT_API_KEY = Deno.env.get("LIVEKIT_API_KEY") ?? "";
 const LIVEKIT_API_SECRET = Deno.env.get("LIVEKIT_API_SECRET") ?? "";
 const LIVEKIT_URL = Deno.env.get("LIVEKIT_URL") ?? "";
 const TOKEN_TTL_SECONDS = 3600;
+const CORS_HEADERS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Content-Type': 'application/json',
+};
 
 function jsonError(code: string, status = 400) {
   return new Response(JSON.stringify({ success: false, error: code }), {
     status,
-    headers: { "Content-Type": "application/json" },
+    headers: CORS_HEADERS,
   });
 }
 
@@ -49,10 +55,7 @@ async function signJwt(payload: Record<string, unknown>) {
 serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, {
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Headers": "authorization, content-type",
-      },
+      headers: CORS_HEADERS,
     });
   }
 
@@ -85,7 +88,7 @@ serve(async (req: Request) => {
   if (user.id !== booking.student_id && user.id !== booking.mentor_id) {
     return jsonError("not_a_participant", 403);
   }
-  if (!["confirmed", "completed"].includes(booking.status)) {
+  if (!["confirmed", "in_progress", "completed"].includes(booking.status)) {
     return jsonError("booking_not_confirmed", 409);
   }
 
