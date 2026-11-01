@@ -10,6 +10,7 @@ import '../../features/auth/screens/role_select_screen.dart';
 import '../../features/auth/screens/student_signin_screen.dart';
 import '../../features/auth/screens/teacher_signin_screen.dart';
 import '../../features/home/screens/home_screen.dart';
+import '../../features/ai_ask/screens/ai_ask_screen.dart';
 import '../../features/announcements/screens/announcements_screen.dart' show AnnouncementsScreen;
 import '../../features/announcements/screens/announcement_detail_screen.dart' show AnnouncementDetailScreen;
 import '../../features/announcements/screens/compose_announcement_screen.dart' show ComposeAnnouncementScreen;
@@ -179,6 +180,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state, child) => AppShell(child: child),
         routes: [
           GoRoute(path: '/home', builder: (_, __) => const HomeScreen()),
+          GoRoute(path: '/ai-ask', builder: (_, __) => const AiAskScreen()),
           GoRoute(path: '/announcements', builder: (_, __) => const AnnouncementsScreen()),
           GoRoute(path: '/announcements/compose', builder: (_, __) => const ComposeAnnouncementScreen()),
           GoRoute(
@@ -280,17 +282,20 @@ class NavDest {
 
 List<NavDest> destinationsFor(AppTier tier) => switch (tier) {
   AppTier.student => const [
+    NavDest('/home', Icons.home_outlined, Icons.home, 'Home'),
     NavDest('/mentor-desk', Icons.support_agent_outlined, Icons.support_agent, 'Mentor Desk'),
     NavDest('/announcements', Icons.campaign_outlined, Icons.campaign, 'Notices'),
     NavDest('/profile', Icons.person_outline, Icons.person, 'Profile'),
   ],
   AppTier.teacher => const [
+    NavDest('/home', Icons.home_outlined, Icons.home, 'Home'),
     NavDest('/mentor-desk/queue', Icons.list_outlined, Icons.list, 'Queue'),
     NavDest('/mentor-desk/availability', Icons.accessibility_outlined, Icons.accessibility, 'Availability'),
     NavDest('/announcements', Icons.campaign_outlined, Icons.campaign, 'Notices'),
     NavDest('/profile', Icons.person_outline, Icons.person, 'Profile'),
   ],
   AppTier.leadership => const [
+    NavDest('/home', Icons.home_outlined, Icons.home, 'Home'),
     NavDest('/mentor-desk/slt', Icons.insights_outlined, Icons.insights, 'Oversight'),
     NavDest('/announcements', Icons.campaign_outlined, Icons.campaign, 'Notices'),
     NavDest('/profile', Icons.person_outline, Icons.person, 'Profile'),
