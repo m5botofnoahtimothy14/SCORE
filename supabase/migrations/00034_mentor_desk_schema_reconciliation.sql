@@ -62,7 +62,7 @@ ALTER TABLE public.doubt_requests
   ALTER COLUMN status SET DEFAULT 'pending_assignment',
   ALTER COLUMN status SET NOT NULL;
 
-DO $
+DO $$
 BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM pg_constraint
@@ -74,7 +74,7 @@ BEGIN
       CHECK (status IN ('submitted','pending_assignment','assigned','in_progress','answered','closed','reopened'));
   END IF;
 END;
-$;
+$$;
 
 -- Do not permit a partially populated doubt request to enter the new API.
 DO $$
@@ -117,16 +117,32 @@ ALTER TABLE public.doubt_status_history
   ADD COLUMN IF NOT EXISTS reason text,
   ADD COLUMN IF NOT EXISTS created_at timestamptz;
 
-UPDATE public.doubt_status_history
-SET actor_id = COALESCE(actor_id, changed_by),
-    from_status = COALESCE(from_status, old_status::text),
-    to_status = COALESCE(to_status, new_status::text),
-    created_at = COALESCE(created_at, changed_at, now());
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='doubt_status_history' AND column_name='changed_by') THEN
+    EXECUTE 'UPDATE public.doubt_status_history SET actor_id = COALESCE(actor_id, changed_by)'
+    ;
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='doubt_status_history' AND column_name='old_status') THEN
+    EXECUTE 'UPDATE public.doubt_status_history SET from_status = COALESCE(from_status, old_status::text)'
+    ;
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='doubt_status_history' AND column_name='new_status') THEN
+    EXECUTE 'UPDATE public.doubt_status_history SET to_status = COALESCE(to_status, new_status::text)'
+    ;
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='doubt_status_history' AND column_name='changed_at') THEN
+    EXECUTE 'UPDATE public.doubt_status_history SET created_at = COALESCE(created_at, changed_at, now())'
+    ;
+  ELSE
+    UPDATE public.doubt_status_history SET created_at = COALESCE(created_at, now());
+  END IF;
+END;
+$$;
 
 ALTER TABLE public.doubt_status_history
   ALTER COLUMN created_at SET DEFAULT now(),
   ALTER COLUMN created_at SET NOT NULL;
-
 CREATE INDEX IF NOT EXISTS idx_doubt_status_history_request_created
   ON public.doubt_status_history(request_id, created_at DESC);
 
@@ -203,6 +219,37 @@ CREATE POLICY student_subject_enrollment_admin
 GRANT SELECT, INSERT, UPDATE, DELETE
   ON public.student_subject_enrollments TO authenticated;
 
+-- Extend the no-show table while retaining any older recorded_by/recorded_at fields.
+ALTER TABLE public.session_no_shows
+  ADD COLUMN IF NOT EXISTS school_id uuid REFERENCES public.schools(id) ON DELETE CASCADE,
+  ADD COLUMN IF NOT EXISTS reported_by uuid REFERENCES public.user_profiles(id),
+  ADD COLUMN IF NOT EXISTS reported_by_role text,
+  ADD COLUMN IF NOT EXISTS refund_minutes integer NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS review_status text NOT NULL DEFAULT 'pending',
+  ADD COLUMN IF NOT EXISTS reason text,
+  ADD COLUMN IF NOT EXISTS created_at timestamptz NOT NULL DEFAULT now();
+
+DO $
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='session_no_shows' AND column_name='recorded_by')
+     AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='session_no_shows' AND column_name='recorded_at') THEN
+    EXECUTE $sql$
+      UPDATE public.session_no_shows ns
+      SET school_id = COALESCE(ns.school_id, sb.school_id),
+          reported_by = COALESCE(ns.reported_by, ns.recorded_by),
+          reported_by_role = COALESCE(ns.reported_by_role,
+            CASE WHEN ns.recorded_by = sb.student_id THEN 'student'
+                 WHEN ns.recorded_by = sb.mentor_id THEN 'mentor' ELSE NULL END),
+          created_at = COALESCE(ns.created_at, ns.recorded_at, now())
+      FROM public.session_bookings sb
+      WHERE sb.id = ns.booking_id
+    $sql$;
+  END IF;
+END;
+$;
+
+ALTER TABLE public.mentor_subject_approvals
+  ADD COLUMN IF NOT EXISTS updated_at timestamptz NOT NULL DEFAULT now();
 -- Add salted, expiring verification-code storage to the existing booking
 -- row. Existing legacy verification_code data is not copied into OTP fields.
 ALTER TABLE public.session_bookings
