@@ -158,7 +158,17 @@ serve(async (req: Request) => {
       email: claim.teacher_email,
       role: "COHOST",
     });
-    if (!((member.status >= 200 && member.status < 300) || member.status === 409)) {
+    if (member.status === 409) {
+      const members = await googleRequest(accessToken, memberUrl, "GET");
+      const existingMember = (members.data.members ?? []).find((entry: Record<string, string>) =>
+        String(entry.email ?? "").toLowerCase() === String(claim.teacher_email).toLowerCase()
+      );
+      if (existingMember?.role !== "COHOST") {
+        console.error("Teacher is already a Meet member but is not a co-host.");
+        await resetLease();
+        return json({ success: false, error: "google_meet_teacher_host_assignment_failed" }, 502);
+      }
+    } else if (member.status < 200 || member.status >= 300) {
       console.error("Google Meet co-host assignment failed:", member.status);
       await resetLease();
       return json({ success: false, error: "google_meet_teacher_host_assignment_failed" }, 502);
@@ -173,7 +183,7 @@ serve(async (req: Request) => {
     }
     const endAt = new Date(startAt.getTime() + duration * 60_000);
     const calendarId = encodeURIComponent(claim.calendar_id || "primary");
-    const eventUrl = `https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events`;
+    const eventUrl = `https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events?sendUpdates=all`;
     const eventBody = {
       id: eventId,
       summary: `SCORE+ Mentor Desk — ${String(claim.topic || "Session").slice(0, 100)}`,
