@@ -268,7 +268,6 @@ serve(async (req: Request) => {
       if ((devices ?? []).length > 0) accessToken = await getFCMAccessToken();
 
       const successUsers = new Set<string>();
-      const failedUsers = new Set<string>();
 
       for (const device of devices ?? []) {
         const result = await sendFCM(
@@ -296,11 +295,12 @@ serve(async (req: Request) => {
           sent_at: result.ok ? new Date().toISOString() : null,
           failed_at: result.ok ? null : new Date().toISOString(),
           failure_reason: result.ok ? null : "fcm_delivery_failed",
-          idempotency_key: `${announcement.id}:${device.id}`,
-        });
-        if (logError && !String(logError.code).includes("23505")) {
-          throw new Error("notification_log_failed");
-        }
+          idempotency_key: idempotencyKey,
+        };
+        const logWrite = existingLog
+          ? await supabase.from("notification_jobs").update(logValues).eq("id", existingLog.id)
+          : await supabase.from("notification_jobs").insert(logValues);
+        if (logWrite.error) throw new Error("notification_log_failed");
 
         if (result.invalidToken) {
           await supabase.from("notification_devices").update({ is_active: false }).eq("id", device.id);
@@ -309,15 +309,13 @@ serve(async (req: Request) => {
           successUsers.add(device.user_id);
           sent += 1;
         } else {
-          failedUsers.add(device.user_id);
           failed += 1;
         }
       }
 
       const noDeviceUsers = recipientIds.filter((id) => !devices?.some((device) => device.user_id === id));
       if (noDeviceUsers.length > 0) {
-        failedUsers.forEach(() => undefined);
-        for (const userId of noDeviceUsers) failedUsers.add(userId);
+        // Recipients without a registered device remain unnotified.
       }
 
       for (const userId of recipientIds) {
