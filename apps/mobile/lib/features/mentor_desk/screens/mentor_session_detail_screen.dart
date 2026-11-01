@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/providers/identity_provider.dart';
@@ -58,11 +59,6 @@ class _MentorSessionDetailScreenState extends ConsumerState<MentorSessionDetailS
         scheduledAt: booking.scheduledAt ?? booking.requestedAt,
         durationMinutes: booking.durationMinutes,
       );
-      try {
-        await ref.read(_mentorServiceProvider).createGoogleMeet(booking.id);
-      } on MentorDeskException {
-        // Session confirmation remains valid when Google Meet is not configured.
-      }
       await _load();
     } on MentorDeskException catch (error) {
       if (mounted) setState(() => _error = error.message);
@@ -123,6 +119,14 @@ class _MentorSessionDetailScreenState extends ConsumerState<MentorSessionDetailS
                       const Text('Confirm this booking to make the session available to the student.', style: TextStyle(fontSize: 13, color: AppColors.ink500)),
                       const SizedBox(height: 10),
                       FilledButton(onPressed: _working ? null : _confirm, child: Text(_working ? 'Confirming…' : 'Confirm session')),
+                    ],
+                    if (booking.isStarted && ['confirmed', 'in_progress'].contains(booking.status)) ...[
+                      const SizedBox(height: 16),
+                      FilledButton.icon(
+                        onPressed: () => context.go('/mentor-desk/call/${booking.id}'),
+                        icon: const Icon(Icons.video_call_rounded),
+                        label: const Text('Join in-app call'),
+                      ),
                     ],
                     if (booking.isConfirmed && booking.isStarted && !booking.isVerified) ...[
                       const SizedBox(height: 20),
