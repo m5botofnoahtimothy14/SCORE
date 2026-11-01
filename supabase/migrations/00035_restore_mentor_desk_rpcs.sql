@@ -206,17 +206,23 @@ END $$;
 
 CREATE OR REPLACE FUNCTION public.cancel_session(p_booking_id UUID,p_cancelled_by UUID DEFAULT NULL)
 RETURNS JSONB LANGUAGE plpgsql SECURITY DEFINER SET search_path=public AS $$
-DECLARE v_uid UUID:=auth.uid(); v_booking session_bookings%ROWTYPE; v_tz TEXT; v_week DATE;
+DECLARE v_uid UUID:=auth.uid(); v_booking session_bookings%ROWTYPE; v_week DATE;
 BEGIN
   SELECT * INTO v_booking FROM session_bookings WHERE id=p_booking_id FOR UPDATE;
   IF NOT FOUND THEN RETURN jsonb_build_object('success',false,'error','booking_not_found'); END IF;
   IF v_uid NOT IN (v_booking.student_id,v_booking.mentor_id) THEN RETURN jsonb_build_object('success',false,'error','not_a_participant'); END IF;
   IF v_booking.status NOT IN ('requested','confirmed') OR v_booking.started_at IS NOT NULL THEN RETURN jsonb_build_object('success',false,'error','booking_not_cancellable'); END IF;
   IF v_booking.refunded THEN RETURN jsonb_build_object('success',true,'status',v_booking.status,'refunded',true); END IF;
-  SELECT COALESCE(timezone,'Asia/Kolkata') INTO v_tz FROM school_settings WHERE school_id=v_booking.school_id;
-  v_week:=tc_week_start(NOW(),COALESCE(v_tz,'Asia/Kolkata'));
   IF v_booking.scheduled_at IS NOT NULL AND v_booking.scheduled_at <= NOW() THEN
     RETURN jsonb_build_object('success',false,'error','booking_time_passed');
+  END IF;
+  SELECT week_start INTO v_week
+  FROM allowance_transactions
+  WHERE booking_id = p_booking_id AND action = 'deduct'
+  ORDER BY created_at ASC
+  LIMIT 1;
+  IF v_week IS NULL THEN
+    RETURN jsonb_build_object('success',false,'error','allowance_record_missing');
   END IF;
   UPDATE session_bookings SET status=CASE WHEN v_uid=v_booking.student_id THEN 'cancelled_by_student'::booking_status ELSE 'cancelled_by_mentor'::booking_status END,
     refunded=true,cancelled_at=NOW(),cancelled_by=v_uid,updated_at=NOW() WHERE id=p_booking_id;
@@ -264,7 +270,7 @@ END $$;
 
 CREATE OR REPLACE FUNCTION public.verify_session_code(p_booking_id UUID,p_code TEXT)
 RETURNS JSONB LANGUAGE plpgsql SECURITY DEFINER SET search_path=public AS $$
-DECLARE v_uid UUID:=auth.uid(); v_booking session_bookings%ROWTYPE; v_hash TEXT; v_week DATE; v_tz TEXT;
+DECLARE v_uid UUID:=auth.uid(); v_booking session_bookings%ROWTYPE; v_hash TEXT; v_week DATE;
 BEGIN
   SELECT * INTO v_booking FROM session_bookings WHERE id=p_booking_id FOR UPDATE;
   IF NOT FOUND OR v_booking.mentor_id IS DISTINCT FROM v_uid THEN RETURN jsonb_build_object('success',false,'error','not_the_mentor'); END IF;
@@ -283,8 +289,14 @@ BEGIN
     INSERT INTO audit_events(school_id,actor_id,action,target_type,target_id,outcome,metadata) VALUES(v_booking.school_id,v_uid,'session.code.failed','session_booking',p_booking_id::TEXT,'failure',jsonb_build_object('attempt',v_booking.code_attempts+1));
     RETURN jsonb_build_object('success',false,'error',CASE WHEN v_booking.code_attempts+1>=5 THEN 'code_locked' ELSE 'incorrect_code' END);
   END IF;
-  SELECT COALESCE(timezone,'Asia/Kolkata') INTO v_tz FROM school_settings WHERE school_id=v_booking.school_id;
-  v_week:=tc_week_start(NOW(),COALESCE(v_tz,'Asia/Kolkata'));
+  SELECT week_start INTO v_week
+  FROM allowance_transactions
+  WHERE booking_id = p_booking_id AND action = 'deduct'
+  ORDER BY created_at ASC
+  LIMIT 1;
+  IF v_week IS NULL THEN
+    RETURN jsonb_build_object('success',false,'error','allowance_record_missing');
+  END IF;
   IF EXISTS(SELECT 1 FROM allowance_transactions WHERE booking_id=p_booking_id AND reason='verified_actual_use') THEN
     RETURN jsonb_build_object('success',true,'status','completed','idempotent',true);
   END IF;
@@ -324,6 +336,7 @@ DECLARE
   v_booking session_bookings%ROWTYPE;
   v_ns_type no_show_type;
   v_refund  INTEGER;
+  v_week    DATE;
 BEGIN
   IF v_uid IS NULL THEN
     RETURN jsonb_build_object('success', FALSE, 'error', 'not_authenticated');
@@ -363,6 +376,15 @@ BEGIN
     RETURN jsonb_build_object('success', FALSE, 'error', 'already_resolved');
   END IF;
 
+  SELECT week_start INTO v_week
+  FROM allowance_transactions
+  WHERE booking_id = p_booking_id AND action = 'deduct'
+  ORDER BY created_at ASC
+  LIMIT 1;
+  IF v_week IS NULL THEN
+    RETURN jsonb_build_object('success',false,'error','allowance_record_missing');
+  END IF;
+
   INSERT INTO session_no_shows(
     school_id, booking_id, reported_by, reported_by_role,
     no_show_type, refund_minutes, review_status, reason, created_at
@@ -384,7 +406,7 @@ BEGIN
     )
     VALUES (
       v_booking.school_id, v_booking.student_id, v_booking.subject_id,
-      p_booking_id, date_trunc('week', v_booking.requested_at)::DATE,
+      p_booking_id, v_week,
       'refund', v_refund, 'mentor_no_show', NOW()
     );
   ELSE
