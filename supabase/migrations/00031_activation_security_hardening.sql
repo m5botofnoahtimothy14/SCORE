@@ -70,6 +70,11 @@ BEGIN
     RETURN jsonb_build_object('success', FALSE, 'error', 'invalid_credentials');
   END IF;
 
+  IF (SELECT count(*) FROM students
+      WHERE student_id_no = trim(p_student_id_no) AND is_active = TRUE) > 1 THEN
+    RETURN jsonb_build_object('success', FALSE, 'error', 'school_resolution_required');
+  END IF;
+
   SELECT * INTO v_student
   FROM students
   WHERE student_id_no = trim(p_student_id_no) AND is_active = TRUE
@@ -225,6 +230,11 @@ BEGIN
   IF p_staff_id_no IS NULL OR length(trim(p_staff_id_no)) = 0
      OR p_activation_code IS NULL OR length(trim(p_activation_code)) = 0 THEN
     RETURN jsonb_build_object('success', FALSE, 'error', 'invalid_credentials');
+  END IF;
+
+  IF (SELECT count(*) FROM teachers
+      WHERE staff_id_no = trim(p_staff_id_no) AND is_active = TRUE) > 1 THEN
+    RETURN jsonb_build_object('success', FALSE, 'error', 'school_resolution_required');
   END IF;
 
   SELECT * INTO v_teacher
