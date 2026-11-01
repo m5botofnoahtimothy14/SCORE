@@ -95,7 +95,7 @@ export default function HealthPage() {
           </div>
         </Card>
       </div>
-      <p className="mt-4 text-xs text-ink-500">The health endpoint reports configuration and table reachability. It does not prove that every application workflow is operational.</p>
+      <p className="mt-4 text-xs text-ink-500">The health endpoint reports database reachability and configuration visible to the admin web runtime. Supabase Edge Function secrets are stored separately and are validated when those functions run. This page does not prove that every application workflow is operational.</p>
     </div>
   )
 }
