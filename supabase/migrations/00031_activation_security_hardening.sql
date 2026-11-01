@@ -6,6 +6,7 @@
 
 -- Track failed attempts and temporary locks for both activation flows.
 ALTER TABLE public.student_activation_credentials
+  ADD COLUMN IF NOT EXISTS code_salt TEXT,
   ADD COLUMN IF NOT EXISTS failed_attempts INTEGER NOT NULL DEFAULT 0,
   ADD COLUMN IF NOT EXISTS locked_until TIMESTAMPTZ;
 
@@ -14,10 +15,9 @@ ALTER TABLE public.teacher_activation_credentials
   ADD COLUMN IF NOT EXISTS failed_attempts INTEGER NOT NULL DEFAULT 0,
   ADD COLUMN IF NOT EXISTS locked_until TIMESTAMPTZ;
 
--- Invalidate any legacy teacher codes that do not have the new salted format.
-UPDATE public.teacher_activation_credentials
-SET used_at = COALESCE(used_at, NOW())
-WHERE code_salt IS NULL;
+-- Existing credential hashes use unsalted SHA-256. Keep them valid during
+-- migration. The verified RPC accepts that legacy format once and uses the
+-- salted format for all newly issued codes.
 
 COMMENT ON COLUMN public.teacher_activation_credentials.code IS
   'SHA-256 hash of the one-time code plus code_salt. Never store a plaintext code.';
@@ -103,16 +103,21 @@ BEGIN
     RETURN jsonb_build_object('success', FALSE, 'error', 'rate_limited');
   END IF;
 
-  IF v_credential.code_hash IS NULL OR v_credential.code_salt IS NULL THEN
+  IF v_credential.code IS NULL THEN
     RETURN jsonb_build_object('success', FALSE, 'error', 'invalid_credentials');
   END IF;
 
-  v_submitted_hash := encode(
-    digest(trim(p_activation_code) || ':' || v_credential.code_salt, 'sha256'),
-    'hex'
-  );
+  IF v_credential.code_salt IS NULL THEN
+    -- Legacy production rows store SHA-256(code) in the existing code column.
+    v_submitted_hash := encode(digest(trim(p_activation_code), 'sha256'), 'hex');
+  ELSE
+    v_submitted_hash := encode(
+      digest(trim(p_activation_code) || ':' || v_credential.code_salt, 'sha256'),
+      'hex'
+    );
+  END IF;
 
-  IF v_submitted_hash <> v_credential.code_hash THEN
+  IF v_submitted_hash <> v_credential.code THEN
     UPDATE student_activation_credentials
     SET failed_attempts = failed_attempts + 1,
         locked_until = CASE
@@ -250,13 +255,14 @@ BEGIN
   END IF;
 
   IF v_credential.code_salt IS NULL THEN
-    RETURN jsonb_build_object('success', FALSE, 'error', 'no_activation_code');
+    -- Legacy production rows store SHA-256(code) in the existing code column.
+    v_submitted_hash := encode(digest(trim(p_activation_code), 'sha256'), 'hex');
+  ELSE
+    v_submitted_hash := encode(
+      digest(trim(p_activation_code) || ':' || v_credential.code_salt, 'sha256'),
+      'hex'
+    );
   END IF;
-
-  v_submitted_hash := encode(
-    digest(trim(p_activation_code) || ':' || v_credential.code_salt, 'sha256'),
-    'hex'
-  );
 
   IF v_submitted_hash <> v_credential.code THEN
     UPDATE teacher_activation_credentials
@@ -339,7 +345,7 @@ BEGIN
     RETURN jsonb_build_object('success', FALSE, 'error', 'teacher_not_found');
   END IF;
 
-  IF NOT public.tc_is_school_admin(v_teacher.school_id) THEN
+  IF NOT (public.tc_is_school_admin(v_teacher.school_id) OR public.tc_is_platform_owner()) THEN
     RETURN jsonb_build_object('success', FALSE, 'error', 'forbidden');
   END IF;
 
@@ -406,7 +412,7 @@ BEGIN
     RETURN jsonb_build_object('success', FALSE, 'error', 'student_not_found');
   END IF;
 
-  IF NOT public.tc_is_school_admin(v_student.school_id) THEN
+  IF NOT (public.tc_is_school_admin(v_student.school_id) OR public.tc_is_platform_owner()) THEN
     RETURN jsonb_build_object('success', FALSE, 'error', 'forbidden');
   END IF;
 
@@ -421,15 +427,15 @@ BEGIN
   v_expires_at := NOW() + make_interval(days => p_days_valid);
 
   INSERT INTO student_activation_credentials(
-    school_id, student_id, code_hash, code_salt, expires_at,
-    created_by, created_at, failed_attempts, locked_until
+    school_id, student_id, code, code_salt, expires_at,
+    used_at, created_by, created_at, failed_attempts, locked_until
   ) VALUES (
     v_student.school_id, p_student_id, v_code_hash, v_code_salt,
-    v_expires_at, auth.uid(), NOW(), 0, NULL
+    v_expires_at, NULL, auth.uid(), NOW(), 0, NULL
   )
   ON CONFLICT (student_id) DO UPDATE SET
     school_id = EXCLUDED.school_id,
-    code_hash = EXCLUDED.code_hash,
+    code = EXCLUDED.code,
     code_salt = EXCLUDED.code_salt,
     expires_at = EXCLUDED.expires_at,
     used_at = NULL,
