@@ -565,7 +565,7 @@ DECLARE
   v_week_start_ts timestamptz;
   v_next_reset timestamptz;
   v_used_normal integer := 0;
-  v_open_count integer := 0;
+  v_normal_limit integer := 3;
   v_request uuid;
   v_conversation uuid;
   v_subject_name text;
@@ -629,6 +629,7 @@ BEGIN
   IF NOT FOUND THEN
     RETURN jsonb_build_object('success', false, 'error', 'settings_not_configured');
   END IF;
+  v_normal_limit := LEAST(COALESCE(v_settings.weekly_doubt_allowance, 3), 3);
 
   SELECT s.name INTO v_subject_name
   FROM public.subjects s
@@ -671,16 +672,6 @@ BEGIN
   v_week_start_ts := v_week_start::timestamp AT TIME ZONE v_timezone;
   v_next_reset := (v_week_start::timestamp + interval '7 days') AT TIME ZONE v_timezone;
 
-  SELECT count(*) INTO v_open_count
-  FROM public.doubt_requests d
-  WHERE d.student_id = v_uid
-    AND d.subject_id = p_subject_id
-    AND d.status IN ('pending_assignment', 'waiting', 'assigned', 'in_progress');
-
-  IF v_open_count >= v_settings.open_doubt_limit THEN
-    RETURN jsonb_build_object('success', false, 'error', 'doubt_limit_reached');
-  END IF;
-
   IF p_urgent THEN
     IF p_urgent_reason IS NULL OR length(trim(p_urgent_reason)) < 3 THEN
       RETURN jsonb_build_object('success', false, 'error', 'urgent_reason_required');
@@ -700,7 +691,7 @@ BEGIN
       AND d.subject_id = p_subject_id
       AND d.urgent = false
       AND d.created_at >= v_week_start_ts;
-    IF v_used_normal >= v_settings.weekly_doubt_allowance THEN
+    IF v_used_normal >= v_normal_limit THEN
       RETURN jsonb_build_object(
         'success', false, 'error', 'weekly_quota_reached',
         'remaining', 0, 'next_reset_at', v_next_reset
@@ -835,7 +826,7 @@ BEGIN
     'conversation_id', v_conversation,
     'status', CASE WHEN v_teacher.id IS NULL THEN 'pending_assignment' ELSE 'assigned' END,
     'urgent_pass_used', p_urgent,
-    'remaining', GREATEST(0, v_settings.weekly_doubt_allowance - v_used_normal - CASE WHEN p_urgent THEN 0 ELSE 1 END),
+    'remaining', GREATEST(0, v_normal_limit - v_used_normal - CASE WHEN p_urgent THEN 0 ELSE 1 END),
     'urgent_available', NOT EXISTS (
       SELECT 1 FROM public.urgent_pass_usage u
       WHERE u.student_id = v_uid AND u.subject_id = p_subject_id AND u.week_start = v_week_start
@@ -888,7 +879,7 @@ BEGIN
     'session_allowance_minutes', COALESCE(v_settings.session_allowance_minutes, 60),
     'session_used_minutes', v_session_used,
     'session_remaining_minutes', GREATEST(0, COALESCE(v_settings.session_allowance_minutes, 60) - v_session_used),
-    'doubt_allowance', COALESCE(v_settings.weekly_doubt_allowance, 3),
+    'doubt_allowance', LEAST(COALESCE(v_settings.weekly_doubt_allowance, 3), 3),
     'subjects', COALESCE((
       SELECT jsonb_agg(jsonb_build_object(
         'subject_id', s.id,
