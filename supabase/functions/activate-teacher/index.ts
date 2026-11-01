@@ -55,7 +55,10 @@ serve(async (req: Request) => {
   }
   if (!data || data.success !== true) {
     const code = data?.error?.toString() ?? "activation_failed";
-    const status = code === "teacher_not_found" ? 404 : code === "forbidden" ? 403 : 400;
+    const status = code === "teacher_not_found" ? 404
+      : code === "forbidden" ? 403
+      : code === "school_resolution_required" ? 409
+      : 400;
     return json({ success: false, error: code }, status);
   }
 
