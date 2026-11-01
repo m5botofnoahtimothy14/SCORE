@@ -124,6 +124,8 @@ class AuthService {
         return 'This activation code was already used. Ask your school office for help.';
       case 'teacher_not_found':
         return 'Staff ID not found in school roster. Verify with school office.';
+      case 'school_resolution_required':
+        return 'This Staff ID matches more than one school. Contact your school office for a school-specific activation code.';
       case 'no_activation_code':
         return 'No activation code found for this ID. Ask your school office to issue one.';
       case 'invalid_code':
@@ -181,6 +183,8 @@ class AuthService {
         return 'This activation code was already used. Ask your school office for help.';
       case 'student_not_found':
         return 'Student ID not found in school roster. Verify with school office.';
+      case 'school_resolution_required':
+        return 'This Student ID matches more than one school. Contact your school office for a school-specific activation code.';
       case 'no_activation_code':
         return 'No activation code found for this ID. Ask your school office to issue one.';
       default:
