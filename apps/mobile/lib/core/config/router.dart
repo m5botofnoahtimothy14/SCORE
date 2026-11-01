@@ -20,6 +20,7 @@ import '../../features/profile/screens/notification_settings_screen.dart' show N
 import '../../features/search/screens/search_screen.dart';
 import '../../features/mentor_desk/screens/mentor_desk_home_screen.dart';
 import '../../features/mentor_desk/screens/submit_doubt_screen.dart';
+import '../../features/mentor_desk/screens/student_doubts_sessions_screen.dart';
 import '../../features/mentor_desk/screens/doubt_conversation_screen.dart';
 import '../../features/mentor_desk/screens/book_session_screen.dart';
 import '../../features/mentor_desk/screens/session_detail_screen.dart';
@@ -191,6 +192,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             ),
           ),
           GoRoute(path: '/mentor-desk', builder: (_, __) => const MentorDeskHomeScreen()),
+          GoRoute(path: '/mentor-desk/doubts', builder: (_, __) => const StudentDoubtsScreen()),
+          GoRoute(path: '/mentor-desk/sessions', builder: (_, __) => const StudentSessionsScreen()),
           GoRoute(path: '/mentor-desk/doubt/submit', builder: (_, __) => const SubmitDoubtScreen()),
           GoRoute(
             path: '/mentor-desk/doubt/:id',
