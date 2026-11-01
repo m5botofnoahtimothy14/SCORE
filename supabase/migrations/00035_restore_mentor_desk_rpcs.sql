@@ -182,6 +182,23 @@ BEGIN
     JOIN mentor_subject_approvals ma ON ma.teacher_id=t.id AND ma.subject_id=v_booking.subject_id AND ma.status='approved'
     WHERE t.user_id=v_uid AND t.is_active AND t.school_id=v_booking.school_id AND ta.class_id=v_booking.class_id AND ta.subject_id=v_booking.subject_id;
   IF NOT FOUND THEN RETURN jsonb_build_object('success',false,'error','assignment_changed'); END IF;
+  IF EXISTS (
+    SELECT 1 FROM mentor_availability ma
+    WHERE ma.teacher_id = v_teacher.id AND ma.status = 'away'
+  ) THEN
+    RETURN jsonb_build_object('success',false,'error','mentor_unavailable');
+  END IF;
+  IF EXISTS (
+    SELECT 1 FROM session_bookings b
+    WHERE b.id <> p_booking_id
+      AND b.mentor_id = v_teacher.user_id
+      AND b.status IN ('requested','confirmed')
+      AND b.scheduled_at IS NOT NULL
+      AND b.scheduled_at < p_scheduled_at + make_interval(mins => p_duration_minutes)
+      AND b.scheduled_at + make_interval(mins => b.duration_minutes) > p_scheduled_at
+  ) THEN
+    RETURN jsonb_build_object('success',false,'error','time_slot_unavailable');
+  END IF;
   UPDATE session_bookings SET status='confirmed',scheduled_at=p_scheduled_at,confirmed_at=NOW(),meeting_link=p_meeting_link,meeting_room=p_meeting_room,updated_at=NOW() WHERE id=p_booking_id;
   INSERT INTO audit_events(school_id,actor_id,action,target_type,target_id,outcome) VALUES(v_booking.school_id,v_uid,'session.confirm','session_booking',p_booking_id::TEXT,'success');
   RETURN jsonb_build_object('success',true,'booking_id',p_booking_id,'status','confirmed');
