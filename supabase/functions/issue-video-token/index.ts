@@ -13,7 +13,7 @@ const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const LIVEKIT_API_KEY = Deno.env.get("LIVEKIT_API_KEY") ?? "";
 const LIVEKIT_API_SECRET = Deno.env.get("LIVEKIT_API_SECRET") ?? "";
 const LIVEKIT_URL = Deno.env.get("LIVEKIT_URL") ?? "";
-const TOKEN_TTL_SECONDS = 3600;
+const MAX_TOKEN_TTL_SECONDS = 3600;
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -69,8 +69,10 @@ serve(async (req: Request) => {
 
   let body: { booking_id?: string } = {};
   try { body = await req.json(); } catch { return jsonError("invalid_body", 400); }
-  const bookingId = body.booking_id;
-  if (!bookingId) return jsonError("missing_booking_id", 400);
+  const bookingId = body.booking_id?.trim();
+  if (!bookingId || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(bookingId)) {
+    return jsonError("invalid_booking_id", 400);
+  }
 
   if (!LIVEKIT_API_KEY || !LIVEKIT_API_SECRET || !LIVEKIT_URL || !LIVEKIT_URL.startsWith("wss://")) {
     return jsonError("video_not_configured", 503);
@@ -79,7 +81,7 @@ serve(async (req: Request) => {
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
   const { data: booking, error: bErr } = await supabase
     .from("session_bookings")
-    .select("id, school_id, student_id, mentor_id, status, video_room_name")
+    .select("id, school_id, student_id, mentor_id, status, started_at, reserved_minutes, video_room_name")
     .eq("id", bookingId)
     .maybeSingle();
   if (bErr || !booking) return jsonError("booking_not_found", 404);
@@ -90,6 +92,18 @@ serve(async (req: Request) => {
   if (!["confirmed", "in_progress"].includes(booking.status)) {
     return jsonError("booking_not_confirmed", 409);
   }
+  if (!booking.started_at) return jsonError("booking_not_started", 409);
+
+  const durationMinutes = Number(booking.reserved_minutes);
+  if (![15, 30].includes(durationMinutes)) return jsonError("invalid_session_duration", 409);
+
+  const startedAtMs = new Date(booking.started_at).getTime();
+  if (!Number.isFinite(startedAtMs)) return jsonError("invalid_session_start", 409);
+
+  const now = Math.floor(Date.now() / 1000);
+  const sessionDeadline = Math.floor((startedAtMs + durationMinutes * 60_000) / 1000);
+  const expiresAt = Math.min(now + MAX_TOKEN_TTL_SECONDS, sessionDeadline);
+  if (expiresAt <= now) return jsonError("session_time_elapsed", 409);
 
   // Provision room name if missing
   let roomName = booking.video_room_name;
@@ -112,13 +126,12 @@ serve(async (req: Request) => {
     }
   }
 
-  const now = Math.floor(Date.now() / 1000);
   const token = await signJwt({
     iss: LIVEKIT_API_KEY,
     sub: user.id,
     iat: now,
     nbf: now,
-    exp: now + TOKEN_TTL_SECONDS,
+    exp: expiresAt,
     video: {
       roomJoin: true,
       room: roomName,
@@ -132,6 +145,7 @@ serve(async (req: Request) => {
     url: LIVEKIT_URL,
     token,
     room_name: roomName,
-    ttl_seconds: TOKEN_TTL_SECONDS,
+    ttl_seconds: expiresAt - now,
+    expires_at: new Date(expiresAt * 1000).toISOString(),
   }), { status: 200, headers: CORS_HEADERS });
 });
