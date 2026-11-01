@@ -83,9 +83,14 @@ class _ComposeAnnouncementScreenState extends ConsumerState<ComposeAnnouncementS
       }
       if (!mounted) return;
       final dispatch = data['dispatch_status']?.toString() ?? 'queued';
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(dispatch == 'queued' ? 'Announcement published. Notifications are queued.' : 'Announcement published, but notifications were not queued.')),
-      );
+      final dispatchMessage = switch (dispatch) {
+        'dispatch_started' || 'dispatched' => 'Announcement published. Notification delivery has started.',
+        'queued' => 'Announcement published. Notifications are queued.',
+        'queued_not_dispatched' => 'Announcement published. Notification delivery is waiting for server configuration.',
+        'dispatch_failed' => 'Announcement published, but notification delivery failed to start.',
+        _ => 'Announcement published, but the notification queue could not be confirmed.',
+      };
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(dispatchMessage)));
       context.go('/announcements');
     } catch (_) {
       if (mounted) setState(() => _error = 'Could not publish this announcement. Check your connection and try again.');
