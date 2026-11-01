@@ -88,7 +88,7 @@ serve(async (req: Request) => {
   if (user.id !== booking.student_id && user.id !== booking.mentor_id) {
     return jsonError("not_a_participant", 403);
   }
-  if (!["confirmed", "in_progress", "completed"].includes(booking.status)) {
+  if (!["confirmed", "in_progress"].includes(booking.status)) {
     return jsonError("booking_not_confirmed", 409);
   }
 
