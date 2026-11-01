@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/models/identity.dart';
@@ -96,12 +96,6 @@ class _SessionDetailScreenState extends ConsumerState<SessionDetailScreen> {
     }
   }
 
-  Future<void> _openMeeting(String url) async {
-    final uri = Uri.tryParse(url);
-    if (uri == null || !await launchUrl(uri, mode: LaunchMode.externalApplication)) {
-      if (mounted) setState(() => _error = 'Could not open the meeting link.');
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -134,9 +128,13 @@ class _SessionDetailScreenState extends ConsumerState<SessionDetailScreen> {
                       const SizedBox(height: 14),
                       _InfoCard(title: 'Preparation', body: booking.preparation!),
                     ],
-                    if (booking.meetUrl != null && booking.meetUrl!.isNotEmpty) ...[
-                      const SizedBox(height: 14),
-                      FilledButton.icon(onPressed: () => _openMeeting(booking.meetUrl!), icon: const Icon(Icons.video_call_outlined), label: const Text('Open meeting')),
+                    if (booking.isStarted && ['confirmed', 'in_progress'].contains(booking.status)) ...[
+                      const SizedBox(height: 16),
+                      FilledButton.icon(
+                        onPressed: () => context.go('/mentor-desk/call/${booking.id}'),
+                        icon: const Icon(Icons.video_call_rounded),
+                        label: const Text('Join in-app call'),
+                      ),
                     ],
                     if (_verificationCode != null) ...[
                       const SizedBox(height: 14),
