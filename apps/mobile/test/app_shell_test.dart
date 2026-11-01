@@ -105,6 +105,8 @@ void main() {
       expect(canAccessRoute(AppTier.student, '/mentor-desk/queue'), isFalse);
       expect(canAccessRoute(AppTier.student, '/mentor-desk/availability'), isFalse);
       expect(canAccessRoute(AppTier.student, '/mentor-desk'), isTrue);
+      expect(canAccessRoute(AppTier.student, '/mentor-desk/session/booking-1'), isTrue);
+      expect(canAccessRoute(AppTier.student, '/mentor-desk/session/booking-1/mentor'), isFalse);
     });
 
     test('teachers are blocked from leadership-only surfaces', () {
@@ -137,7 +139,7 @@ void main() {
       expect(rail.extended, isFalse, reason: 'a tablet keeps the compact rail');
       expect(
         rail.destinations.map((d) => (d.label as Text).data),
-        ['Mentor Desk', 'Notices', 'Profile'],
+        ['Home', 'Mentor Desk', 'Notices', 'Profile'],
       );
     });
 
@@ -149,7 +151,7 @@ void main() {
       expect(rail.selectedIndex, 0);
       expect(
         rail.destinations.map((d) => (d.label as Text).data),
-        ['Oversight', 'Notices', 'Profile'],
+        ['Home', 'Oversight', 'Notices', 'Profile'],
       );
     });
 
