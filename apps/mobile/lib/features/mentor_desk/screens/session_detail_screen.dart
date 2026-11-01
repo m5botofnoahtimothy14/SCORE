@@ -85,11 +85,11 @@ class _SessionDetailScreenState extends ConsumerState<SessionDetailScreen> {
       }
       await _load();
     } on MentorDeskException catch (error) {
+      await _load();
       if (mounted) setState(() => _error = error.message);
-      await _load();
     } catch (_) {
-      if (mounted) setState(() => _error = 'Could not start the session or issue a new code.');
       await _load();
+      if (mounted) setState(() => _error = 'Could not start the session or issue a new code.');
     } finally {
       if (mounted) setState(() => _working = false);
     }
