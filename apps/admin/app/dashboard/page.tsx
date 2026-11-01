@@ -16,7 +16,7 @@ interface Overview {
   teachers: number
   classes: number
   pendingModeration: number
-  openIncidents: number
+  openMentorRequests: number
   announcementsWeek: number
   failedNotifications: number
   recentAudit: { id: string; action: string; outcome: string; created_at: string }[]
