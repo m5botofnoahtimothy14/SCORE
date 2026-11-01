@@ -9,11 +9,6 @@
 -- ============================================================
 
 -- Extend legacy enums to the state model used by the current app.
-ALTER TYPE public.doubt_status ADD VALUE IF NOT EXISTS 'pending_assignment';
-ALTER TYPE public.doubt_status ADD VALUE IF NOT EXISTS 'in_progress';
-ALTER TYPE public.doubt_status ADD VALUE IF NOT EXISTS 'answered';
-ALTER TYPE public.doubt_status ADD VALUE IF NOT EXISTS 'reopened';
-
 ALTER TYPE public.booking_status ADD VALUE IF NOT EXISTS 'cancelled_by_student';
 ALTER TYPE public.booking_status ADD VALUE IF NOT EXISTS 'cancelled_by_mentor';
 ALTER TYPE public.booking_status ADD VALUE IF NOT EXISTS 'no_show_student';
@@ -41,7 +36,7 @@ ALTER TABLE public.doubt_requests
   ADD COLUMN IF NOT EXISTS urgent boolean NOT NULL DEFAULT false,
   ADD COLUMN IF NOT EXISTS urgent_reason text,
   ADD COLUMN IF NOT EXISTS urgent_pass_used boolean NOT NULL DEFAULT false,
-  ADD COLUMN IF NOT EXISTS status public.doubt_status NOT NULL DEFAULT 'waiting',
+  ADD COLUMN IF NOT EXISTS status text NOT NULL DEFAULT 'waiting',
   ADD COLUMN IF NOT EXISTS assigned_mentor_id uuid REFERENCES public.user_profiles(id),
   ADD COLUMN IF NOT EXISTS assigned_teacher_id uuid REFERENCES public.teachers(id),
   ADD COLUMN IF NOT EXISTS named_mentor boolean NOT NULL DEFAULT false,
@@ -51,6 +46,35 @@ ALTER TABLE public.doubt_requests
   ADD COLUMN IF NOT EXISTS idempotency_key uuid,
   ADD COLUMN IF NOT EXISTS created_at timestamptz NOT NULL DEFAULT now(),
   ADD COLUMN IF NOT EXISTS updated_at timestamptz NOT NULL DEFAULT now();
+
+-- Keep the status contract as TEXT. The earlier learning migration used TEXT,
+-- while the older schema also contains an unused doubt_status enum.
+ALTER TABLE public.doubt_requests
+  ALTER COLUMN status DROP DEFAULT,
+  ALTER COLUMN status TYPE text USING status::text;
+UPDATE public.doubt_requests
+SET status = CASE status
+  WHEN 'waiting' THEN 'pending_assignment'
+  WHEN 'resolved' THEN 'answered'
+  ELSE status
+END;
+ALTER TABLE public.doubt_requests
+  ALTER COLUMN status SET DEFAULT 'pending_assignment',
+  ALTER COLUMN status SET NOT NULL;
+
+DO $
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conrelid = 'public.doubt_requests'::regclass
+      AND conname = 'doubt_requests_status_recovery_check'
+  ) THEN
+    ALTER TABLE public.doubt_requests
+      ADD CONSTRAINT doubt_requests_status_recovery_check
+      CHECK (status IN ('submitted','pending_assignment','assigned','in_progress','answered','closed','reopened'));
+  END IF;
+END;
+$;
 
 -- Do not permit a partially populated doubt request to enter the new API.
 DO $$
@@ -88,23 +112,15 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_doubt_requests_idempotency
 -- RPC contract. Existing rows are mapped where possible.
 ALTER TABLE public.doubt_status_history
   ADD COLUMN IF NOT EXISTS actor_id uuid REFERENCES public.user_profiles(id),
-  ADD COLUMN IF NOT EXISTS from_status public.doubt_status,
-  ADD COLUMN IF NOT EXISTS to_status public.doubt_status,
+  ADD COLUMN IF NOT EXISTS from_status text,
+  ADD COLUMN IF NOT EXISTS to_status text,
   ADD COLUMN IF NOT EXISTS reason text,
   ADD COLUMN IF NOT EXISTS created_at timestamptz;
 
 UPDATE public.doubt_status_history
 SET actor_id = COALESCE(actor_id, changed_by),
-    from_status = COALESCE(
-      from_status,
-      CASE WHEN old_status IN ('waiting', 'assigned', 'resolved', 'closed')
-        THEN old_status::public.doubt_status ELSE NULL END
-    ),
-    to_status = COALESCE(
-      to_status,
-      CASE WHEN new_status IN ('waiting', 'assigned', 'resolved', 'closed')
-        THEN new_status::public.doubt_status ELSE NULL END
-    ),
+    from_status = COALESCE(from_status, old_status::text),
+    to_status = COALESCE(to_status, new_status::text),
     created_at = COALESCE(created_at, changed_at, now());
 
 ALTER TABLE public.doubt_status_history
