@@ -245,6 +245,51 @@ class AuthService {
     await _adoptPermanentAccount(data, secret);
   }
 
+  /// Leadership sign-in uses an existing administrator account.
+  /// The server-owned membership record decides whether the account is allowed.
+  Future<void> signInLeadership({
+    required String email,
+    required String password,
+  }) async {
+    try {
+      final response = await _client.auth.signInWithPassword(
+        email: email.trim().toLowerCase(),
+        password: password,
+      );
+      final user = response.user;
+      if (user == null) {
+        throw const AuthException('auth_failed', 'Sign-in failed. Please try again.');
+      }
+
+      final membership = await _client
+          .from('school_memberships')
+          .select('role')
+          .eq('user_id', user.id)
+          .eq('is_active', true)
+          .inFilter('role', ['platform_owner', 'school_admin', 'principal'])
+          .limit(1)
+          .maybeSingle();
+
+      if (membership == null) {
+        await _client.auth.signOut();
+        throw const AuthException(
+          'access_denied',
+          'This account does not have school leadership access.',
+        );
+      }
+    } on AuthException {
+      rethrow;
+    } catch (_) {
+      try {
+        await _client.auth.signOut();
+      } catch (_) {}
+      throw const AuthException(
+        'sign_in_failed',
+        'Could not sign in. Check your details and connection, then try again.',
+      );
+    }
+  }
+
   /// Signs out and clears this device's credentials.
   Future<void> signOut() async {
     await _client.auth.signOut();
