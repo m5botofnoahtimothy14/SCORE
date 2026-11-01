@@ -33,7 +33,10 @@ export async function GET() {
       'conversations',
       'messages',
       'announcements',
-      'moderation_events',
+      'moderation_results',
+      'moderation_review_cases',
+      'safeguarding_incidents',
+      'message_reports',
       'doubt_requests',
       'session_bookings',
       'notification_devices',
@@ -58,10 +61,9 @@ export async function GET() {
       .in('status', ['failed', 'retrying'])
       .limit(100)
     const { data: pendingModeration } = await admin
-      .from('moderation_events')
+      .from('moderation_review_cases')
       .select('id')
-      .eq('verdict', 'held')
-      .is('reviewed_at', null)
+      .in('status', ['pending', 'under_review'])
       .limit(1)
     const { data: lastMessage } = await admin
       .from('messages')
