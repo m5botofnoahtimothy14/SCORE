@@ -6,9 +6,9 @@ import { Toaster } from 'react-hot-toast';
 const inter = Inter({ subsets: ['latin'], display: 'swap', variable: '--font-inter' });
 
 export const metadata: Metadata = {
-  title: 'SCORE+ Admin',
-  description: 'SCORE+ Mentor Desk — Administration Dashboard',
-  robots: 'noindex, nofollow',
+  title: 'SCORE+ | Learn · Connect · Grow',
+  description: 'SCORE+ connects student learning support, school communication and mentor workflows.',
+  robots: 'index, follow',
 };
 
 export const viewport: Viewport = {
