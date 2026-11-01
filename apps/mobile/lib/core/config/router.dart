@@ -154,7 +154,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     ),
     redirect: (context, state) async {
       final session = auth.currentSession;
-      return resolveRedirect(
+      final baseRedirect = await resolveRedirect(
         location: state.matchedLocation,
         signedIn: session != null,
         anonymous: session?.user.isAnonymous ?? false,
@@ -163,6 +163,38 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           return _isOnboarded(session.user.id);
         },
       );
+      if (baseRedirect != null) return baseRedirect;
+
+      final path = state.matchedLocation;
+      final pathParts = path.split('/');
+      final mentorSessionRoute = pathParts.length == 5 &&
+          pathParts[1] == 'mentor-desk' &&
+          pathParts[2] == 'session' &&
+          pathParts[4] == 'mentor';
+      final staffRoute = _staffOnlyPrefixes.any(path.startsWith) || mentorSessionRoute;
+      final leadershipRoute = _leadershipOnlyPrefixes.any(path.startsWith);
+
+      if (session != null && (staffRoute || leadershipRoute)) {
+        try {
+          final membership = await Supabase.instance.client
+              .from('school_memberships')
+              .select('role')
+              .eq('user_id', session.user.id)
+              .eq('is_active', true)
+              .order('joined_at', ascending: false)
+              .limit(1)
+              .maybeSingle();
+          final role = membership?['role'] as String?;
+          final leadership = ['platform_owner', 'school_admin', 'principal'].contains(role);
+          final staff = leadership || ['teacher', 'head_teacher'].contains(role);
+          if ((leadershipRoute && !leadership) || (staffRoute && !staff)) {
+            return '/access-denied';
+          }
+        } catch (_) {
+          return '/access-denied';
+        }
+      }
+      return null;
     },
     routes: [
       GoRoute(path: '/', builder: (_, __) => const SplashSequence()),
