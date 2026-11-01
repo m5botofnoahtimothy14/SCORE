@@ -923,7 +923,7 @@ $$;
 -- Participant-scoped read policies for Mentor Desk data.
 -- Remove stale policies first. This prevents permissive legacy policies
 -- from widening access through PostgreSQL's OR-combination of policies.
-DO $
+DO $$
 DECLARE
   v_table text;
   v_policy record;
@@ -949,7 +949,7 @@ BEGIN
     EXECUTE format('ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY', v_table);
   END LOOP;
 END;
-$;
+$$;
 
 CREATE POLICY doubt_requests_participants_read
   ON public.doubt_requests FOR SELECT TO authenticated
