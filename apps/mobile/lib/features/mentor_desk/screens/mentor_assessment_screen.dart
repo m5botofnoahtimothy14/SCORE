@@ -133,8 +133,10 @@ class _MentorAssessmentScreenState extends ConsumerState<MentorAssessmentScreen>
                     TextField(controller: _privateNote, minLines: 3, maxLines: 6, maxLength: 2000, decoration: const InputDecoration(hintText: 'Visible only to authorised mentor and leadership roles.')),
                     if (_error != null) Padding(padding: const EdgeInsets.only(top: 10), child: Text(_error!, style: const TextStyle(color: AppColors.danger, fontSize: 12))),
                     const SizedBox(height: 18),
+                    if (!request.isClosed)
+                      const Padding(padding: EdgeInsets.only(bottom: 12), child: Text('The private assessment opens after the request is closed.', style: TextStyle(fontSize: 12, color: AppColors.ink500))),
                     FilledButton(
-                      onPressed: _saving ? null : _submit,
+                      onPressed: _saving || !request.isClosed ? null : _submit,
                       child: _saving ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2)) : Text(_existing == null ? 'Save assessment' : 'Update assessment'),
                     ),
                   ],
