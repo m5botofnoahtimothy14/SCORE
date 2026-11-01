@@ -36,6 +36,12 @@ class _SessionCallScreenState extends ConsumerState<SessionCallScreen> {
     setState(() { _connecting = true; _error = null; });
     Room? room;
     try {
+      final previousRoom = _room;
+      if (previousRoom != null) {
+        previousRoom.removeListener(_onRoomChanged);
+        await previousRoom.disconnect();
+        previousRoom.dispose();
+      }
       final response = await Supabase.instance.client.functions.invoke(
         'issue-video-token',
         body: {'booking_id': widget.bookingId},
@@ -72,8 +78,13 @@ class _SessionCallScreenState extends ConsumerState<SessionCallScreen> {
         _connecting = false;
       });
     } catch (error) {
-      await room?.disconnect();
+      if (room != null) {
+        room.removeListener(_onRoomChanged);
+        await room.disconnect();
+        room.dispose();
+      }
       if (!mounted) return;
+      if (identical(_room, room)) _room = null;
       setState(() {
         _error = error is FunctionException
             ? _friendlyError(error.details?.toString())
@@ -123,7 +134,13 @@ class _SessionCallScreenState extends ConsumerState<SessionCallScreen> {
   Future<void> _endCall() async {
     if (_ending) return;
     setState(() => _ending = true);
-    await _room?.disconnect();
+    final room = _room;
+    _room = null;
+    if (room != null) {
+      room.removeListener(_onRoomChanged);
+      await room.disconnect();
+      room.dispose();
+    }
     if (!mounted) return;
     final identity = ref.read(identityProviderProvider).valueOrNull;
     final route = identity?.isTeacher == true || identity?.isLeadership == true
@@ -137,7 +154,7 @@ class _SessionCallScreenState extends ConsumerState<SessionCallScreen> {
     final room = _room;
     if (room != null) {
       room.removeListener(_onRoomChanged);
-      unawaited(room.disconnect());
+      unawaited(room.disconnect().whenComplete(room.dispose));
     }
     super.dispose();
   }
