@@ -49,7 +49,9 @@ class _SessionDetailScreenState extends ConsumerState<SessionDetailScreen> {
     setState(() { _working = true; _error = null; });
     try {
       final service = ref.read(_mentorServiceProvider);
-      await service.startTeacherSession(widget.bookingId);
+      if (_booking?.isStarted != true) {
+        await service.startTeacherSession(widget.bookingId);
+      }
       final code = await service.generateVerificationCode(widget.bookingId);
       if (!mounted) return;
       setState(() {
@@ -59,8 +61,10 @@ class _SessionDetailScreenState extends ConsumerState<SessionDetailScreen> {
       await _load();
     } on MentorDeskException catch (error) {
       if (mounted) setState(() => _error = error.message);
+      await _load();
     } catch (_) {
-      if (mounted) setState(() => _error = 'Could not start the session.');
+      if (mounted) setState(() => _error = 'Could not start the session or issue a new code.');
+      await _load();
     } finally {
       if (mounted) setState(() => _working = false);
     }
@@ -148,9 +152,9 @@ class _SessionDetailScreenState extends ConsumerState<SessionDetailScreen> {
                         ]),
                       ),
                     ],
-                    if (booking.status == 'confirmed' && !booking.isStarted && identity?.tier == AppTier.student) ...[
+                    if (booking.status == 'confirmed' && !booking.isVerified && identity?.tier == AppTier.student && (!booking.isStarted || _verificationCode == null)) ...[
                       const SizedBox(height: 18),
-                      FilledButton.icon(onPressed: _working ? null : _startSession, icon: const Icon(Icons.play_arrow_rounded), label: Text(_working ? 'Starting…' : 'Start session and get code')),
+                      FilledButton.icon(onPressed: _working ? null : _startSession, icon: const Icon(Icons.play_arrow_rounded), label: Text(_working ? 'Working…' : booking.isStarted ? 'Generate session code' : 'Start session and get code')),
                     ],
                     if ((booking.status == 'requested' || booking.status == 'confirmed') && !booking.isStarted) ...[
                       const SizedBox(height: 10),
