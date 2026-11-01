@@ -138,6 +138,7 @@ ALTER TABLE public.session_no_shows
   ADD COLUMN IF NOT EXISTS reported_by_role text,
   ADD COLUMN IF NOT EXISTS refund_minutes integer NOT NULL DEFAULT 0,
   ADD COLUMN IF NOT EXISTS review_status text NOT NULL DEFAULT 'pending',
+  ADD COLUMN IF NOT EXISTS reason text,
   ADD COLUMN IF NOT EXISTS created_at timestamptz NOT NULL DEFAULT now();
 
 UPDATE public.session_no_shows ns
