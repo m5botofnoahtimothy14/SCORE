@@ -222,6 +222,35 @@ CREATE POLICY student_subject_enrollment_admin
 GRANT SELECT, INSERT, UPDATE, DELETE
   ON public.student_subject_enrollments TO authenticated;
 
+-- Per-request quota audit ledger. The doubt request remains the source of
+-- truth; this table gives the app and admins an indexed weekly usage view.
+CREATE TABLE IF NOT EXISTS public.student_doubt_quota_usage (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  school_id uuid NOT NULL REFERENCES public.schools(id) ON DELETE CASCADE,
+  student_id uuid NOT NULL REFERENCES public.user_profiles(id) ON DELETE CASCADE,
+  subject_id uuid NOT NULL REFERENCES public.subjects(id) ON DELETE CASCADE,
+  request_id uuid NOT NULL UNIQUE REFERENCES public.doubt_requests(id) ON DELETE CASCADE,
+  week_start date NOT NULL,
+  urgent boolean NOT NULL DEFAULT false,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE(student_id, subject_id, week_start, request_id)
+);
+CREATE INDEX IF NOT EXISTS student_doubt_quota_week_lookup
+  ON public.student_doubt_quota_usage(student_id, subject_id, week_start);
+CREATE UNIQUE INDEX IF NOT EXISTS student_one_urgent_doubt_per_subject_week
+  ON public.student_doubt_quota_usage(student_id, subject_id, week_start)
+  WHERE urgent;
+
+ALTER TABLE public.student_doubt_quota_usage ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS student_doubt_quota_read
+  ON public.student_doubt_quota_usage;
+CREATE POLICY student_doubt_quota_read
+  ON public.student_doubt_quota_usage FOR SELECT TO authenticated
+  USING (student_id = auth.uid() OR public.tc_is_school_admin(school_id));
+REVOKE ALL ON public.student_doubt_quota_usage FROM PUBLIC, anon, authenticated;
+GRANT SELECT ON public.student_doubt_quota_usage TO authenticated;
+GRANT ALL ON public.student_doubt_quota_usage TO service_role;
+
 -- Extend the no-show table while retaining any older recorded_by/recorded_at fields.
 ALTER TABLE public.session_no_shows
   ADD COLUMN IF NOT EXISTS school_id uuid REFERENCES public.schools(id) ON DELETE CASCADE,
