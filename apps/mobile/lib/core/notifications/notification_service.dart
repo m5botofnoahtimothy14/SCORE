@@ -164,6 +164,40 @@ class NotificationService {
     }
   }
 
+
+  static bool get pushEnabled => _pushEnabled;
+
+  static Future<AuthorizationStatus?> permissionStatus() async {
+    if (!_pushEnabled) return null;
+    final settings = await FirebaseMessaging.instance.getNotificationSettings();
+    return settings.authorizationStatus;
+  }
+
+  static Future<AuthorizationStatus?> requestPermission() async {
+    if (!_pushEnabled) return null;
+    final settings = await FirebaseMessaging.instance.requestPermission(
+      alert: true,
+      badge: true,
+      sound: true,
+    );
+    return settings.authorizationStatus;
+  }
+
+  static Future<void> deactivateCurrentDevice() async {
+    try {
+      final client = Supabase.instance.client;
+      if (client.auth.currentUser == null) return;
+      final token = _registeredToken ?? await FirebaseMessaging.instance.getToken();
+      if (token == null || token.isEmpty) return;
+      await client.rpc('deactivate_notification_device', params: {
+        'p_fcm_token': token,
+      });
+      _registeredToken = null;
+    } catch (error) {
+      debugPrint('SCORE+ could not deactivate notification device: $error');
+    }
+  }
+
   static void Function(String payload)? onNavigate;
 
   static String? consumePendingNavigation() {
