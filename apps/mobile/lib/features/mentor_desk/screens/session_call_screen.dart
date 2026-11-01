@@ -328,9 +328,8 @@ class _ParticipantVideo extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     VideoTrack? videoTrack;
-    for (final publication in participant.videoTracks.values) {
-      if (publication.track is VideoTrack && !publication.muted &&
-          (local || publication.subscribed)) {
+    for (final publication in participant.videoTrackPublications) {
+      if (publication.track is VideoTrack && !publication.muted) {
         videoTrack = publication.track as VideoTrack;
         break;
       }
@@ -364,7 +363,7 @@ class _ParticipantVideo extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
               decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.58), borderRadius: BorderRadius.circular(20)),
               child: Text(
-                (participant.name?.isNotEmpty == true ? participant.name! : participant.identity) + (local ? ' (You)' : ''),
+                (participant.name.isNotEmpty ? participant.name : participant.identity) + (local ? ' (You)' : ''),
                 style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700),
               ),
             ),
