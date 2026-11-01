@@ -834,6 +834,7 @@ class MentorDeskService {
       case 'google_workspace_not_connected': return 'Your school administrator must connect the school Google Workspace first.';
       case 'google_workspace_credentials_unavailable': return 'The school Workspace connection needs to be renewed.';
       case 'assigned_teacher_workspace_identity_missing': return 'The assigned teacher needs an active School ID and school email address.';
+      case 'assigned_teacher_changed': return 'The assigned teacher changed after this meeting was created. Ask the school administrator to review the booking.';
       case 'creation_in_progress': return 'The meeting is already being created. Wait a moment and refresh.';
       case 'invalid_session_schedule': return 'This booking must have a confirmed 15- or 30-minute time slot.';
       case 'google_oauth_not_configured': return 'Google Workspace integration is not configured on the server.';
