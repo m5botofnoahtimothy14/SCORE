@@ -54,6 +54,7 @@ AS $$
     FROM public.session_bookings b
     WHERE b.id = p_booking_id
       AND (b.student_id = auth.uid() OR b.mentor_id = auth.uid())
+      AND b.status::text IN ('confirmed', 'in_progress')
   );
 $$;
 
