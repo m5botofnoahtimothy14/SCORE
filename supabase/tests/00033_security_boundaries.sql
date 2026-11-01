@@ -78,12 +78,27 @@ BEGIN
   END IF;
 
   IF NOT has_function_privilege('authenticated',
+       'public.issue_student_code(uuid,text,integer)', 'EXECUTE')
+     OR NOT has_function_privilege('authenticated',
        'public.issue_teacher_activation_code(uuid,text,integer)', 'EXECUTE')
      OR NOT has_function_privilege('authenticated',
        'public.set_mentor_availability(public.availability_status)', 'EXECUTE')
      OR NOT has_function_privilege('authenticated',
-       'public.approve_mentor_subject(uuid,uuid,boolean)', 'EXECUTE') THEN
-    RAISE EXCEPTION 'Teacher activation or Mentor Desk RPC access was removed';
+       'public.approve_mentor_subject(uuid,uuid,boolean)', 'EXECUTE')
+     OR NOT has_function_privilege('authenticated',
+       'public.send_message(uuid,uuid,text,text,uuid,uuid)', 'EXECUTE')
+     OR NOT has_function_privilege('authenticated',
+       'public.register_notification_device(uuid,text,text,text)', 'EXECUTE') THEN
+    RAISE EXCEPTION 'Teacher activation, messaging, notification, or Mentor Desk RPC access was removed';
+  END IF;
+
+  IF NOT has_function_privilege('authenticated',
+       'public.tc_is_school_admin(uuid)', 'EXECUTE')
+     OR NOT has_function_privilege('authenticated',
+       'public.tc_user_school_ids()', 'EXECUTE')
+     OR NOT has_function_privilege('authenticated',
+       'public.tc_is_conversation_member(uuid)', 'EXECUTE') THEN
+    RAISE EXCEPTION 'Authenticated RLS helper execution was removed';
   END IF;
 
   IF NOT EXISTS (
