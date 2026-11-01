@@ -233,6 +233,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             builder: (_, state) => MentorDoubtConversationScreen(requestId: state.pathParameters['id']!),
           ),
           GoRoute(path: '/mentor-desk/session/book', builder: (_, __) => const BookSessionScreen()),
+          GoRoute(path: '/mentor-desk/call/:id', builder: (_, state) => SessionCallScreen(bookingId: state.pathParameters['id']!)),
           GoRoute(
             path: '/mentor-desk/session/:id',
             builder: (_, state) => SessionDetailScreen(bookingId: state.pathParameters['id']!),
