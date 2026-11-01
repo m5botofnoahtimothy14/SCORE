@@ -42,7 +42,9 @@ class ProfileScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final identity = ref.watch(identityProviderProvider);
-    final email = Supabase.instance.client.auth.currentUser?.email;
+    final currentUser = Supabase.instance.client.auth.currentUser;
+    final email = currentUser?.email;
+    final isDeviceBoundAccount = currentUser?.isAnonymous ?? false;
 
     return Scaffold(
       backgroundColor: AppColors.surface,
@@ -106,16 +108,30 @@ class ProfileScreen extends ConsumerWidget {
                 onTap: () => context.go('/notification-settings'),
               ),
               const SizedBox(height: 22),
-              OutlinedButton.icon(
-                onPressed: () => _signOut(context, ref),
-                icon: const Icon(Icons.logout_rounded),
-                label: const Text('Sign out'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: AppColors.danger,
-                  side: const BorderSide(color: AppColors.danger),
-                  padding: const EdgeInsets.symmetric(vertical: 15),
+              if (isDeviceBoundAccount)
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: AppColors.warning.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: AppColors.warning.withValues(alpha: 0.35)),
+                  ),
+                  child: const Text(
+                    'This student or staff account is linked to this device. Sign-out is disabled until account recovery is configured. Contact your school administrator before changing devices.',
+                    style: TextStyle(fontSize: 12, height: 1.5, color: AppColors.ink700),
+                  ),
+                )
+              else
+                OutlinedButton.icon(
+                  onPressed: () => _signOut(context, ref),
+                  icon: const Icon(Icons.logout_rounded),
+                  label: const Text('Sign out'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.danger,
+                    side: const BorderSide(color: AppColors.danger),
+                    padding: const EdgeInsets.symmetric(vertical: 15),
+                  ),
                 ),
-              ),
             ],
           );
         },
