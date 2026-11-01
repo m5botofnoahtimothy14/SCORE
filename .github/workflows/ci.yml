@@ -29,6 +29,20 @@ jobs:
         run: npm --prefix apps/admin run typecheck
       - name: Typecheck contracts
         run: npm run typecheck:contracts
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Install Flutter dependencies
+        run: flutter pub get
+        working-directory: apps/mobile
+      - name: Analyze Flutter app
+        run: flutter analyze --no-pub
+        working-directory: apps/mobile
+      - name: Test Flutter app
+        run: flutter test --no-pub
+        working-directory: apps/mobile
       - name: Lint admin DMS
         run: npm --prefix apps/admin run lint
       - name: Secret scan (gitleaks)
