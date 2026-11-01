@@ -48,14 +48,14 @@ LANGUAGE sql
 STABLE
 SECURITY DEFINER
 SET search_path = public, pg_temp
-AS $
+AS $$
   SELECT auth.uid() IS NOT NULL AND EXISTS (
     SELECT 1
     FROM public.session_bookings b
     WHERE b.id = p_booking_id
       AND (b.student_id = auth.uid() OR b.mentor_id = auth.uid())
   );
-$;
+$$;
 
 REVOKE ALL ON FUNCTION public.tc_is_booking_participant(uuid) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.tc_is_booking_participant(uuid) TO authenticated;
