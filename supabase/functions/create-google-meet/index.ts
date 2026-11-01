@@ -87,7 +87,7 @@ serve(async (req: Request) => {
   }
   if (!claim?.success) {
     const code = String(claim?.error ?? "meeting_creation_failed");
-    const status = code === "not_a_participant" ? 403
+    const status = code === "not_a_participant" || code === "not_assigned_teacher" ? 403
       : code === "booking_not_found" ? 404
       : code === "creation_in_progress" ? 409
       : code === "google_workspace_not_connected" || code === "google_workspace_credentials_unavailable" ? 503
