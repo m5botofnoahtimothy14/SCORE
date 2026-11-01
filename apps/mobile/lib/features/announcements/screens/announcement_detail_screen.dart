@@ -17,6 +17,8 @@ class _AnnouncementDetailScreenState extends ConsumerState<AnnouncementDetailScr
   bool _loading = true;
   String? _error;
   Map<String, dynamic>? _announcement;
+  bool _acknowledged = false;
+  bool _acknowledging = false;
 
   @override
   void initState() {
@@ -27,11 +29,36 @@ class _AnnouncementDetailScreenState extends ConsumerState<AnnouncementDetailScr
   Future<void> _load() async {
     setState(() { _loading = true; _error = null; });
     try {
-      final row = await Supabase.instance.client
+      final client = Supabase.instance.client;
+      final row = await client
           .from('announcements')
           .select('id, title, body, category, audience_type, published_at, created_at, requires_ack')
           .eq('id', widget.announcementId)
           .maybeSingle();
+      if (row != null) {
+        final userId = client.auth.currentUser?.id;
+        if (userId != null) {
+          final receipt = await client
+              .from('announcement_receipts')
+              .select('id, acknowledged_at')
+              .eq('announcement_id', widget.announcementId)
+              .eq('user_id', userId)
+              .maybeSingle();
+          if (receipt == null) {
+            await client.from('announcement_receipts').insert({
+              'announcement_id': widget.announcementId,
+              'user_id': userId,
+              'read_at': DateTime.now().toUtc().toIso8601String(),
+            });
+          } else {
+            await client.from('announcement_receipts').update({
+              'read_at': DateTime.now().toUtc().toIso8601String(),
+            }).eq('id', receipt['id']);
+          }
+          if (!mounted) return;
+          setState(() => _acknowledged = receipt?['acknowledged_at'] != null);
+        }
+      }
       if (!mounted) return;
       setState(() {
         _announcement = row == null ? null : Map<String, dynamic>.from(row);
@@ -40,6 +67,40 @@ class _AnnouncementDetailScreenState extends ConsumerState<AnnouncementDetailScr
     } catch (_) {
       if (!mounted) return;
       setState(() { _error = 'Could not load this announcement.'; _loading = false; });
+    }
+  }
+
+  Future<void> _acknowledge() async {
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+    if (userId == null) return;
+    setState(() { _acknowledging = true; _error = null; });
+    try {
+      final client = Supabase.instance.client;
+      final now = DateTime.now().toUtc().toIso8601String();
+      final receipt = await client
+          .from('announcement_receipts')
+          .select('id')
+          .eq('announcement_id', widget.announcementId)
+          .eq('user_id', userId)
+          .maybeSingle();
+      if (receipt == null) {
+        await client.from('announcement_receipts').insert({
+          'announcement_id': widget.announcementId,
+          'user_id': userId,
+          'read_at': now,
+          'acknowledged_at': now,
+        });
+      } else {
+        await client.from('announcement_receipts').update({
+          'read_at': now,
+          'acknowledged_at': now,
+        }).eq('id', receipt['id']);
+      }
+      if (mounted) setState(() => _acknowledged = true);
+    } catch (_) {
+      if (mounted) setState(() => _error = 'Could not save your acknowledgement.');
+    } finally {
+      if (mounted) setState(() => _acknowledging = false);
     }
   }
 
@@ -74,8 +135,12 @@ class _AnnouncementDetailScreenState extends ConsumerState<AnnouncementDetailScr
                         ),
                         if (item['requires_ack'] == true) ...[
                           const SizedBox(height: 18),
-                          const Text('This notice requires acknowledgement. Ask your school administrator how to confirm receipt if the acknowledgement control is not available.', style: TextStyle(fontSize: 12, color: AppColors.ink500)),
+                          if (_acknowledged)
+                            const Row(children: [Icon(Icons.verified_rounded, color: AppColors.success, size: 18), SizedBox(width: 8), Text('Acknowledgement recorded', style: TextStyle(color: AppColors.success, fontWeight: FontWeight.w700))])
+                          else
+                            FilledButton.icon(onPressed: _acknowledging ? null : _acknowledge, icon: const Icon(Icons.check_circle_outline), label: Text(_acknowledging ? 'Saving…' : 'Acknowledge notice')),
                         ],
+                        if (_error != null) Padding(padding: const EdgeInsets.only(top: 12), child: Text(_error!, style: const TextStyle(color: AppColors.danger, fontSize: 12))),
                       ],
                     ),
     );
