@@ -207,7 +207,7 @@ BEGIN
 END;
 $$;
 
-DO $
+DO $$
 DECLARE
   v_table text;
   v_policy record;
@@ -221,7 +221,7 @@ BEGIN
     END LOOP;
   END LOOP;
 END;
-$;
+$$;
 -- 5. Meeting booking records are visible to the booked student, assigned
 -- teacher, or a school administrator. Clients cannot write booking rows
 -- directly; state changes must use the guarded RPCs.
