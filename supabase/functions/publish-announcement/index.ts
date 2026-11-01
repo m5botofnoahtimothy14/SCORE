@@ -1,7 +1,3 @@
-// ============================================================
-// Edge Function: publish-announcement
-// Publishes an announcement to the school audience
-// ============================================================
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -9,35 +5,29 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-function jsonError(code: string, status = 400) {
-  return new Response(JSON.stringify({ success: false, error: code }), {
-    status,
-    headers: { "Content-Type": "application/json" },
-  });
+const CORS_HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, content-type, apikey, x-client-info",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Content-Type": "application/json",
+};
+
+function json(body: Record<string, unknown>, status = 200) {
+  return new Response(JSON.stringify(body), { status, headers: CORS_HEADERS });
 }
 
 serve(async (req: Request) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, {
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Headers": "authorization, content-type",
-      },
-    });
-  }
+  if (req.method === "OPTIONS") return new Response(null, { headers: CORS_HEADERS });
+  if (req.method !== "POST") return json({ success: false, error: "method_not_allowed" }, 405);
 
-  if (req.method !== "POST") {
-    return jsonError("method_not_allowed", 405);
-  }
-
-  const authHeader = req.headers.get("Authorization");
-  if (!authHeader) return jsonError("unauthorized", 401);
+  const authorization = req.headers.get("Authorization");
+  if (!authorization) return json({ success: false, error: "unauthorized" }, 401);
 
   const userClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-    global: { headers: { Authorization: authHeader } },
+    global: { headers: { Authorization: authorization } },
   });
   const { data: { user }, error: authError } = await userClient.auth.getUser();
-  if (authError || !user) return jsonError("unauthorized", 401);
+  if (authError || !user) return json({ success: false, error: "unauthorized" }, 401);
 
   let body: {
     school_id?: string;
@@ -47,69 +37,99 @@ serve(async (req: Request) => {
     audience_type?: string;
     class_id?: string;
     requires_ack?: boolean;
-  } = {};
-  try { body = await req.json(); } catch { return jsonError("invalid_body", 400); }
+  };
+  try {
+    body = await req.json();
+  } catch {
+    return json({ success: false, error: "invalid_body" }, 400);
+  }
 
-  const { school_id, title, body: bodyText, category, audience_type, class_id, requires_ack } = body;
+  const schoolId = body.school_id?.trim();
+  const title = body.title?.trim();
+  const bodyText = body.body?.trim();
+  const category = body.category;
+  const audienceType = body.audience_type;
+  const classId = body.class_id?.trim() || null;
 
-  if (!school_id || !title || !bodyText || !category || !audience_type) {
-    return jsonError("invalid_body", 400);
+  if (!schoolId || !title || !bodyText || !category || !audienceType) {
+    return json({ success: false, error: "invalid_body" }, 400);
+  }
+  if (title.length > 160 || bodyText.length > 12000) {
+    return json({ success: false, error: "content_too_long" }, 400);
+  }
+  if (!["general", "academic", "event", "safety", "priority_alert"].includes(category)) {
+    return json({ success: false, error: "invalid_category" }, 400);
+  }
+  if (!["school_wide", "class", "staff", "leadership", "custom"].includes(audienceType)) {
+    return json({ success: false, error: "invalid_audience" }, 400);
+  }
+  if (audienceType === "class" && !classId) {
+    return json({ success: false, error: "class_required" }, 400);
   }
 
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-
-  // Verify admin role
-  const { data: membership } = await supabase
+  const { data: membership, error: membershipError } = await supabase
     .from("school_memberships")
     .select("role")
     .eq("user_id", user.id)
-    .eq("school_id", school_id)
+    .eq("school_id", schoolId)
     .eq("is_active", true)
-    .single();
+    .maybeSingle();
 
-  if (!membership || !["platform_owner", "school_admin", "principal"].includes(membership.role)) {
-    return jsonError("forbidden", 403);
+  if (membershipError || !membership ||
+      !["platform_owner", "school_admin", "principal"].includes(membership.role)) {
+    return json({ success: false, error: "forbidden" }, 403);
   }
 
-  const { data: announcement, error } = await supabase
+  if (classId) {
+    const { data: schoolClass, error: classError } = await supabase
+      .from("classes")
+      .select("id")
+      .eq("id", classId)
+      .eq("school_id", schoolId)
+      .eq("is_active", true)
+      .maybeSingle();
+    if (classError || !schoolClass) return json({ success: false, error: "class_not_found" }, 404);
+  }
+
+  const now = new Date().toISOString();
+  const { data: announcement, error: insertError } = await supabase
     .from("announcements")
     .insert({
-      school_id,
+      school_id: schoolId,
       author_id: user.id,
       title,
       body: bodyText,
       category,
-      audience_type,
-      class_id: class_id || null,
-      requires_ack: requires_ack ?? false,
+      audience_type: audienceType,
+      class_id: classId,
+      requires_ack: body.requires_ack === true,
       is_published: true,
-      published_at: new Date().toISOString(),
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
+      published_at: now,
+      created_at: now,
+      updated_at: now,
     })
-    .select()
+    .select("id")
     .single();
 
-  if (error) {
-    return jsonError("publish_failed", 500);
-  }
+  if (insertError || !announcement) return json({ success: false, error: "publish_failed" }, 500);
 
-  // Create notification job
-  await supabase.from("background_jobs").insert({
+  const { error: queueError } = await supabase.from("background_jobs").insert({
     type: "dispatch-notifications",
     status: "queued",
-    payload: JSON.stringify({
+    payload: {
       announcement_id: announcement.id,
-      school_id,
+      school_id: schoolId,
       type: "announcement",
-    }),
-    scheduled_for: new Date().toISOString(),
-    created_at: new Date().toISOString(),
+    },
+    scheduled_for: now,
+    created_at: now,
   });
 
-  return new Response(JSON.stringify({
+  return json({
     success: true,
     announcement_id: announcement.id,
-    recipient_count: 0,
-  }), { status: 200, headers: { "Content-Type": "application/json" } });
+    recipient_count: null,
+    dispatch_status: queueError ? "queue_failed" : "queued",
+  }, 200);
 });
