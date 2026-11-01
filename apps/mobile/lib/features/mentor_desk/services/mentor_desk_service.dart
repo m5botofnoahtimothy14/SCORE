@@ -314,7 +314,7 @@ class MentorDeskService {
     }
     final res = await _client.rpc('book_session', params: {
       'p_subject_id': subjectId,
-      if (mentorId != null) 'p_mentor_id': mentorId,
+      'p_mentor_id': mentorId,
       'p_duration_minutes': durationMinutes,
       'p_scheduled_at': scheduledAt.toUtc().toIso8601String(),
       'p_topic': topic,
