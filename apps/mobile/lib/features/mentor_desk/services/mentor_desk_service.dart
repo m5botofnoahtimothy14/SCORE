@@ -85,9 +85,9 @@ class MentorDeskService {
       return AllowanceSummary(
         subjectId: row['subject_id'] as String,
         subjectName: row['subject_name'] as String? ?? 'Subject',
-        allowanceMinutes: limit,
-        usedMinutes: used,
-        remainingMinutes: (limit - used).clamp(0, limit),
+        weeklyDoubtAllowance: limit,
+        usedDoubts: used,
+        remainingDoubts: (limit - used).clamp(0, limit),
         openDoubts: (row['open_doubts'] as num?)?.toInt() ?? 0,
         urgentPassAvailable: row['urgent_available'] == true,
         sessionAllowanceMinutes: (payload['session_allowance_minutes'] as num?)?.toInt() ?? 60,
