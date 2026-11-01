@@ -101,10 +101,13 @@ class _RoleSelectScreenState extends State<RoleSelectScreen> {
                             switch (_selected!) {
                               case AppTier.student:
                                 context.go('/auth/student-signin');
+                                break;
                               case AppTier.teacher:
                                 context.go('/auth/teacher-signin');
+                                break;
                               case AppTier.leadership:
                                 context.go('/auth/leadership-signin');
+                                break;
                             }
                           },
                     child: const Text('Continue'),
