@@ -47,6 +47,7 @@ async function getAccessToken(): Promise<string> {
   const pem = FCM_PRIVATE_KEY.replaceAll("\\n", "\n")
     .replaceAll("-----BEGIN PRIVATE KEY-----", "")
     .replaceAll("-----END PRIVATE KEY-----", "")
+    .replaceAll("\r", "")
     .replaceAll(" ", "")
     .replaceAll("\n", "");
   const der = Uint8Array.from(atob(pem), (character) => character.charCodeAt(0));
@@ -165,9 +166,9 @@ serve(async (req: Request) => {
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
   let jobsQuery = supabase
     .from("background_jobs")
-    .select("id, school_id, payload, attempts")
+    .select("id, school_id, payload, attempts, max_attempts")
     .eq("type", "dispatch-notifications")
-    .eq("status", "queued")
+    .in("status", ["queued", "retrying"])
     .lte("scheduled_for", new Date().toISOString())
     .order("scheduled_for", { ascending: true })
     .limit(50);
@@ -182,6 +183,19 @@ serve(async (req: Request) => {
   let failed = 0;
 
   for (const job of jobs) {
+    const { data: claimed, error: claimError } = await supabase
+      .from('background_jobs')
+      .update({ status: 'running', started_at: new Date().toISOString() })
+      .eq('id', job.id)
+      .in('status', ['queued', 'retrying'])
+      .select('id')
+      .maybeSingle();
+    if (claimError) {
+      failed += 1;
+      continue;
+    }
+    if (!claimed) continue;
+
     try {
       const payload = typeof job.payload === "string" ? JSON.parse(job.payload) : job.payload;
       const announcementId = payload?.announcement_id;
@@ -219,59 +233,68 @@ serve(async (req: Request) => {
       const accessToken = devices?.length ? await getAccessToken() : null;
       const successfulUsers = new Set<string>();
 
-      for (const device of devices ?? []) {
-        const idempotencyKey = `${announcement.id}:${device.id}`;
-        const { data: existing } = await supabase
-          .from("notification_jobs")
-          .select("id, status")
-          .eq("idempotency_key", idempotencyKey)
-          .maybeSingle();
+      const deviceList = devices ?? [];
+      for (let offset = 0; offset < deviceList.length; offset += 20) {
+        const batch = deviceList.slice(offset, offset + 20);
+        await Promise.all(batch.map(async (device) => {
+          try {
+            const idempotencyKey = `${announcement.id}:${device.id}`;
+            const { data: existing } = await supabase
+              .from("notification_jobs")
+              .select("id, status")
+              .eq("idempotency_key", idempotencyKey)
+              .maybeSingle();
 
-        if (existing?.status === "sent") {
-          successfulUsers.add(device.user_id);
-          continue;
-        }
+            if (existing?.status === "sent") {
+              successfulUsers.add(device.user_id);
+              return;
+            }
 
-        const result = await sendPush(
-          accessToken!,
-          device.fcm_token,
-          announcement.title,
-          announcement.body.slice(0, 180),
-          {
-            type: "announcement",
-            announcement_id: announcement.id,
-            route: `announcement:${announcement.id}`,
-          },
-        );
+            const result = await sendPush(
+              accessToken!,
+              device.fcm_token,
+              announcement.title,
+              announcement.body.slice(0, 180),
+              {
+                type: "announcement",
+                announcement_id: announcement.id,
+                route: `announcement:${announcement.id}`,
+              },
+            );
 
-        const values = {
-          school_id: job.school_id,
-          recipient_id: device.user_id,
-          device_id: device.id,
-          type: "announcement",
-          title: announcement.title,
-          body: announcement.body.slice(0, 180),
-          data: { announcement_id: announcement.id, route: `announcement:${announcement.id}` },
-          status: result.ok ? "sent" : "failed",
-          sent_at: result.ok ? new Date().toISOString() : null,
-          failed_at: result.ok ? null : new Date().toISOString(),
-          failure_reason: result.ok ? null : "fcm_delivery_failed",
-          idempotency_key: idempotencyKey,
-        };
-        const write = existing
-          ? await supabase.from("notification_jobs").update(values).eq("id", existing.id)
-          : await supabase.from("notification_jobs").insert(values);
-        if (write.error) throw new Error("notification_log_failed");
+            const values = {
+              school_id: job.school_id,
+              recipient_id: device.user_id,
+              device_id: device.id,
+              type: "announcement",
+              title: announcement.title,
+              body: announcement.body.slice(0, 180),
+              data: { announcement_id: announcement.id, route: `announcement:${announcement.id}` },
+              status: result.ok ? "sent" : "failed",
+              sent_at: result.ok ? new Date().toISOString() : null,
+              failed_at: result.ok ? null : new Date().toISOString(),
+              failure_reason: result.ok ? null : "fcm_delivery_failed",
+              idempotency_key: idempotencyKey,
+            };
+            const write = existing
+              ? await supabase.from("notification_jobs").update(values).eq("id", existing.id)
+              : await supabase.from("notification_jobs").insert(values);
+            if (write.error) throw new Error("notification_log_failed");
 
-        if (result.invalidToken) {
-          await supabase.from("notification_devices").update({ is_active: false }).eq("id", device.id);
-        }
-        if (result.ok) {
-          successfulUsers.add(device.user_id);
-          sent += 1;
-        } else {
-          failed += 1;
-        }
+            if (result.invalidToken) {
+              await supabase.from("notification_devices").update({ is_active: false }).eq("id", device.id);
+            }
+            if (result.ok) {
+              successfulUsers.add(device.user_id);
+              sent += 1;
+            } else {
+              failed += 1;
+            }
+          } catch (error) {
+            failed += 1;
+            console.error("Notification device delivery failed:", error);
+          }
+        }));
       }
 
       for (const userId of recipientIds) {
@@ -293,12 +316,15 @@ serve(async (req: Request) => {
       processed += 1;
     } catch (error) {
       failed += 1;
+      const attempts = (job.attempts ?? 0) + 1;
+      const retry = attempts < (job.max_attempts ?? 3);
       await supabase
         .from("background_jobs")
         .update({
-          status: "failed",
+          status: retry ? "retrying" : "failed",
           last_error: error instanceof Error ? error.message : "dispatch_failed",
-          attempts: (job.attempts ?? 0) + 1,
+          attempts,
+          scheduled_for: new Date(Date.now() + (retry ? 60_000 : 0)).toISOString(),
         })
         .eq("id", job.id);
     }
