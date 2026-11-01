@@ -189,10 +189,8 @@ BEGIN
     RETURN jsonb_build_object('success', false, 'error', 'booking_not_found');
   END IF;
 
-  IF p_actor_id IS NULL OR
-     (p_actor_id IS DISTINCT FROM v_booking.student_id AND
-      p_actor_id IS DISTINCT FROM v_booking.mentor_id) THEN
-    RETURN jsonb_build_object('success', false, 'error', 'not_a_participant');
+  IF p_actor_id IS NULL OR p_actor_id IS DISTINCT FROM v_booking.mentor_id THEN
+    RETURN jsonb_build_object('success', false, 'error', 'not_assigned_teacher');
   END IF;
 
   IF v_booking.status::text <> 'confirmed' THEN
