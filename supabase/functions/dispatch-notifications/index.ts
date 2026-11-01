@@ -152,7 +152,7 @@ serve(async (req: Request) => {
   if (req.method !== "POST") return json({ success: false, error: "method_not_allowed" }, 405);
 
   const authorization = req.headers.get("Authorization") ?? "";
-  const bearerSecret = authorization.replace(/^Bearer\\s+/i, "");
+  const bearerSecret = authorization.replace(/^Bearer\s+/i, "");
   const webhookSecret = req.headers.get("x-webhook-secret") ?? "";
   if (!INTERNAL_WEBHOOK_SECRET ||
       (bearerSecret !== INTERNAL_WEBHOOK_SECRET && webhookSecret !== INTERNAL_WEBHOOK_SECRET)) {
