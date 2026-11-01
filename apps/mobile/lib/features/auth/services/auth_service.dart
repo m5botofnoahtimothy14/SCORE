@@ -295,6 +295,7 @@ class AuthService {
 
   /// Signs out and clears this device's credentials.
   Future<void> signOut() async {
+    await NotificationService.deactivateCurrentDevice();
     await _client.auth.signOut();
     await CredentialStore.clear();
   }
