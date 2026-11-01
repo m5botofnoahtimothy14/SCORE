@@ -107,6 +107,7 @@ class AuthService {
       throw AuthException(err ?? 'server_error', _teacherActivationErrorMessage(err));
     }
     await _adoptPermanentAccount(data, secret);
+    await NotificationService.registerCurrentDevice();
     return (
       teacherId: data['teacher_id'] as String,
       schoolId: data['school_id'] as String?,
