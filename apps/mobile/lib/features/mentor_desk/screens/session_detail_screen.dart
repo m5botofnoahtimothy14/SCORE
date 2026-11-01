@@ -152,7 +152,7 @@ class _SessionDetailScreenState extends ConsumerState<SessionDetailScreen> {
                       const SizedBox(height: 14),
                       _InfoCard(title: 'Preparation', body: booking.preparation!),
                     ],
-                    if (booking.isConfirmed && booking.hasGoogleMeet) ...[
+                    if (['confirmed', 'in_progress'].contains(booking.status) && booking.hasGoogleMeet) ...[
                       const SizedBox(height: 16),
                       Container(
                         padding: const EdgeInsets.all(16),
@@ -173,7 +173,7 @@ class _SessionDetailScreenState extends ConsumerState<SessionDetailScreen> {
                         ]),
                       ),
                     ],
-                    if (booking.isConfirmed && !booking.hasGoogleMeet) ...[
+                    if (['confirmed', 'in_progress'].contains(booking.status) && !booking.hasGoogleMeet) ...[
                       const SizedBox(height: 14),
                       _InfoCard(title: 'Meeting link pending', body: 'Your assigned teacher is preparing the protected Google Meet session. Refresh this page before the scheduled time.'),
                     ],
