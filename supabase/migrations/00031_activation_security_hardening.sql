@@ -420,17 +420,23 @@ BEGIN
   v_code_hash := encode(digest(trim(p_plain_code) || ':' || v_code_salt, 'sha256'), 'hex');
   v_expires_at := NOW() + make_interval(days => p_days_valid);
 
-  UPDATE student_activation_credentials
-  SET used_at = COALESCE(used_at, NOW())
-  WHERE student_id = p_student_id AND used_at IS NULL;
-
   INSERT INTO student_activation_credentials(
     school_id, student_id, code_hash, code_salt, expires_at,
     created_by, created_at, failed_attempts, locked_until
   ) VALUES (
     v_student.school_id, p_student_id, v_code_hash, v_code_salt,
     v_expires_at, auth.uid(), NOW(), 0, NULL
-  );
+  )
+  ON CONFLICT (student_id) DO UPDATE SET
+    school_id = EXCLUDED.school_id,
+    code_hash = EXCLUDED.code_hash,
+    code_salt = EXCLUDED.code_salt,
+    expires_at = EXCLUDED.expires_at,
+    used_at = NULL,
+    created_by = EXCLUDED.created_by,
+    created_at = NOW(),
+    failed_attempts = 0,
+    locked_until = NULL;
 
   RETURN jsonb_build_object(
     'success', TRUE, 'student_id', p_student_id,
