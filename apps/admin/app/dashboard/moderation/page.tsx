@@ -7,7 +7,7 @@ import { PageHeader, Card, StatusBadge, LoadingState, ErrorState } from '@/compo
 
 type ReviewCase = {
   id: string
-  moderation_result_id: string
+  moderation_result_id: string | null
   status: string
   reason_code: string | null
   reviewer_notes: string | null
@@ -60,7 +60,7 @@ export default function ModerationPage() {
         .limit(200)
       if (queryError) throw queryError
       const rows = (data ?? []) as ReviewCase[]
-      const ids = rows.map((row) => row.moderation_result_id).filter(Boolean)
+      const ids = rows.map((row) => row.moderation_result_id).filter((id): id is string => Boolean(id))
       if (ids.length) {
         const { data: resultRows, error: resultError } = await supabase
           .from('moderation_results')
@@ -112,7 +112,7 @@ export default function ModerationPage() {
               <thead><tr><th>Case</th><th>Status</th><th>Reason</th><th>Verdict</th><th>Provider</th><th>Confidence</th><th>Assigned</th><th>Created</th></tr></thead>
               <tbody>
                 {filtered.map((item) => {
-                  const result = results[item.moderation_result_id]
+                  const result = item.moderation_result_id ? results[item.moderation_result_id] : undefined
                   return (
                     <tr key={item.id}>
                       <td className="font-mono text-[11px] text-ink-500">{item.id.slice(0, 10)}</td>
