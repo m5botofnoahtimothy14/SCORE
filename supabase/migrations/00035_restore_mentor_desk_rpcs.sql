@@ -282,13 +282,27 @@ BEGIN
     RETURN jsonb_build_object('success', FALSE, 'error', 'booking_not_found');
   END IF;
 
-  -- Participant reports the other party
+  IF v_booking.status <> 'confirmed'
+     OR v_booking.started_at IS NOT NULL
+     OR v_booking.scheduled_at IS NULL
+     OR v_booking.scheduled_at > NOW() THEN
+    RETURN jsonb_build_object('success', FALSE, 'error', 'not_eligible_for_no_show');
+  END IF;
+
+  -- Participant reports the other party. The supplied role must match
+  -- the authenticated participant; it is not trusted as an authority.
   IF v_uid = v_booking.student_id THEN
+    IF p_reported_by_role <> 'student' THEN
+      RETURN jsonb_build_object('success', FALSE, 'error', 'invalid_reporter_role');
+    END IF;
     v_ns_type := 'mentor_no_show';
     v_refund := v_booking.allowance_minutes_used;
   ELSIF v_uid = v_booking.mentor_id THEN
+    IF p_reported_by_role <> 'mentor' THEN
+      RETURN jsonb_build_object('success', FALSE, 'error', 'invalid_reporter_role');
+    END IF;
     v_ns_type := 'student_no_show';
-    v_refund := 0; -- student no-show: no refund to student
+    v_refund := 0;
   ELSE
     RETURN jsonb_build_object('success', FALSE, 'error', 'not_a_participant');
   END IF;
@@ -299,11 +313,11 @@ BEGIN
 
   INSERT INTO session_no_shows(
     school_id, booking_id, reported_by, reported_by_role,
-    no_show_type, refund_minutes, review_status, created_at
+    no_show_type, refund_minutes, review_status, reason, created_at
   )
   VALUES (
     v_booking.school_id, p_booking_id, v_uid, p_reported_by_role,
-    v_ns_type, v_refund, 'pending', NOW()
+    v_ns_type, v_refund, 'pending', p_reason, NOW()
   );
 
   IF v_ns_type = 'mentor_no_show' THEN
