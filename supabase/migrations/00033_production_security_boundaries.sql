@@ -207,14 +207,25 @@ BEGIN
 END;
 $$;
 
+DO $
+DECLARE
+  v_table text;
+  v_policy record;
+BEGIN
+  FOREACH v_table IN ARRAY ARRAY['session_bookings','session_google_meet_links','google_meet_config'] LOOP
+    FOR v_policy IN
+      SELECT policyname FROM pg_policies
+      WHERE schemaname = 'public' AND tablename = v_table
+    LOOP
+      EXECUTE format('DROP POLICY IF EXISTS %I ON public.%I', v_policy.policyname, v_table);
+    END LOOP;
+  END LOOP;
+END;
+$;
 -- 5. Meeting booking records are visible to the booked student, assigned
 -- teacher, or a school administrator. Clients cannot write booking rows
 -- directly; state changes must use the guarded RPCs.
 ALTER TABLE public.session_bookings ENABLE ROW LEVEL SECURITY;
-
-DROP POLICY IF EXISTS session_bookings_participant ON public.session_bookings;
-DROP POLICY IF EXISTS session_bookings_admin ON public.session_bookings;
-DROP POLICY IF EXISTS session_bookings_participant_read ON public.session_bookings;
 
 CREATE POLICY session_bookings_participant_read
   ON public.session_bookings
@@ -233,8 +244,6 @@ GRANT ALL ON public.session_bookings TO service_role;
 -- 6. The Meet link table is also participant-only. The helper checks the
 -- booking is confirmed/in progress and the caller is one of its participants.
 ALTER TABLE public.session_google_meet_links ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS session_google_meet_links_participants
-  ON public.session_google_meet_links;
 CREATE POLICY session_google_meet_links_participants
   ON public.session_google_meet_links
   FOR SELECT
@@ -248,8 +257,6 @@ GRANT ALL ON public.session_google_meet_links TO service_role;
 -- 7. Google Workspace configuration contains no token value. Only school
 -- administrators can manage the config row; the refresh token stays in Vault.
 ALTER TABLE public.google_meet_config ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS google_meet_config_school_admin
-  ON public.google_meet_config;
 CREATE POLICY google_meet_config_school_admin
   ON public.google_meet_config
   FOR ALL
