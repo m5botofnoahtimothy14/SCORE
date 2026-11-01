@@ -16,13 +16,6 @@ function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: CORS_HEADERS });
 }
 
-async function sha256Hex(input: string): Promise<string> {
-  const hash = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(input));
-  return Array.from(new Uint8Array(hash))
-    .map((value) => value.toString(16).padStart(2, "0"))
-    .join("");
-}
-
 serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: CORS_HEADERS });
   if (req.method !== "POST") return json({ success: false, error: "method_not_allowed" }, 405);
@@ -36,7 +29,7 @@ serve(async (req: Request) => {
   const { data: { user }, error: authError } = await userClient.auth.getUser();
   if (authError || !user) return json({ success: false, error: "unauthorized" }, 401);
 
-  let body: { staff_id_no?: string; activation_code?: string; device_secret?: string };
+  let body: { staff_id_no?: string; activation_code?: string };
   try {
     body = await req.json();
   } catch {
@@ -50,57 +43,25 @@ serve(async (req: Request) => {
   }
 
   const adminClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-  const { data: teacher, error: teacherError } = await adminClient
-    .from("teachers")
-    .select("id, school_id, user_id, is_active")
-    .eq("staff_id_no", staffIdNo)
-    .eq("is_active", true)
-    .maybeSingle();
-
-  if (teacherError || !teacher) return json({ success: false, error: "teacher_not_found" }, 404);
-  if (teacher.user_id && teacher.user_id !== user.id) {
-    return json({ success: false, error: "teacher_already_linked" }, 409);
-  }
-
-  const { data: credential, error: credentialError } = await adminClient
-    .from("teacher_activation_credentials")
-    .select("id, code, expires_at, used_at")
-    .eq("teacher_id", teacher.id)
-    .maybeSingle();
-
-  if (credentialError || !credential) return json({ success: false, error: "no_activation_code" }, 404);
-  if (credential.used_at) return json({ success: false, error: "code_already_used" }, 400);
-  if (new Date(credential.expires_at) <= new Date()) return json({ success: false, error: "code_expired" }, 400);
-
-  const submittedHash = await sha256Hex(activationCode);
-  if (submittedHash !== credential.code) return json({ success: false, error: "invalid_code" }, 400);
-
-  // The RPC performs teacher linking, profile creation, membership creation
-  // and audit logging in one database transaction.
-  const { data: activation, error: activationError } = await userClient.rpc("activate_teacher", {
+  const { data, error } = await adminClient.rpc("activate_teacher_verified", {
     p_staff_id_no: staffIdNo,
     p_activation_code: activationCode,
-    p_device_secret: body.device_secret ?? "",
+    p_user_id: user.id,
   });
 
-  if (activationError || !activation || activation.success !== true) {
-    return json({ success: false, error: activation?.error ?? "activation_failed" }, 400);
+  if (error) {
+    console.error("Teacher activation RPC failed:", error);
+    return json({ success: false, error: "activation_failed" }, 400);
   }
-
-  const { error: consumeError } = await adminClient
-    .from("teacher_activation_credentials")
-    .update({ used_at: new Date().toISOString() })
-    .eq("id", credential.id)
-    .is("used_at", null);
-
-  if (consumeError) {
-    console.error("Teacher activation succeeded but credential consumption failed:", consumeError);
+  if (!data || data.success !== true) {
+    const code = data?.error?.toString() ?? "activation_failed";
+    const status = code === "teacher_not_found" ? 404 : code === "forbidden" ? 403 : 400;
+    return json({ success: false, error: code }, status);
   }
 
   return json({
     success: true,
-    teacher_id: activation.teacher_id,
-    school_id: activation.school_id,
-    credential_consumed: !consumeError,
+    teacher_id: data.teacher_id,
+    school_id: data.school_id,
   });
 });
