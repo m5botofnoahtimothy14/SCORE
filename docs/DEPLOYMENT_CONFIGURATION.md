@@ -74,11 +74,13 @@ Firebase configuration is still required for push notifications and APNs on iOS.
 
 ## Database migration and deployment order
 
-Migrations `00027`–`00033` add the redesigned school and Mentor Desk schema, activation credential hardening, Google Workspace integration, and production access boundaries.
+Migrations `00027`–`00035` add the redesigned school and Mentor Desk schema, activation credential hardening, Google Workspace integration, production access boundaries, and the missing Mentor Desk RPC contract.
 
 - `00032_google_workspace_meet.sql` adds school Workspace settings, Vault-backed credential references, meeting-space identifiers, server-only meeting creation claims, and participant-only meeting-link retrieval.
 - `00033_production_security_boundaries.sql` removes client access to activation hashes and OTP records, restricts sensitive `SECURITY DEFINER` functions, and restores participant-only booking reads. It also hardens notification-device registration.
-- `supabase/tests/00033_security_boundaries.sql` contains SQL regression checks. Run it in a non-production test project after the migration.
+- `00034_mentor_desk_schema_reconciliation.sql` repairs partial legacy Mentor Desk tables. It retains old columns and stops if it finds doubt rows that need a manual backfill.
+- `00035_restore_mentor_desk_rpcs.sql` restores the RPCs used by the mobile app, applies the 3-normal-plus-1-urgent weekly doubt rule, and adds participant-scoped read policies.
+- `supabase/tests/00033_security_boundaries.sql` and `supabase/tests/00035_mentor_desk_api.sql` contain SQL regression checks. Run both in a non-production test project after the migrations.
 
 **Database drift warning:** the live project migration history was checked. It currently records migrations through `00026`, while this repository contains `00027`–`00033`. The live schema already contains some objects from later work, so migration history alone does not prove which DDL is safe to apply. Do not run a blind production `supabase db push`. First compare every migration with the live schema, resolve duplicate migration-history entries, and prepare a reviewed baseline or forward-only reconciliation plan. Preserve all existing records.
 
@@ -88,7 +90,7 @@ The student and teacher activation Edge Functions verify one-time codes through 
 
 After migration history is reconciled:
 1. Apply and verify migrations in a development Supabase project.
-2. Run `supabase/tests/00033_security_boundaries.sql` and the application test suites.
+2. Run `supabase/tests/00033_security_boundaries.sql`, `supabase/tests/00035_mentor_desk_api.sql`, and the application test suites.
 3. Set Google OAuth, notification, and internal webhook secrets.
 4. Deploy the activation, OTP, notification, AI, and Google Workspace Edge Functions from the reviewed release.
 5. Connect a test school's Workspace account.
