@@ -16,10 +16,33 @@ BEGIN
      OR has_function_privilege('authenticated',
        'public.bootstrap_platform_owner(text,text,text)', 'EXECUTE')
      OR has_function_privilege('anon',
+       'public.activate_student(uuid,text,text,uuid)', 'EXECUTE')
+     OR has_function_privilege('authenticated',
+       'public.activate_student(uuid,text,text,uuid)', 'EXECUTE')
+     OR has_function_privilege('anon',
+       'public.activate_teacher(uuid,text,uuid,text)', 'EXECUTE')
+     OR has_function_privilege('authenticated',
+       'public.activate_teacher(uuid,text,uuid,text)', 'EXECUTE')
+     OR has_function_privilege('anon',
        'public.tc_post_edge(text,jsonb)', 'EXECUTE')
      OR has_function_privilege('authenticated',
-       'public.tc_post_edge(text,jsonb)', 'EXECUTE') THEN
+       'public.tc_post_edge(text,jsonb)', 'EXECUTE')
+     OR has_function_privilege('anon',
+       'public.publish_due_announcements()', 'EXECUTE')
+     OR has_function_privilege('authenticated',
+       'public.publish_due_announcements()', 'EXECUTE') THEN
     RAISE EXCEPTION 'A service-only RPC is executable by a client role';
+  END IF;
+
+  IF has_function_privilege('anon',
+       'public.create_student_support_conversation(uuid,uuid,uuid,uuid)', 'EXECUTE')
+     OR has_function_privilege('authenticated',
+       'public.create_student_support_conversation(uuid,uuid,uuid,uuid)', 'EXECUTE')
+     OR has_function_privilege('anon',
+       'public.rls_auto_enable()', 'EXECUTE')
+     OR has_function_privilege('authenticated',
+       'public.rls_auto_enable()', 'EXECUTE') THEN
+    RAISE EXCEPTION 'An internal helper is executable by a client role';
   END IF;
 
   IF has_function_privilege('anon',
