@@ -168,7 +168,7 @@ class _MentorDoubtConversationScreenState extends ConsumerState<MentorDoubtConve
                                     child: Column(
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
-                                        Text(body, style: TextStyle(fontSize: 13, height: 1.45, color: mine ? Colors.white : AppColors.ink800)),
+                                        Text(body, style: TextStyle(fontSize: 13, height: 1.45, color: mine ? Colors.white : AppColors.ink700)),
                                         const SizedBox(height: 5),
                                         Text(date == null ? '' : '${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}', style: TextStyle(fontSize: 9, color: mine ? Colors.white70 : AppColors.ink400)),
                                       ],
