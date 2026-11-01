@@ -189,6 +189,18 @@ class _MentorDoubtConversationScreenState extends ConsumerState<MentorDoubtConve
                               label: const Text('Reopen request'),
                             ),
                           ),
+                        if (request.isClosed && !isStudent)
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                            child: Align(
+                              alignment: Alignment.centerRight,
+                              child: TextButton.icon(
+                                onPressed: () => context.go('/mentor-desk/assessment/${request.id}'),
+                                icon: const Icon(Icons.fact_check_outlined),
+                                label: const Text('Complete assessment'),
+                              ),
+                            ),
+                          ),
                         if (request.isOpen && !isStudent)
                           Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 12),
