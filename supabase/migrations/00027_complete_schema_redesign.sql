@@ -1,5 +1,5 @@
 -- ============================================================
--- TeachCross Complete Database Schema (Production Ready)
+-- SCORE+ Complete Database Schema (Production Ready)
 -- ============================================================
 
 -- Enable extensions

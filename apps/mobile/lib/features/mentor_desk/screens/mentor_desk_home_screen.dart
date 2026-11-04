@@ -159,7 +159,7 @@ class _MentorDeskHomeScreenState extends ConsumerState<MentorDeskHomeScreen> {
                                           Text(
                                             'Good morning, Student',
                                             style: const TextStyle(
-                                              color: Colors.white,
+                                              color: MDColors.surfaceCard,
                                               fontSize: 26,
                                               fontWeight: FontWeight.w800,
                                               letterSpacing: -0.4,
@@ -424,3 +424,4 @@ class _GlossActionTile extends StatelessWidget {
     );
   }
 }
+

@@ -1,5 +1,5 @@
 // ============================================================
-// TeachCross — test helpers: authorization decisions.
+// SCORE+ — test helpers: authorization decisions.
 // Pure-logic mirror of:
 //  - supabase/migrations/00005_rls_policies.sql (RLS intent)
 //  - supabase/migrations/00006_functions_triggers.sql (send_message,

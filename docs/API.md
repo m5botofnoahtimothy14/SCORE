@@ -1,4 +1,4 @@
-# TeachCross API Reference (edge functions + DMS API)
+# SCORE+ API Reference (edge functions + DMS API)
 
 All edge functions require the Supabase anon key + user JWT unless noted.
 Errors are `{ success: false, error: <code> }` (generic where enumeration

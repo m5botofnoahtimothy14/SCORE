@@ -28,8 +28,8 @@ class NotificationService {
   ) async {
     const androidDetails = AndroidNotificationDetails(
       'teachcross_channel',
-      'TeachCross Notifications',
-      channelDescription: 'Notifications from TeachCross',
+      'SCORE+ Notifications',
+      channelDescription: 'Notifications from SCORE+',
       importance: Importance.high,
       priority: Priority.high,
     );
@@ -45,7 +45,7 @@ class NotificationService {
 
     await plugin.show(
       0,
-      message.notification?.title ?? 'TeachCross',
+      message.notification?.title ?? 'SCORE+',
       message.notification?.body ?? 'You have a new notification',
       details,
     );
@@ -57,3 +57,4 @@ class NotificationService {
     return null;
   }
 }
+

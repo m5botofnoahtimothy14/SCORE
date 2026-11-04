@@ -1,4 +1,4 @@
-# TeachCross — Moderation Policy & Method
+# SCORE+ — Moderation Policy & Method
 
 > **The vendor is the signal source. This policy is the decision authority.**
 >

@@ -1,5 +1,5 @@
 -- ============================================================
--- TeachCross: Migration 00006 — Database Functions & Triggers
+-- SCORE+: Migration 00006 — Database Functions & Triggers
 -- ============================================================
 
 -- Auto-update updated_at timestamps

@@ -1,5 +1,5 @@
 -- ============================================================
--- TeachCross: live-backend RLS / enforcement checks (staging only).
+-- SCORE+: live-backend RLS / enforcement checks (staging only).
 -- Run as an UNPRIVILEGED test user via psql after `supabase db push`
 -- and seed.dev.sql. Every check documents the expected outcome.
 -- Replace <TEST_JWT_*> with tokens of a student / teacher / outsider.

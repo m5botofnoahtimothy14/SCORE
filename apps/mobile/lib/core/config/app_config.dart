@@ -69,3 +69,5 @@ class AppConfig {
   static const String supportEmail = 'support@scoreplus.app';
   static const String supportPhone = '+91 90000 00000';
 }
+
+

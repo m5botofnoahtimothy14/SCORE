@@ -112,3 +112,4 @@ final identityNotifierProvider =
     StateNotifierProvider<IdentityNotifier, AsyncValue<AppIdentity?>>(
   (ref) => IdentityNotifier(),
 );
+

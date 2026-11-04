@@ -14,6 +14,13 @@ class EulaStore {
   static DateTime? _acceptedAt;
 
   static bool get isLoaded => _loaded;
+
+  /// Test-only: clear in-memory state so a fresh load can be simulated.
+  static void debugReset() {
+    _loaded = false;
+    _acceptedVersion = null;
+    _acceptedAt = null;
+  }
   static String? get acceptedVersion => _acceptedVersion;
   static DateTime? get acceptedAt => _acceptedAt;
   static bool get isAccepted => _loaded && _acceptedVersion == version;
@@ -76,3 +83,5 @@ class EulaGate {
     return '/legal/eula';
   }
 }
+
+

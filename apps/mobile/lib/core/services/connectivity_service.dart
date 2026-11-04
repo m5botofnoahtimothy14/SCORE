@@ -9,3 +9,5 @@ final isOnlineProvider = StreamProvider<bool>((ref) {
     (results) => !results.contains(ConnectivityResult.none),
   );
 });
+
+

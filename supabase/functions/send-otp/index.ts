@@ -37,7 +37,7 @@ async function sendOTPviaTextBee(phone: string, otp: string): Promise<boolean> {
       },
       body: JSON.stringify({
         phoneNumber: phone,
-        message: `Your TeachCross verification code is: ${otp}`,
+        message: `Your SCORE+ verification code is: ${otp}`,
       }),
     });
     return resp.ok;
@@ -74,9 +74,21 @@ serve(async (req: Request) => {
 
   if (!phone) return jsonError("invalid_phone", 400);
 
+  // Resolve the teacher roster record (UUID) for the staff ID.
+  // staff_activation_records.teacher_id is a UUID FK to teachers(id).
+  const supabaseService = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+  const { data: teacher, error: tErr } = await supabaseService
+    .from("teachers")
+    .select("id, school_id")
+    .eq("staff_id_no", (staff_id_no ?? "").trim())
+    .eq("is_active", true)
+    .maybeSingle();
+  if (tErr || !teacher) return jsonError("teacher_not_found", 404);
+  const teacherId = teacher.id as string;
+  const resolvedSchoolId = school_id ?? (teacher.school_id as string);
+
   // Demo OTP mode
   if (DEMO_OTP && DEMO_OTP_STAFF_ID && staff_id_no === DEMO_OTP_STAFF_ID) {
-    const supabaseService = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
     const otpHash = await crypto.subtle.digest(
       "SHA-256",
       new TextEncoder().encode(DEMO_OTP_VALUE + ":" + staff_id_no + ":" + phone)
@@ -88,8 +100,8 @@ serve(async (req: Request) => {
     await supabaseService
       .from("staff_activation_records")
       .upsert({
-        school_id,
-        teacher_id: staff_id_no,
+        school_id: resolvedSchoolId,
+        teacher_id: teacherId,
         otp_hash: otpHashHex,
         otp_expires_at: new Date(Date.now() + 10 * 60000).toISOString(),
         otp_verified_at: null,
@@ -114,13 +126,11 @@ serve(async (req: Request) => {
     .map(b => b.toString(16).padStart(2, "0"))
     .join("");
 
-  const supabaseService = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-
   await supabaseService
     .from("staff_activation_records")
     .upsert({
-      school_id,
-      teacher_id: staff_id_no,
+      school_id: resolvedSchoolId,
+      teacher_id: teacherId,
       otp_hash: otpHashHex,
       otp_salt: phone,
       otp_expires_at: new Date(Date.now() + 10 * 60000).toISOString(),

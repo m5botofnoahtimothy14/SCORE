@@ -1,5 +1,5 @@
 -- ============================================================
--- TeachCross: Migration 00012 — Fix RLS infinite recursion (42P17)
+-- SCORE+: Migration 00012 — Fix RLS infinite recursion (42P17)
 -- ============================================================
 -- Two policy families cross-referenced each other, so Postgres
 -- aborted every read with "infinite recursion detected":

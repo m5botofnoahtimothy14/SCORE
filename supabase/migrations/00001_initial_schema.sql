@@ -1,5 +1,5 @@
 -- ============================================================
--- TeachCross: Migration 00001 — Initial Schema
+-- SCORE+: Migration 00001 — Initial Schema
 -- ============================================================
 -- Enable extensions (pgcrypto is pre-enabled on Supabase; IF NOT EXISTS keeps this idempotent)
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";

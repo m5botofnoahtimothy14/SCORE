@@ -1,5 +1,5 @@
 -- ============================================================
--- TeachCross: Migration 00016 — Notification dispatch cron
+-- SCORE+: Migration 00016 — Notification dispatch cron
 -- ============================================================
 -- `notification_jobs` rows only get sent when something calls the
 -- `dispatch-notifications` Edge Function. Jobs inserted without an inline

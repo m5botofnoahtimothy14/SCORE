@@ -1,5 +1,5 @@
 // ============================================================
-// TeachCross moderation policy — evaluation harness.
+// SCORE+ moderation policy — evaluation harness.
 //
 //   node --test tests/moderation_policy.test.mjs
 //
@@ -293,7 +293,7 @@ test("dataset has >= 60 labelled cases and covers both classes", { skip: SKIP },
 // ============================================================
 test("policy evaluation: precision / recall / F1 / false-positive rate", { skip: SKIP }, () => {
   console.log("");
-  console.log("TeachCross moderation policy evaluation");
+  console.log("SCORE+ moderation policy evaluation");
   console.log("======================================");
   console.log(
     `dataset: ${DATASET_STATS.total} cases (${DATASET_STATS.benign} benign, ${DATASET_STATS.positive} positive, ${DATASET_STATS.edge} flagged edge, ${DATASET_STATS.images} image)`,

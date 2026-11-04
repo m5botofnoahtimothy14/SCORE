@@ -125,7 +125,7 @@ serve(async (req: Request) => {
 
     const event = {
       summary: `Mentor Desk Session — ${booking.topic || "Session"}`,
-      description: `TeachCross Mentor Desk session\nBooking ID: ${bookingId}\nSubject: ${booking.subject_id ?? "—"}\nDuration: ${booking.duration_minutes ?? 30} minutes`,
+      description: `SCORE+ Mentor Desk session\nBooking ID: ${bookingId}\nSubject: ${booking.subject_id ?? "—"}\nDuration: ${booking.duration_minutes ?? 30} minutes`,
       start: { dateTime: startDate.toISOString(), timeZone: tz },
       end: { dateTime: endDate.toISOString(), timeZone: tz },
       conferenceData: {

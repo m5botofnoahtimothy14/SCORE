@@ -320,7 +320,7 @@ class _EulaHeader extends StatelessWidget {
           const Text(
             kEulaTitle,
             style: TextStyle(
-              color: Colors.white,
+              color: MDColors.surfaceCard,
               fontSize: 22,
               fontWeight: FontWeight.w700,
               height: 1.2,
@@ -349,7 +349,7 @@ class _EulaHeader extends StatelessWidget {
                 const Text(
                   'Effective date: $kEulaEffectiveDate',
                   style: TextStyle(
-                    color: Colors.white,
+                    color: MDColors.surfaceCard,
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
                   ),
@@ -556,3 +556,5 @@ class _ConsentCard extends StatelessWidget {
     );
   }
 }
+
+

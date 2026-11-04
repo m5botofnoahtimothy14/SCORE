@@ -1,4 +1,4 @@
-# TeachCross Demo Mode (real backend, free tier)
+# SCORE+ Demo Mode (real backend, free tier)
 
 Demo = the **real app** against a **real Supabase Cloud free project**
 seeded with Demo Public School. No mocks, no fake data — the same code

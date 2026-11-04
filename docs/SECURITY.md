@@ -1,4 +1,4 @@
-# TeachCross Security Model
+# SCORE+ Security Model
 
 ## Principles
 

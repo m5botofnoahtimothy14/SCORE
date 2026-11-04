@@ -120,8 +120,8 @@ export default function MentorDeskSettingsPage() {
       show(false, 'Urgent passes per week must be 0–10.')
       return
     }
-    if (settings.escalation_threshold_minutes < 1 || settings.escalation_threshold_minutes > 480) {
-      show(false, 'Escalation threshold must be 1–480 minutes.')
+    if (settings.escalation_threshold_minutes < 0 || settings.escalation_threshold_minutes > 480) {
+      show(false, 'Escalation threshold must be 0–480 minutes (0 disables escalation).')
       return
     }
     setSaving(true)
@@ -194,7 +194,7 @@ export default function MentorDeskSettingsPage() {
             </div>
             <div>
               <p className="text-xs font-medium text-ink-600">Queue escalation threshold (minutes)</p>
-              <input className={inputCls} type="number" min={1} max={480} value={settings.escalation_threshold_minutes} onChange={(e) => setSettings({ ...settings, escalation_threshold_minutes: Number(e.target.value) })} />
+              <input className={inputCls} type="number" min={0} max={480} value={settings.escalation_threshold_minutes} onChange={(e) => setSettings({ ...settings, escalation_threshold_minutes: Number(e.target.value) })} />
               <p className="text-[11px] text-ink-500 mt-1">Default 30. Requests waiting longer are escalated first in the mentor queue.</p>
             </div>
             <div>
@@ -236,7 +236,7 @@ export default function MentorDeskSettingsPage() {
             <div>
               <p className="text-xs font-medium text-ink-600">Allowed session lengths (minutes)</p>
               <div className="flex gap-2">
-                {[15, 30].map((len) => {
+                {[15, 30, 45].map((len) => {
                   const active = settings.session_lengths.includes(len)
                   return (
                     <button key={len} onClick={() => {
@@ -250,7 +250,7 @@ export default function MentorDeskSettingsPage() {
                   )
                 })}
               </div>
-              <p className="text-[11px] text-ink-500 mt-1">Only 15- and 30-minute sessions are permitted; enforced server-side.</p>
+              <p className="text-[11px] text-ink-500 mt-1">Permitted session lengths (15/30/45 minutes); enforced server-side.</p>
             </div>
           </div>
         </Card>

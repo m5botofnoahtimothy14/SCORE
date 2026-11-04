@@ -1,5 +1,5 @@
 -- ============================================================
--- TeachCross: Migration 00003 — Announcements
+-- SCORE+: Migration 00003 — Announcements
 -- ============================================================
 
 CREATE TYPE announcement_audience AS ENUM (

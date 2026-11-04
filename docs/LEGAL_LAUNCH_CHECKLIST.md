@@ -14,7 +14,7 @@ registration number in the app.
   proprietor or replace it with the registered entity name.
 - Principal place of business, official support email, grievance contact and
   response process.
-- Whether each school is an independent data controller/fiduciary or TeachCross
+- Whether each school is an independent data controller/fiduciary or SCORE+
   is the primary operator, and the signed data-processing terms that allocate
   responsibilities.
 - The production domain, Android application ID, Apple developer account holder
@@ -26,7 +26,7 @@ registration number in the app.
 | --- | --- | --- |
 | Business structure | Contracting, invoicing, liability and banking | Choose sole proprietorship, LLP or company with an accountant/lawyer; obtain PAN/current account as appropriate. |
 | GST | Taxable supply/turnover or another compulsory-registration trigger | Confirm with a GST professional. CBIC describes the usual INR 20 lakh aggregate-turnover threshold and exceptions; registration is electronic. |
-| Trademark | Protecting `SCORE+`, `TeachCross`, logo and CRIMSON branding | Search first, select the applicable class(es), then file Form TM-A through IP India. Do not claim `®` until it is registered; use `™` only after counsel confirms the claim is appropriate. |
+| Trademark | Protecting `SCORE+`, `SCORE+`, logo and CRIMSON branding | Search first, select the applicable class(es), then file Form TM-A through IP India. Do not claim `®` until it is registered; use `™` only after counsel confirms the claim is appropriate. |
 | Copyright/IP assignments | Developers, designers and contractors contributed to app/code/assets | Execute written IP assignment/confidentiality agreements; retain provenance for all curriculum and media assets. |
 | School contracts | Every pilot/production school | Sign a service agreement, data-processing terms, security schedule, retention/deletion schedule, support/SLA and incident-notice process. |
 | App-store declarations | Google Play / App Store release | Complete Data safety/App Privacy disclosures from the final data inventory, including student data, AI processing, retention and deletion. |

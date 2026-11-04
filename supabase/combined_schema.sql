@@ -1,4 +1,4 @@
--- TeachCross combined schema (00001-00008, in order).
+-- SCORE+ combined schema (00001-00008, in order).
 -- Generated fallback for Supabase Dashboard SQL editor pasting.
 -- Preferred path is still: supabase link + supabase db push.
 
@@ -6,7 +6,7 @@
 -- SOURCE: 00001_initial_schema.sql
 -- ============================================================
 -- ============================================================
--- TeachCross: Migration 00001 — Initial Schema
+-- SCORE+: Migration 00001 — Initial Schema
 -- ============================================================
 -- Enable extensions
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
@@ -272,7 +272,7 @@ CREATE INDEX idx_rate_limit_key ON rate_limit_events(key, created_at);
 -- SOURCE: 00002_conversations_messages.sql
 -- ============================================================
 -- ============================================================
--- TeachCross: Migration 00002 — Conversations & Messages
+-- SCORE+: Migration 00002 — Conversations & Messages
 -- ============================================================
 
 CREATE TYPE conversation_type AS ENUM (
@@ -438,7 +438,7 @@ CREATE TABLE support_question_history (
 -- SOURCE: 00003_announcements.sql
 -- ============================================================
 -- ============================================================
--- TeachCross: Migration 00003 — Announcements
+-- SCORE+: Migration 00003 — Announcements
 -- ============================================================
 
 CREATE TYPE announcement_audience AS ENUM (
@@ -514,7 +514,7 @@ CREATE INDEX idx_announcement_receipts_user ON announcement_receipts(user_id);
 -- SOURCE: 00004_moderation_audit_notifications.sql
 -- ============================================================
 -- ============================================================
--- TeachCross: Migration 00004 — Moderation, Safeguarding, Audit
+-- SCORE+: Migration 00004 — Moderation, Safeguarding, Audit
 -- ============================================================
 
 -- ============================================================
@@ -804,7 +804,7 @@ CREATE INDEX idx_background_jobs_status ON background_jobs(status, scheduled_for
 -- SOURCE: 00005_rls_policies.sql
 -- ============================================================
 -- ============================================================
--- TeachCross: Migration 00005 — Row-Level Security Policies
+-- SCORE+: Migration 00005 — Row-Level Security Policies
 -- ============================================================
 -- This is the security layer. All policies enforce multi-tenant
 -- isolation and role-based access. Never trust client-supplied IDs.
@@ -1340,7 +1340,7 @@ CREATE POLICY support_q_history_read ON support_question_history FOR SELECT
 -- SOURCE: 00006_functions_triggers.sql
 -- ============================================================
 -- ============================================================
--- TeachCross: Migration 00006 — Database Functions & Triggers
+-- SCORE+: Migration 00006 — Database Functions & Triggers
 -- ============================================================
 
 -- Auto-update updated_at timestamps
@@ -1740,7 +1740,7 @@ $$;
 -- SOURCE: 00007_storage.sql
 -- ============================================================
 -- ============================================================
--- TeachCross: Migration 00007 — Storage, helpers, realtime
+-- SCORE+: Migration 00007 — Storage, helpers, realtime
 -- ============================================================
 
 -- ── Private storage buckets (never public) ─────────────────

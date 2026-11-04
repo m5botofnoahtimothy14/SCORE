@@ -1,4 +1,4 @@
-# TeachCross Mobile (Flutter)
+# SCORE+ Mobile (Flutter)
 
 Secure school communication client for students and teachers
 (Android first; architecture supports a future iOS release).

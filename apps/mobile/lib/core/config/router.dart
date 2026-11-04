@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../features/ai_ask/screens/ai_ask_screen.dart';
 import '../../features/auth/screens/auth_gate_screen.dart';
 import '../../features/auth/screens/role_select_screen.dart';
 import '../../features/auth/screens/student_signin_screen.dart';
@@ -19,6 +20,8 @@ import '../../features/search/screens/search_screen.dart';
 import '../../features/mentor_desk/screens/mentor_desk_home_screen.dart';
 import '../../features/mentor_desk/screens/submit_doubt_screen.dart';
 import '../../features/mentor_desk/screens/doubt_conversation_screen.dart';
+import '../../features/mentor_desk/screens/doubts_list_screen.dart';
+import '../../features/mentor_desk/screens/sessions_list_screen.dart';
 import '../../features/mentor_desk/screens/book_session_screen.dart';
 import '../../features/mentor_desk/screens/session_detail_screen.dart';
 import '../../features/mentor_desk/screens/rating_screen.dart';
@@ -181,6 +184,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/home', builder: (_, __) => const HomeScreen()),
           GoRoute(path: '/announcements', builder: (_, __) => const AnnouncementsScreen()),
           GoRoute(path: '/announcements/compose', builder: (_, __) => const ComposeAnnouncementScreen()),
+          GoRoute(path: '/ai-ask', builder: (_, __) => const AiAskScreen()),
           GoRoute(
             path: '/announcements/:id',
             builder: (_, state) => AnnouncementDetailScreen(
@@ -188,7 +192,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             ),
           ),
           GoRoute(path: '/mentor-desk', builder: (_, __) => const MentorDeskHomeScreen()),
+          GoRoute(path: '/mentor-desk/doubts', builder: (_, __) => const DoubtsListScreen()),
           GoRoute(path: '/mentor-desk/doubt/submit', builder: (_, __) => const SubmitDoubtScreen()),
+          GoRoute(path: '/mentor-desk/sessions', builder: (_, __) => const SessionsListScreen()),
           GoRoute(
             path: '/mentor-desk/doubt/:id',
             builder: (_, state) => MentorDoubtConversationScreen(requestId: state.pathParameters['id']!),
@@ -281,6 +287,7 @@ class NavDest {
 List<NavDest> destinationsFor(AppTier tier) => switch (tier) {
   AppTier.student => const [
     NavDest('/mentor-desk', Icons.support_agent_outlined, Icons.support_agent, 'Mentor Desk'),
+    NavDest('/ai-ask', Icons.auto_awesome_outlined, Icons.auto_awesome, 'AI Ask'),
     NavDest('/announcements', Icons.campaign_outlined, Icons.campaign, 'Notices'),
     NavDest('/profile', Icons.person_outline, Icons.person, 'Profile'),
   ],
@@ -448,3 +455,5 @@ class AccessDeniedScreen extends StatelessWidget {
     body: Center(child: Text('Access Denied')),
   );
 }
+
+

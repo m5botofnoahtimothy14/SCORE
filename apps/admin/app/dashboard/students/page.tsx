@@ -157,6 +157,32 @@ export default function StudentsPage() {
     }
   }
 
+  async function releaseRollNumber(s: Student) {
+    if (!window.confirm(`Release roll number ${s.student_id_no} from ${s.first_name} ${s.last_name}? This deactivates the record and frees the number. Reason required.`)) return
+    const reason = window.prompt('Reason for release:')?.trim()
+    if (!reason) { show(false, 'Reason is required.'); return }
+    try {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error('Not signed in.')
+      const { data, error } = await supabase.rpc('release_student_roll_number', {
+        p_student_id: s.id, p_reason: reason,
+      })
+      if (error) throw error
+      if (!data || (data as { success?: boolean }).success !== true) {
+        throw new Error((data as { error?: string })?.error ?? 'Release failed.')
+      }
+      await logAudit(supabase, user.id, {
+        schoolId: (await supabase.from('school_memberships').select('school_id').eq('user_id', user.id).eq('is_active', true).limit(1).maybeSingle()).data?.school_id,
+        action: 'student.roll_number.release', targetType: 'student', targetId: s.id, outcome: 'success', reason,
+      })
+      show(true, 'Roll number released.')
+      load()
+    } catch (e) {
+      show(false, e instanceof Error ? e.message : 'Release failed.')
+    }
+  }
+
   async function issueCode(s: Student) {
     setIssuedCode(null)
     try {
@@ -266,6 +292,7 @@ export default function StudentsPage() {
                   <td className="text-right pr-3 whitespace-nowrap">
                     <button onClick={() => setEditing(s)} className="text-brand-600 text-xs mr-2 hover:underline">Edit</button>
                     <button onClick={() => issueCode(s)} className="text-brand-600 text-xs mr-2 hover:underline">Issue code</button>
+                    <button onClick={() => releaseRollNumber(s)} className="text-rose-600 text-xs mr-2 hover:underline">Release roll #</button>
                     <button onClick={() => toggleActive(s)} className="text-xs text-ink-700 hover:underline">{s.is_active ? 'Deactivate' : 'Reactivate'}</button>
                   </td>
                 </tr>

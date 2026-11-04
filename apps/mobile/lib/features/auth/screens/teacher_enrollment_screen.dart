@@ -117,3 +117,4 @@ class _TeacherEnrollmentScreenState extends ConsumerState<TeacherEnrollmentScree
     ),
   );
 }
+

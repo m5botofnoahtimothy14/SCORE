@@ -1,4 +1,4 @@
-# TeachCross Android ADB + APK Install Guide
+# SCORE+ Android ADB + APK Install Guide
 
 This guide covers the exact local workflow for connecting your Android phone to your computer over ADB, building the Flutter APK, and installing it on the device.
 

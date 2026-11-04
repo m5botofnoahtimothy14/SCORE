@@ -330,4 +330,25 @@ void main() {
       }
     });
   });
+}class MetricTile extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+  final dynamic accent;
+  const MetricTile({super.key, required this.icon, required this.label, required this.value, this.accent});
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(border: Border.all(color: Colors.grey), borderRadius: BorderRadius.circular(12)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon),
+          const SizedBox(height: 8),
+          Text(value, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis),
+          Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),        ],
+      ),
+    );
+  }
 }

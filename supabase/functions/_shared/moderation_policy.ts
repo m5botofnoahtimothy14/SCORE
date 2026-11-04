@@ -1,5 +1,5 @@
 // ============================================================
-// TeachCross moderation policy — the single source of truth.
+// SCORE+ moderation policy — the single source of truth.
 //
 // This module owns EVERY decision the platform makes about content:
 // what is approved, what a human reviews, what is blocked and what is

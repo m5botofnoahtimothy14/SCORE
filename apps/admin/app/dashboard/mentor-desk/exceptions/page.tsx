@@ -68,11 +68,9 @@ export default function ExceptionsPage() {
       setSchoolId(sid)
 
       const { data: e, error: err } = await supabase.from('session_no_shows').select(`
-        id, school_id, reported_by_role, no_show_type, refund_minutes, refunded,
-        review_status, created_at, updated_at,
-        user_profiles!session_no_shows_reported_by_fkey(display_name),
-        session_bookings(topic, status, student_id, mentor_id)
-      `).eq('school_id', sid).order('created_at', { ascending: false })
+        id, booking_id, no_show_type, recorded_by, recorded_at,
+        session_bookings(topic, status, student_id, mentor_id, school_id)
+      `).order('recorded_at', { ascending: false })
       if (err) throw err
 
       // Also surface escalated doubt requests as exceptions.
@@ -87,20 +85,20 @@ export default function ExceptionsPage() {
       for (const n of ((e ?? []) as any[])) {
         exceptions.push({
           id: n.id,
-          school_id: n.school_id,
+          school_id: n.session_bookings?.school_id ?? sid,
           category: n.no_show_type === 'mentor_no_show' ? 'mentor_no_show' : 'student_no_show',
           severity: n.no_show_type === 'mentor_no_show' ? 'high' : 'medium',
-          status: n.review_status === 'pending' ? 'open' : (n.review_status === 'resolved' ? 'resolved' : 'open'),
+          status: 'open',
           assigned_to: null,
           related_record_type: 'session_booking',
-          related_record_id: n.session_bookings?.id ?? null,
-          detected_at: n.created_at,
+          related_record_id: n.booking_id ?? null,
+          detected_at: n.recorded_at,
           acknowledged_at: null,
           resolved_at: null,
           resolution_reason: null,
           investigation_notes: null,
-          created_at: n.created_at,
-          updated_at: n.updated_at,
+          created_at: n.recorded_at,
+          updated_at: n.recorded_at,
           user_profiles: n.user_profiles,
         })
       }

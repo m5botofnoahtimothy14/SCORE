@@ -144,7 +144,7 @@ class MDMetricTile extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(kGutter),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: MDColors.surfaceCard,
         borderRadius: BorderRadius.circular(kRadiusLg),
         border: Border.all(color: AppColors.ink200),
         boxShadow: [
@@ -191,7 +191,7 @@ class MDListCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: MDColors.surfaceCard,
         borderRadius: BorderRadius.circular(kRadiusLg),
         border: Border.all(color: AppColors.ink200),
         boxShadow: [
@@ -232,7 +232,7 @@ class MDGlossButton extends StatelessWidget {
         onPressed: loading ? null : onPressed,
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColors.brand,
-          foregroundColor: Colors.white,
+          foregroundColor: MDColors.surfaceCard,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(kRadiusSm)),
           elevation: 4,
           shadowColor: AppColors.brand.withValues(alpha: 0.35),
@@ -243,7 +243,7 @@ class MDGlossButton extends StatelessWidget {
                 width: 20,
                 child: CircularProgressIndicator(
                   strokeWidth: 2,
-                  color: Colors.white,
+                  color: MDColors.surfaceCard,
                 ),
               )
             : child,
@@ -489,7 +489,7 @@ class MDButton extends StatelessWidget {
         onPressed: loading ? null : onPressed,
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColors.brand,
-          foregroundColor: Colors.white,
+          foregroundColor: MDColors.surfaceCard,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(kRadiusSm)),
           elevation: 4,
           shadowColor: AppColors.brand.withValues(alpha: 0.35),
@@ -500,7 +500,7 @@ class MDButton extends StatelessWidget {
                 width: 20,
                 child: CircularProgressIndicator(
                   strokeWidth: 2,
-                  color: Colors.white,
+                  color: MDColors.surfaceCard,
                 ),
               )
             : child,
@@ -508,3 +508,4 @@ class MDButton extends StatelessWidget {
     );
   }
 }
+

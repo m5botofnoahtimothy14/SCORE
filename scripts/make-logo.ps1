@@ -1,5 +1,5 @@
 #!/usr/bin/env pwsh
-# Generates the TeachCross brand logo used by the mobile app
+# Generates the SCORE+ brand logo used by the mobile app
 # (assets/images/logo.png) and any future icon surfaces.
 #
 #   powershell -ExecutionPolicy Bypass -File scripts\make-logo.ps1
@@ -69,7 +69,7 @@ $cx = [int]($Size / 2)
 $g.FillRectangle($white, [int]($Size * 0.24), [int]($Size * 0.30), [int]($Size * 0.52), $barH)
 # Vertical stem
 $g.FillRectangle($white, $cx - [int]($stemW / 2), [int]($Size * 0.30), $stemW, [int]($Size * 0.40))
-# Cross bar (the "cross" in TeachCross)
+# Cross bar (the "cross" in SCORE+)
 $g.FillRectangle($white, [int]($Size * 0.36), [int]($Size * 0.50), [int]($Size * 0.28), $barH)
 
 $bmp.Save($out, [System.Drawing.Imaging.ImageFormat]::Png)

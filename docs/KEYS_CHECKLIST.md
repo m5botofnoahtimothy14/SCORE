@@ -1,4 +1,4 @@
-# TeachCross — Keys & Credentials Checklist
+# SCORE+ — Keys & Credentials Checklist
 
 Everything below is needed for a production deployment. Demo (local
 the full feature set. Nothing here is committed — the live values live in

@@ -1,4 +1,4 @@
-# TeachCross — School Communication Platform
+# SCORE+ — School Communication Platform
 
 Secure, school-managed communication for educational institutions:
 Flutter app for students/teachers + Next.js DMS for administrators,

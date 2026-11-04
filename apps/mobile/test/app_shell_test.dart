@@ -53,7 +53,7 @@ Future<GoRouter> _bootShell(
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
-        identityProvider.overrideWith((ref) async => _identity(tier)),
+        identityProviderProvider.overrideWith((ref) async => _identity(tier)),
       ],
       child: MaterialApp.router(
         theme: AppTheme.light(),

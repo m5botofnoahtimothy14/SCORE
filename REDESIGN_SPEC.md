@@ -1,7 +1,7 @@
-# TeachCross Complete Redesign Specification
+# SCORE+ Complete Redesign Specification
 
 ## Overview
-Complete redesign of the TeachCross platform for production testing by investors.
+Complete redesign of the SCORE+ platform for production testing by investors.
 All stubs fixed, every API working, every function working, every detail proper.
 
 ---

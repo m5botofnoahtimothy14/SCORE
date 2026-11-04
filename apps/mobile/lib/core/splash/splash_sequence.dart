@@ -6,7 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../config/app_config.dart';
 import '../theme/app_theme.dart';
 
-const Duration _kSplashDuration = Duration(seconds: 3);
+const Duration _kSplashDuration = Duration(seconds: 10);
 
 class SplashSequence extends StatefulWidget {
   const SplashSequence({super.key});
@@ -34,32 +34,64 @@ class _SplashSequenceState extends State<SplashSequence> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Container(
-              width: 80,
-              height: 80,
-              decoration: BoxDecoration(
+            const Icon(Icons.school, size: 48, color: Colors.white),
+            const SizedBox(height: 28),
+            Text(
+              AppConfig.signatureTop,
+              semanticsLabel: AppConfig.signatureLine,
+              style: const TextStyle(
                 color: Colors.white,
-                borderRadius: BorderRadius.circular(24),
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 2.2,
               ),
-              child: const Icon(Icons.school, size: 40, color: AppColors.brand),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 2),
+            Text(
+              AppConfig.signatureCross,
+              style: const TextStyle(
+                color: Colors.white70,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 1.6,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              AppConfig.signatureName,
+              style: const TextStyle(
+                color: Colors.white70,
+                fontSize: 12.5,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 1.2,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              'Developed by ${AppConfig.developerName}',
+              style: const TextStyle(
+                color: Colors.white70,
+                fontSize: 12,
+              ),
+            ),
+            const SizedBox(height: 10),
             const Text(
               'SCORE+',
               style: TextStyle(
                 color: Colors.white,
-                fontSize: 32,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 2,
+                fontSize: 40,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 3,
               ),
             ),
-            const SizedBox(height: 8),
-            const CircularProgressIndicator(
-              color: Colors.white,
-            ),
+            const SizedBox(height: 40),
+            const CircularProgressIndicator(color: Colors.white),
           ],
         ),
       ),
     );
   }
 }
+
+
+

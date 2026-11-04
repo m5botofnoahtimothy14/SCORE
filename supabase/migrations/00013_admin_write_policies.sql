@@ -1,5 +1,5 @@
 -- ============================================================
--- TeachCross: Migration 00013 — Restore write policies used by the DMS
+-- SCORE+: Migration 00013 — Restore write policies used by the DMS
 -- ============================================================
 -- Two tables were read/updated by the admin dashboard but had no INSERT
 -- policy, so client-side writes were silently rejected by RLS:

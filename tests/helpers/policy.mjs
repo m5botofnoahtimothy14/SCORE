@@ -1,5 +1,5 @@
 // ============================================================
-// TeachCross — test helpers: moderation policy + rate limiting.
+// SCORE+ — test helpers: moderation policy + rate limiting.
 //
 // The moderation verdict functions below are THIN DELEGATES to the real
 // edge module, supabase/functions/_shared/moderation_policy.ts. There is

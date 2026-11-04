@@ -1,5 +1,5 @@
 // ============================================================
-// TeachCross bootstrap — one-time platform owner provisioning.
+// SCORE+ bootstrap — one-time platform owner provisioning.
 // SERVER-SIDE ONLY. Requires SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY.
 // Refuses to run if platform owners already exist or BOOTSTRAP_ENABLED!=true.
 //

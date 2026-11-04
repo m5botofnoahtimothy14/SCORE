@@ -1,4 +1,4 @@
-# TeachCross Testing Plan & Evidence
+# SCORE+ Testing Plan & Evidence
 
 ## Automated (run in CI)
 

@@ -15,6 +15,7 @@ import {
 
 interface OverviewMetrics {
   totalDoubts: number
+  medianFirstReplyMinutes: number
   waitingDoubts: number
   assignedDoubts: number
   escalatedDoubts: number
@@ -74,7 +75,7 @@ export default function MentorDeskOverview() {
         totalDoubts, waitingDoubts, assignedDoubts, escalatedDoubts, resolvedDoubts,
         upcomingSessions, completedSessions, verifiedSessions, unverifiedSessions,
         studentNoShows, mentorNoShows, availableMentors, pendingMentorApprovals,
-        lowRatings, studentsAtLimit, recentAudit,
+        lowRatings, studentsAtLimit, firstReplyDoubts, recentAudit,
       ] = await Promise.all([
         supabase.from('doubt_requests').select('id', { count: 'exact', head: true }).eq('school_id', sid),
         supabase.from('doubt_requests').select('id', { count: 'exact', head: true }).eq('school_id', sid).in('status', ['pending_assignment', 'waiting']),
@@ -91,19 +92,30 @@ export default function MentorDeskOverview() {
         supabase.from('mentor_subject_approvals').select('id', { count: 'exact', head: true }).eq('school_id', sid).eq('status', 'pending'),
         supabase.from('ratings').select('id', { count: 'exact', head: true }).eq('school_id', sid).lte('rating', 2),
         supabase.from('session_bookings').select('id', { count: 'exact', head: true }).eq('school_id', sid).eq('status', 'confirmed').gte('requested_at', weekAgo),
+        supabase.from('doubt_requests').select('created_at, first_reply_at').eq('school_id', sid).not('first_reply_at', 'is', null).limit(1000),
         supabase.from('audit_events').select('id, action, created_at').eq('school_id', sid).order('created_at', { ascending: false }).limit(12),
       ])
 
       // Resolve actor names for the activity feed.
-      const actorIds = new Set((recentAudit.data ?? []).map((r: any) => r.actor_id))
+      const actorIds = new Set((recentAudit.data ?? []).map((r: any) => r.actor_id).filter((x: any) => typeof x === 'string' && x.length > 0))
       const actorNames = new Map<string, string>()
       if (actorIds.size > 0) {
         const { data: profiles } = await supabase.from('user_profiles').select('id, display_name').in('id', Array.from(actorIds))
         for (const p of (profiles ?? [])) actorNames.set(p.id, p.display_name ?? p.id)
       }
 
+      const replyMinutes = ((firstReplyDoubts.data ?? []) as { created_at: string; first_reply_at: string }[])
+        .map((r) => (new Date(r.first_reply_at).getTime() - new Date(r.created_at).getTime()) / 60000)
+        .filter((m) => m >= 0)
+        .sort((a, b) => a - b)
+      const medianReply = replyMinutes.length === 0 ? 0 :
+        replyMinutes.length % 2 === 1
+          ? replyMinutes[Math.floor(replyMinutes.length / 2)]
+          : (replyMinutes[replyMinutes.length / 2 - 1] + replyMinutes[replyMinutes.length / 2]) / 2
+
       setMetrics({
         totalDoubts: totalDoubts.count ?? 0,
+        medianFirstReplyMinutes: Math.round(medianReply),
         waitingDoubts: waitingDoubts.count ?? 0,
         assignedDoubts: assignedDoubts.count ?? 0,
         escalatedDoubts: escalatedDoubts.count ?? 0,
@@ -144,6 +156,7 @@ export default function MentorDeskOverview() {
         section: 'Doubt requests',
         items: [
           { label: 'Total raised', value: metrics.totalDoubts.toLocaleString(), icon: Activity, href: '/dashboard/mentor-desk/doubts', tone: 'brand' },
+           { label: 'Median first-reply (min)', value: metrics.medianFirstReplyMinutes.toLocaleString(), icon: Clock, href: '/dashboard/mentor-desk/doubts', tone: 'brand' },
           { label: 'Waiting for mentor', value: metrics.waitingDoubts.toLocaleString(), icon: HelpCircle, href: '/dashboard/mentor-desk/doubts', tone: 'amber' },
           { label: 'Assigned', value: metrics.assignedDoubts.toLocaleString(), icon: Users, href: '/dashboard/mentor-desk/doubts', tone: 'brand' },
           { label: 'Escalated (>30 min)', value: metrics.escalatedDoubts.toLocaleString(), icon: AlertCircle, href: '/dashboard/mentor-desk/exceptions', tone: 'rose' },
@@ -207,6 +220,28 @@ export default function MentorDeskOverview() {
           </div>
         </Card>
       ))}
+
+      <Card className="mb-6">
+        <div className="flex items-center justify-between border-b border-ink-200/70 px-5 py-4">
+          <h2 className="text-sm font-semibold text-ink-900">Needs a look</h2>
+          <span className="text-xs text-ink-500">Consolidated attention items</span>
+        </div>
+        <ul className="divide-y divide-ink-200/70">
+          {[
+            { label: 'Urgent / escalated requests', value: metrics?.escalatedDoubts ?? 0, href: '/dashboard/mentor-desk/exceptions' },
+            { label: 'Unverified session closures', value: metrics?.unverifiedSessions ?? 0, href: '/dashboard/mentor-desk/exceptions' },
+            { label: 'Mentor no-shows (7d)', value: metrics?.mentorNoShows ?? 0, href: '/dashboard/mentor-desk/exceptions' },
+            { label: 'Student no-shows (7d)', value: metrics?.studentNoShows ?? 0, href: '/dashboard/mentor-desk/exceptions' },
+            { label: 'Pending mentor approvals', value: metrics?.pendingMentorApprovals ?? 0, href: '/dashboard/mentor-desk/mentors' },
+            { label: 'Low ratings (≤2★)', value: metrics?.lowRatings ?? 0, href: '/dashboard/mentor-desk/ratings' },
+          ].map((item) => (
+            <li key={item.label} className="flex items-center justify-between px-5 py-3 text-sm">
+              <a href={item.href} className="text-ink-700 hover:text-brand-600">{item.label}</a>
+              <span className="font-bold tabular-nums text-ink-900">{item.value}</span>
+            </li>
+          ))}
+        </ul>
+      </Card>
 
       <Card className="mb-6">
         <div className="flex items-center justify-between border-b border-ink-200/70 px-5 py-4">

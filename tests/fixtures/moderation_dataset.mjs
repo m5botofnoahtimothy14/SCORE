@@ -1,5 +1,5 @@
 // ============================================================
-// TeachCross moderation policy — labelled evaluation dataset.
+// SCORE+ moderation policy — labelled evaluation dataset.
 //
 // Each case is:
 //   {

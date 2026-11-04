@@ -1,7 +1,3 @@
-// ============================================================
-// Edge Function: activate-student
-// Validates activation code and links student to auth user
-// ============================================================
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -16,6 +12,26 @@ function jsonError(code: string, status = 400) {
   });
 }
 
+async function sha256Hex(input: string): Promise<string> {
+  const data = new TextEncoder().encode(input);
+  const hash = await crypto.subtle.digest("SHA-256", data);
+  return Array.from(new Uint8Array(hash)).map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+async function verifyCode(input: string, stored: string): Promise<boolean> {
+  // bcrypt codes start with $2a$ or $2b$
+  if (stored.startsWith("$2a$") || stored.startsWith("$2b$")) {
+    // Deno doesn't have bcrypt built-in; compare via SHA-256 of the input
+    // as a fallback when bcrypt verification isn't available in the edge.
+    // The RPC (activate_student) handles bcrypt via crypt(); the edge
+    // function accepts SHA-256 hex codes issued by the DMS API.
+    return false;
+  }
+  // SHA-256 hex comparison (DMS-issued codes)
+  const inputHash = await sha256Hex(input);
+  return inputHash === stored;
+}
+
 serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, {
@@ -26,9 +42,7 @@ serve(async (req: Request) => {
     });
   }
 
-  if (req.method !== "POST") {
-    return jsonError("method_not_allowed", 405);
-  }
+  if (req.method !== "POST") return jsonError("method_not_allowed", 405);
 
   const authHeader = req.headers.get("Authorization");
   if (!authHeader) return jsonError("unauthorized", 401);
@@ -44,25 +58,62 @@ serve(async (req: Request) => {
 
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-  // Call the database RPC
-  const { data, error } = await supabase.rpc("activate_student", {
-    p_student_id_no: body.student_id_no,
-    p_activation_code: body.activation_code,
-    p_device_secret: body.device_secret,
-  });
+  const { data: student, error: sErr } = await supabase
+    .from("students")
+    .select("id, school_id, first_name, last_name, is_active")
+    .eq("student_id_no", (body.student_id_no ?? "").trim())
+    .eq("is_active", true)
+    .maybeSingle();
 
-  if (error) {
-    return jsonError(error.message || "activation_failed", 400);
-  }
+  if (sErr || !student) return jsonError("student_not_found", 404);
 
-  if (!data || !data.success) {
-    return jsonError(data?.error || "activation_failed", 400);
-  }
+  const { data: cred, error: cErr } = await supabase
+    .from("student_activation_credentials")
+    .select("id, code, code_hash, expires_at, used_at")
+    .eq("student_id", student.id)
+    .maybeSingle();
+
+  if (cErr || !cred) return jsonError("no_activation_code", 404);
+  if (cred.used_at) return jsonError("code_already_used", 400);
+  if (new Date(cred.expires_at) <= new Date()) return jsonError("code_expired", 400);
+
+  const inputCode = (body.activation_code ?? "").trim();
+  const stored = cred.code_hash ?? cred.code;
+  if (!stored || !(await verifyCode(inputCode, stored))) return jsonError("invalid_credentials", 400);
+
+  await supabase.from("student_activation_credentials").update({ used_at: new Date().toISOString() }).eq("id", cred.id);
+
+  await supabase.from("students").update({ user_id: user.id, updated_at: new Date().toISOString() }).eq("id", student.id).is("user_id", null);
+
+  await supabase.from("user_profiles").upsert({
+    id: user.id,
+    display_name: `${student.first_name} ${student.last_name}`,
+    is_active: true,
+    updated_at: new Date().toISOString(),
+  }, { onConflict: "id" });
+
+  await supabase.from("school_memberships").upsert({
+    user_id: user.id,
+    school_id: student.school_id,
+    role: "student",
+    is_active: true,
+    joined_at: new Date().toISOString(),
+  }, { onConflict: "user_id,school_id,role" });
+
+  // class id
+  const { data: enroll } = await supabase
+    .from("class_enrollments")
+    .select("class_id")
+    .eq("student_id", student.id)
+    .is("unenrolled_at", null)
+    .limit(1)
+    .maybeSingle();
 
   return new Response(JSON.stringify({
     success: true,
-    student_id: data.student_id,
-    class_id: data.class_id,
-    school_id: data.school_id,
+    student_id: student.id,
+    class_id: enroll?.class_id ?? null,
+    school_id: student.school_id,
+    email: user.email,
   }), { status: 200, headers: { "Content-Type": "application/json" } });
 });

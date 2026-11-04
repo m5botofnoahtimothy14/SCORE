@@ -103,8 +103,7 @@ export default function SessionsPage() {
             created_at, updated_at,
             students(student_id_no, first_name, last_name),
             teachers(staff_id_no, first_name, last_name),
-            subjects(name),
-            user_profiles(display_name)
+            subjects(name)
           `)
           .eq('school_id', sid)
           .order('created_at', { ascending: false }),
@@ -205,6 +204,31 @@ export default function SessionsPage() {
       load()
     } catch (e) {
       show(false, e instanceof Error ? e.message : 'Cancel failed.')
+    }
+  }
+
+  async function giveTimeBack(booking: BookingRow, reason: string) {
+    try {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error('Not signed in.')
+      const { data, error } = await supabase.rpc('refund_session_allowance', {
+        p_booking_id: booking.id,
+        p_reason: reason,
+      })
+      if (error) throw error
+      if (!data || (data as { success?: boolean }).success !== true) {
+        throw new Error((data as { error?: string })?.error ?? 'Refund failed.')
+      }
+      await logAudit(supabase, user.id, {
+        schoolId, action: 'session.refund', targetType: 'session_booking', targetId: booking.id,
+        outcome: 'success', reason, metadata: { minutes: (data as { minutes?: number }).minutes },
+      })
+      show(true, 'Allowance refunded (Give Time Back).')
+      setEditing(null)
+      load()
+    } catch (e) {
+      show(false, e instanceof Error ? e.message : 'Refund failed.')
     }
   }
 
@@ -402,6 +426,12 @@ export default function SessionsPage() {
               {editing.status === 'unverified_closed' && (
                 <p className="text-xs text-rose-600">Pending administrative review.</p>
               )}
+              {!editing.refunded && (editing.allowance_minutes_used ?? 0) > 0 && (
+                <button onClick={() => giveTimeBack(editing, 'Admin Give Time Back')} className={btnSecondary}>
+                  Give Time Back ({editing.allowance_minutes_used} min)
+                </button>
+              )}
+              {editing.refunded && <p className="text-xs text-emerald-700">Allowance refunded.</p>}
               <div className="pt-2 border-t border-ink-100">
                 <button onClick={() => setEditing(null)} className={btnSecondary}>Close</button>
               </div>

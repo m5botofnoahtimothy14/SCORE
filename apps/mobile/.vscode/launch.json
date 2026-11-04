@@ -5,7 +5,7 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "TeachCross (no backend — UI + error states)",
+      "name": "SCORE+ (no backend — UI + error states)",
       "request": "launch",
       "type": "dart",
       "program": "lib/main.dart",
@@ -15,7 +15,7 @@
       ]
     },
     {
-      "name": "TeachCross (real backend)",
+      "name": "SCORE+ (real backend)",
       "request": "launch",
       "type": "dart",
       "program": "lib/main.dart",

@@ -1,4 +1,4 @@
-# TeachCross Operations (runbook)
+# SCORE+ Operations (runbook)
 
 ## Daily
 

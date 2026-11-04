@@ -1,4 +1,4 @@
-// Diagnostic: inspect live TeachCross data via PostgREST (service role).
+// Diagnostic: inspect live SCORE+ data via PostgREST (service role).
 import { createClient } from '../apps/admin/node_modules/@supabase/supabase-js/dist/index.mjs'
 import { readFileSync } from 'node:fs'
 

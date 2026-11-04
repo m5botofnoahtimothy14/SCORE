@@ -70,7 +70,7 @@ void main() {
       expect(EulaGate.isBlocking, isTrue);
       expect(EulaGate.guard('/home'), '/legal/eula');
       expect(EulaGate.guard('/conversations'), '/legal/eula');
-      expect(EulaGate.guard('/auth/school-select'), '/legal/eula');
+      expect(EulaGate.guard('/auth/role-select'), '/legal/eula');
     });
 
     test('leaves the splash and the legal screens reachable', () async {
@@ -105,7 +105,7 @@ void main() {
     test('first boot lands on the terms, not on the app', () async {
       await coldLaunch();
       expect(await resolve('/'), isNull, reason: 'the splash must play');
-      expect(await resolve('/auth/school-select'), '/legal/eula');
+      expect(await resolve('/auth/role-select'), '/legal/eula');
     });
 
     test('an anonymous visitor can actually reach the terms', () async {
@@ -120,16 +120,16 @@ void main() {
       await coldLaunch();
       await EulaStore.accept();
       expect(await resolve('/'), isNull, reason: 'the splash still plays');
-      expect(await resolve('/auth/school-select'), isNull,
+      expect(await resolve('/auth/role-select'), isNull,
           reason: 'sign-up is open again');
-      expect(await resolve('/home'), '/auth/school-select',
+      expect(await resolve('/home'), '/auth/role-select',
           reason: 'but the app still needs a session');
     });
 
     test('signed-in users are sent from auth routes into the app', () async {
       await coldLaunch();
       await EulaStore.accept();
-      expect(await resolve('/auth/school-select', signedIn: true), '/home');
+      expect(await resolve('/auth/role-select', signedIn: true), '/home');
       expect(await resolve('/legal/eula', signedIn: true), isNull);
     });
 
@@ -138,10 +138,10 @@ void main() {
       await coldLaunch();
       await EulaStore.accept();
 
-      expect(await resolve('/home'), '/auth/school-select');
+      expect(await resolve('/home'), '/auth/role-select');
       expect(
         await resolve('/home', signedIn: true, anonymous: true),
-        '/auth/school-select',
+        '/auth/role-select',
         reason: 'an anonymous session with no membership must fail closed',
       );
       expect(
@@ -149,7 +149,7 @@ void main() {
         isNull,
       );
       expect(
-        await resolve('/auth/school-select', signedIn: true, anonymous: true),
+        await resolve('/auth/role-select', signedIn: true, anonymous: true),
         isNull,
         reason: 'the activation flow stays reachable for anonymous users',
       );

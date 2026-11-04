@@ -1,5 +1,5 @@
 #!/usr/bin/env pwsh
-# Generates the TeachCross launcher icons for Android and iOS from the brand
+# Generates the SCORE+ launcher icons for Android and iOS from the brand
 # mark (the "T" with the cross bar on the brand gradient).
 #
 #   powershell -ExecutionPolicy Bypass -File scripts\make-app-icons.ps1
@@ -109,7 +109,7 @@ foreach ($d in @($adaptiveDir, $drawableDir, $valuesDir)) {
 
 $foreground = @'
 <?xml version="1.0" encoding="utf-8"?>
-<!-- TeachCross adaptive-icon foreground: the "T" with the cross bar.
+<!-- SCORE+ adaptive-icon foreground: the "T" with the cross bar.
      Artwork sits inside the 66dp safe zone of the 108dp canvas. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"

@@ -1,5 +1,5 @@
 # ============================================================
-# TeachCross — ProGuard / R8 rules
+# SCORE+ — ProGuard / R8 rules
 #
 # Applied to the release build (isMinifyEnabled = true,
 # isShrinkResources = true). Every rule here protects a class

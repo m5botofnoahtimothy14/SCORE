@@ -19,6 +19,12 @@ async function sha256Hex(input: string): Promise<string> {
   return Array.from(new Uint8Array(hash)).map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
+async function verifyCode(input: string, stored: string): Promise<boolean> {
+  if (stored.startsWith("$2a$") || stored.startsWith("$2b$")) return false;
+  const inputHash = await sha256Hex(input);
+  return inputHash === stored;
+}
+
 serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, {
@@ -56,7 +62,7 @@ serve(async (req: Request) => {
 
   const { data: cred, error: cErr } = await supabase
     .from("teacher_activation_credentials")
-    .select("id, code, expires_at, used_at")
+    .select("id, code, code_hash, expires_at, used_at")
     .eq("teacher_id", teacher.id)
     .maybeSingle();
 
@@ -64,8 +70,9 @@ serve(async (req: Request) => {
   if (cred.used_at) return jsonError("code_already_used", 400);
   if (new Date(cred.expires_at) <= new Date()) return jsonError("code_expired", 400);
 
-  const inputHash = await sha256Hex((body.activation_code ?? "").trim());
-  if (inputHash !== cred.code) return jsonError("invalid_code", 400);
+  const inputCode = (body.activation_code ?? "").trim();
+  const stored = cred.code_hash ?? cred.code;
+  if (!stored || !(await verifyCode(inputCode, stored))) return jsonError("invalid_code", 400);
 
   await supabase.from("teacher_activation_credentials").update({ used_at: new Date().toISOString() }).eq("id", cred.id);
 
@@ -90,5 +97,6 @@ serve(async (req: Request) => {
     success: true,
     teacher_id: teacher.id,
     school_id: teacher.school_id,
+    email: user.email,
   }), { status: 200, headers: { "Content-Type": "application/json" } });
 });

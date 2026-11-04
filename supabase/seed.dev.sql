@@ -1,5 +1,5 @@
 -- ============================================================
--- TeachCross: Development seed (NEVER run against production)
+-- SCORE+: Development seed (NEVER run against production)
 -- Usage: psql "$DATABASE_URL" -f supabase/seed.dev.sql
 -- Creates: 1 school, settings, academic year, 2 classes, 2 subjects,
 -- 2 teachers roster rows, 3 students roster rows, enrollments, assignments.

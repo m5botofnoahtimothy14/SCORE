@@ -1,4 +1,4 @@
-# TeachCross Setup (development → staging → production)
+# SCORE+ Setup (development → staging → production)
 
 ## 1. Prerequisites
 

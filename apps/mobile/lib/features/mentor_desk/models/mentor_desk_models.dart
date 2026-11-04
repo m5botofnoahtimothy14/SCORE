@@ -26,6 +26,10 @@ class DoubtRequest {
   final DateTime createdAt;
   final DateTime updatedAt;
 
+  // ── Joined display names (populated when queries include joins) ──
+  final String? subjectName;
+  final String? studentName;
+
   const DoubtRequest({
     required this.id,
     required this.schoolId,
@@ -51,6 +55,8 @@ class DoubtRequest {
     this.closedAt,
     required this.createdAt,
     required this.updatedAt,
+    this.subjectName,
+    this.studentName,
   });
 
   factory DoubtRequest.fromJson(Map<String, dynamic> j) => DoubtRequest(
@@ -141,6 +147,13 @@ class SessionBooking {
   final DateTime? verifiedAt;
   final bool closedWithoutCode;
   final String? closeReason;
+  // ── Related display names (populated when selected via joins) ──
+  final String? studentFirstName;
+  final String? studentIdNo;
+  final String? mentorFirstName;
+  final String? mentorStaffIdNo;
+  final String? subjectName;
+
   // ── Google Meet (migration 00025) ──
   final String? googleMeetLink;
   final String? googleCalendarEventId;
@@ -181,6 +194,11 @@ class SessionBooking {
     this.verifiedAt,
     required this.closedWithoutCode,
     this.closeReason,
+    this.studentFirstName,
+    this.studentIdNo,
+    this.mentorFirstName,
+    this.mentorStaffIdNo,
+    this.subjectName,
     this.googleMeetLink,
     this.googleCalendarEventId,
     this.googleMeetCreatedAt,
@@ -370,6 +388,7 @@ class MentorDeskSettings {
   final int verificationCodeDigits;
   final int codeVisibleMinutesBefore;
   final int maxVerificationAttempts;
+  final int sessionUsedMinutes;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -385,6 +404,7 @@ class MentorDeskSettings {
     required this.verificationCodeDigits,
     required this.codeVisibleMinutesBefore,
     required this.maxVerificationAttempts,
+    required this.sessionUsedMinutes,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -400,6 +420,7 @@ class MentorDeskSettings {
         sessionLengths: (j['session_lengths'] as List?)?.cast<int>().toList() ?? const [15, 30],
         verificationCodeDigits: (j['verification_code_digits'] as num?)?.toInt() ?? 6,
         codeVisibleMinutesBefore: (j['code_visible_minutes_before'] as num?)?.toInt() ?? 10,
+        sessionUsedMinutes: (j['session_used_minutes'] as num?)?.toInt() ?? 0,
         maxVerificationAttempts: (j['max_verification_attempts'] as num?)?.toInt() ?? 5,
         createdAt: DateTime.tryParse(j['created_at'] as String? ?? '') ?? DateTime.now(),
         updatedAt: DateTime.tryParse(j['updated_at'] as String? ?? '') ?? DateTime.now(),
@@ -483,6 +504,65 @@ class SubjectWithName {
       );
 }
 
+class TeacherMentor {
+  final String id;
+  final String staffIdNo;
+  final String firstName;
+  final String lastName;
+  final bool isActive;
+  TeacherMentor({
+    required this.id,
+    required this.staffIdNo,
+    required this.firstName,
+    required this.lastName,
+    required this.isActive,
+  });
+  factory TeacherMentor.fromJson(Map<String, dynamic> j) => TeacherMentor(
+        id: j['id'] as String,
+        staffIdNo: j['staff_id_no'] as String? ?? '',
+        firstName: j['first_name'] as String? ?? '',
+        lastName: j['last_name'] as String? ?? '',
+        isActive: j['is_active'] as bool? ?? true,
+      );
+  String get fullName => '$firstName $lastName'.trim();
+}
+
+class DoubtMessage {
+  final String id;
+  final String requestId;
+  final String senderId;
+  final String body;
+  final String? attachmentUrl;
+  final bool read;
+  final DateTime? readAt;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+
+  const DoubtMessage({
+    required this.id,
+    required this.requestId,
+    required this.senderId,
+    required this.body,
+    this.attachmentUrl,
+    this.read = false,
+    this.readAt,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+
+  factory DoubtMessage.fromJson(Map<String, dynamic> j) => DoubtMessage(
+        id: j['id'] as String,
+        requestId: j['request_id'] as String,
+        senderId: j['sender_id'] as String,
+        body: j['body'] as String? ?? '',
+        attachmentUrl: j['attachment_url'] as String?,
+        read: j['read'] as bool? ?? false,
+        readAt: DateTime.tryParse(j['read_at'] as String? ?? ''),
+        createdAt: DateTime.tryParse(j['created_at'] as String? ?? '') ?? DateTime.now(),
+        updatedAt: DateTime.tryParse(j['updated_at'] as String? ?? '') ?? DateTime.now(),
+      );
+}
+
 class AllowanceSummary {
   final String subjectId;
   final String subjectName;
@@ -509,3 +589,8 @@ class AllowanceSummary {
     this.nextResetAt,
   });
 }
+
+
+
+
+

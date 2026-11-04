@@ -21,7 +21,7 @@ Future<GoRouter> _boot(
     routes: [
       GoRoute(path: '/', builder: (_, __) => const SplashSequence()),
       GoRoute(path: '/home', builder: (_, __) => const _Stub('Home')),
-      GoRoute(path: '/auth/school-select', builder: (_, __) => const _Stub('School')),
+      GoRoute(path: '/auth/role-select', builder: (_, __) => const _Stub('School')),
     ],
   );
   addTearDown(router.dispose);
@@ -68,7 +68,7 @@ void main() {
 
     // One screen, not two: the mark and the lockup are visible at the same
     // time, on the same surface.
-    expect(find.byIcon(Icons.school_rounded), findsOneWidget);
+    expect(find.byIcon(Icons.school), findsOneWidget);
     expect(
       find.bySemanticsLabel(AppConfig.signatureLine),
       findsOneWidget,
@@ -93,16 +93,16 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 250));
 
-    expect(find.byIcon(Icons.school_rounded), findsOneWidget);
+    expect(find.byIcon(Icons.school), findsOneWidget);
 
     // Past the minimum display time the navigation must have happened.
     await _pumpPast(tester, const Duration(milliseconds: 20000));
 
     expect(
       router.routerDelegate.currentConfiguration.uri.path,
-      '/auth/school-select',
+      '/auth/role-select',
     );
-    expect(find.byIcon(Icons.school_rounded), findsNothing);
+    expect(find.byIcon(Icons.school), findsNothing);
   });
 
   testWidgets('reduce motion shows the composition statically and still navigates',
@@ -112,7 +112,7 @@ void main() {
 
     // Nothing is animating: the whole composition is fully formed on the
     // first frame.
-    expect(find.byIcon(Icons.school_rounded), findsOneWidget);
+    expect(find.byIcon(Icons.school), findsOneWidget);
     expect(find.text(AppConfig.signatureTop), findsOneWidget);
     expect(find.text(AppConfig.signatureName), findsOneWidget);
 
@@ -120,7 +120,8 @@ void main() {
 
     expect(
       router.routerDelegate.currentConfiguration.uri.path,
-      '/auth/school-select',
+      '/auth/role-select',
     );
   });
 }
+

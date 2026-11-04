@@ -1,5 +1,5 @@
 -- ============================================================
--- TeachCross: Migration 00021 — SCORE Mentor Desk
+-- SCORE+: Migration 00021 — SCORE Mentor Desk
 --
 -- Adds the Mentor Desk system on top of the existing platform:
 -- doubt requests, session bookings, verification codes, ratings,

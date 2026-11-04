@@ -107,6 +107,6 @@ Write-Host "==> Installing to $serial ..." -ForegroundColor Cyan
 & $adb -s $serial install -r $apk
 if ($LASTEXITCODE -ne 0) { throw "adb install failed (exit $LASTEXITCODE)" }
 
-Write-Host '==> Launching TeachCross...' -ForegroundColor Cyan
+Write-Host '==> Launching SCORE+...' -ForegroundColor Cyan
 & $adb -s $serial shell monkey -p com.teachcross.app -c android.intent.category.LAUNCHER 1 | Out-Null
 Write-Host '==> Done.' -ForegroundColor Green

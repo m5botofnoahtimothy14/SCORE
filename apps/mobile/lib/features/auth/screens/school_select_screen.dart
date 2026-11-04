@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../core/theme/mentor_desk_design.dart';
 
 class SchoolSelectScreen extends ConsumerStatefulWidget {
   const SchoolSelectScreen({super.key});
@@ -78,7 +79,7 @@ class _SchoolSelectScreenState extends ConsumerState<SchoolSelectScreen> {
             // Header
             Container(
               padding: const EdgeInsets.fromLTRB(24, 48, 24, 32),
-              color: Colors.white,
+              color: MDColors.surfaceCard,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -301,3 +302,6 @@ class _ErrorState extends StatelessWidget {
     );
   }
 }
+
+
+

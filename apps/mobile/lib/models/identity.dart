@@ -38,3 +38,4 @@ class Identity {
   @override
   String toString() => 'Identity(id: $id, tier: $tier, schoolId: $schoolId)';
 }
+

@@ -1,5 +1,5 @@
 -- ============================================================
--- TeachCross: Migration 00015 — Edge Function Triggers (pg_net)
+-- SCORE+: Migration 00015 — Edge Function Triggers (pg_net)
 -- ============================================================
 -- Wires real database events to the server-side Edge Functions that were
 -- previously expected to run via dashboard "Database Webhooks" but were

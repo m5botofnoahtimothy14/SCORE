@@ -1,4 +1,4 @@
-# TeachCross — AI Features (Gemini)
+# SCORE+ — AI Features (Gemini)
 
 > **This layer is ADDITIVE.**
 > The moderation layer (`moderate-message`, `moderate-image`) is and remains
@@ -439,7 +439,7 @@ that is a correct, expected result, not a bug.
 | Concern | Owner |
 |---|---|
 | Message / image safety **signals** | `moderate-message`, `moderate-image` (OpenAI omni-moderation, APILayer fallback) |
-| Message / image safety **verdicts** | the TeachCross moderation policy — [`MODERATION.md`](./MODERATION.md) |
+| Message / image safety **verdicts** | the SCORE+ moderation policy — [`MODERATION.md`](./MODERATION.md) |
 | Escalation to a human reviewer | `moderation_review_cases` |
 | Conversation analytics scores | `score-conversation` (this layer) |
 | Reply drafting | `ai-smart-reply` (this layer) |

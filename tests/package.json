@@ -3,5 +3,5 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "TeachCross unit + security-mirror tests (dependency-free, node:test)"
+  "description": "SCORE+ unit + security-mirror tests (dependency-free, node:test)"
 }

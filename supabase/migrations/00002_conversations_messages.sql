@@ -1,5 +1,5 @@
 -- ============================================================
--- TeachCross: Migration 00002 — Conversations & Messages
+-- SCORE+: Migration 00002 — Conversations & Messages
 -- ============================================================
 
 CREATE TYPE conversation_type AS ENUM (

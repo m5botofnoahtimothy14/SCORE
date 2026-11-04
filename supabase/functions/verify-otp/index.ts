@@ -54,6 +54,18 @@ serve(async (req: Request) => {
     return jsonError("invalid_body", 400);
   }
 
+  // Resolve the teacher roster record (UUID) for the staff ID.
+  const supabaseService = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+  const { data: teacher, error: tErr } = await supabaseService
+    .from("teachers")
+    .select("id, school_id")
+    .eq("staff_id_no", (staff_id_no ?? "").trim())
+    .eq("is_active", true)
+    .maybeSingle();
+  if (tErr || !teacher) return jsonError("teacher_not_found", 404);
+  const teacherId = teacher.id as string;
+  const resolvedSchoolId = school_id ?? (teacher.school_id as string);
+
   // Demo OTP mode
   if (DEMO_OTP && DEMO_OTP_STAFF_ID && staff_id_no === DEMO_OTP_STAFF_ID) {
     if (otp !== DEMO_OTP_VALUE) {
@@ -63,15 +75,17 @@ serve(async (req: Request) => {
     const { error } = await supabase
       .from("staff_activation_records")
       .update({ otp_verified_at: new Date().toISOString() })
-      .eq("teacher_id", staff_id_no);
+      .eq("teacher_id", teacherId);
 
     if (error) return jsonError("activation_failed", 500);
 
-    // Activate the teacher via RPC
+    // Activate the teacher via RPC (signature: p_school_id, p_staff_id_no,
+    // p_auth_user_id, p_phone). The school_id is resolved from the teacher roster.
     const { data: activateData, error: activateError } = await supabase.rpc("activate_teacher", {
+      p_school_id: resolvedSchoolId,
       p_staff_id_no: staff_id_no,
-      p_activation_code: "",
-      p_device_secret: "",
+      p_auth_user_id: user.id,
+      p_phone: phone,
     });
 
     if (activateError || !activateData?.success) {

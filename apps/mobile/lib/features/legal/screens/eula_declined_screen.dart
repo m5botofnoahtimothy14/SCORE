@@ -33,3 +33,4 @@ class EulaDeclinedScreen extends StatelessWidget {
     );
   }
 }
+

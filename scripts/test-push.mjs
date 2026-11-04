@@ -37,7 +37,7 @@ const { error: insErr } = await db.from('notification_jobs').insert({
   school_id: SCHOOL,
   recipient_id: device.user_id,
   type: 'message',
-  title: 'TeachCross',
+  title: 'SCORE+',
   body: 'Push pipeline test',
   data: { type: 'message', conversation_id: 'test' },
   idempotency_key: key,

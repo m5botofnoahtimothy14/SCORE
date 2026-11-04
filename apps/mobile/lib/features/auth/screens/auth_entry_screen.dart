@@ -138,3 +138,4 @@ class _AuthEntryScreenState extends ConsumerState<AuthEntryScreen> {
     ),
   );
 }
+

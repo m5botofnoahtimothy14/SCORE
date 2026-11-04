@@ -2,9 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../services/ai_ask_service.dart';
+import '../../../core/design/design_system.dart';
+import '../../../core/widgets/premium_card.dart';
+import '../../../core/widgets/premium_states.dart';
 
 class AiAskScreen extends StatefulWidget {
   const AiAskScreen({super.key});
+
   @override
   State<AiAskScreen> createState() => _AiAskScreenState();
 }
@@ -33,16 +37,13 @@ class _AiAskScreenState extends State<AiAskScreen> {
   }
 
   Future<void> _loadContext() async {
-    setState(() {
-      _loadingContext = true;
-      _error = null;
-    });
+    setState(() { _loadingContext = true; _error = null; });
     try {
       final context = await _service.loadContext();
       if (!mounted) return;
       setState(() {
         _context = context;
-        _subject = context.subjects.first;
+        _subject = context.subjects.isNotEmpty ? context.subjects.first : null;
       });
     } on AiAskException catch (error) {
       if (mounted) setState(() => _error = error);
@@ -59,188 +60,138 @@ class _AiAskScreenState extends State<AiAskScreen> {
     final question = _questionController.text.trim();
     final subject = _subject;
     if (question.isEmpty || subject == null || _submitting) return;
-    setState(() {
-      _submitting = true;
-      _response = null;
-      _error = null;
-    });
+    setState(() { _submitting = true; _response = null; _error = null; });
     try {
       final answer = await _service.ask(subject: subject, question: question);
       if (mounted) setState(() => _response = answer);
     } on AiAskException catch (error) {
       if (mounted) setState(() => _error = error);
-    } finally {
-      if (mounted) setState(() => _submitting = false);
-    }
+    } finally { if (mounted) setState(() => _submitting = false); }
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return Scaffold(
-      appBar: AppBar(title: const Text('AI Ask')),
+      backgroundColor: SColor.background,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent, elevation: 0,
+        title: const Text('AI Assistant', style: TextStyle(color: SColor.primaryText, fontWeight: FontWeight.w800)),
+        centerTitle: false,
+      ),
       body: SafeArea(
         child: _loadingContext
-            ? const Center(child: CircularProgressIndicator())
-            : ListView(padding: const EdgeInsets.all(20), children: [
-                Text('Learn from approved material',
-                    style: theme.textTheme.headlineSmall),
-                const SizedBox(height: 8),
-                Text(
-                    'Answers are grounded in teacher-approved curriculum material for your enrolled subject. Check the sources and ask your teacher when you need more help.',
-                    style: theme.textTheme.bodyMedium),
-                const SizedBox(height: 20),
-                if (_context != null) ...[
-                  DropdownButtonFormField<String>(
-                    value: _subject,
-                    decoration: const InputDecoration(
-                        labelText: 'Subject', border: OutlineInputBorder()),
-                    items: _context!.subjects
-                        .map((s) => DropdownMenuItem(value: s, child: Text(s)))
-                        .toList(growable: false),
-                    onChanged: _submitting
-                        ? null
-                        : (value) => setState(() => _subject = value),
-                  ),
-                  const SizedBox(height: 14),
-                  TextField(
-                    controller: _questionController,
-                    minLines: 5,
-                    maxLines: 9,
-                    maxLength: 2000,
-                    enabled: !_submitting,
-                    textInputAction: TextInputAction.newline,
-                    decoration: const InputDecoration(
-                        alignLabelWithHint: true,
-                        labelText: 'What would you like help with?',
-                        hintText:
-                            'Example: Explain why a balanced equation follows conservation of mass.',
-                        border: OutlineInputBorder()),
-                  ),
-                  const SizedBox(height: 10),
-                  FilledButton.icon(
-                    onPressed: _submitting ? null : _ask,
-                    icon: _submitting
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2))
-                        : const Icon(Icons.auto_awesome_outlined),
-                    label: Text(
-                        _submitting ? 'Finding approved sources…' : 'Ask AI'),
-                  ),
-                ],
-                if (_error != null) ...[
-                  const SizedBox(height: 18),
-                  _NoticeCard(
-                      icon: Icons.info_outline,
-                      title: 'AI Ask needs attention',
-                      body: _error!.message,
-                      actionLabel: _error!.retryable || _context == null
-                          ? 'Try again'
-                          : null,
-                      onAction: _context == null ? _loadContext : _ask),
-                ],
-                if (_response != null) ...[
-                  const SizedBox(height: 22),
-                  _AnswerCard(response: _response!)
-                ],
-                const SizedBox(height: 22),
-                const _NoticeCard(
-                    icon: Icons.school_outlined,
-                    title: 'A supplement, not a replacement for your teacher',
-                    body:
-                        'AI Ask does not provide exam answers or official school advice. If an answer is uncertain, incomplete, or does not match your classwork, ask your teacher.'),
-              ]),
+            ? const PremiumLoading()
+            : SingleChildScrollView(
+                padding: EdgeInsets.fromLTRB(SLayout.gutter(context), 16, SLayout.gutter(context), 24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Ask your AI tutor', style: STextStyle.displayLarge.copyWith(fontSize: 26)),
+                    const SizedBox(height: SSpace.sm),
+                    Text('Answers are grounded in teacher-approved curriculum material for your enrolled subject. When the material is insufficient, the assistant will tell you and suggest asking your teacher.',
+                        style: STextStyle.bodyMedium.copyWith(color: SColor.secondaryText, height: 1.6)),
+                    const SizedBox(height: SSpace.lg),
+                    if (_context != null) ...[
+                      PremiumDropdown<String>(
+                        label: 'Subject',
+                        value: _subject,
+                        items: _context!.subjects.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(growable: false),
+                        onChanged: _submitting ? null : (value) => setState(() => _subject = value),
+                      ),
+                      const SizedBox(height: SSpace.md),
+                      PremiumInput(
+                        controller: _questionController,
+                        label: 'Your question',
+                        hint: 'Example: Explain why a balanced equation follows conservation of mass.',
+                        maxLines: 5,
+                        keyboardType: TextInputType.multiline,
+                        onSubmitted: _submitting ? null : (_) => _ask(),
+                      ),
+                      const SizedBox(height: SSpace.md),
+                      SizedBox(width: double.infinity, child: PremiumPrimaryButton(
+                        onPressed: _submitting ? null : _ask,
+                        child: _submitting ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: SColor.textInverse)) : const Text('Ask AI'),
+                      )),
+                    ],
+                    if (_error != null) ...[
+                      const SizedBox(height: SSpace.lg),
+                      PremiumCard(
+                        padding: const EdgeInsets.all(SSpace.md),
+                        child: Row(children: [
+                          const Icon(Icons.info_outline, color: SColor.error, size: 22),
+                          const SizedBox(width: SSpace.md),
+                          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                            Text('AI Ask needs attention', style: STextStyle.headingSmall.copyWith(fontWeight: FontWeight.w800, color: SColor.error)),
+                            const SizedBox(height: SSpace.xs),
+                            Text(_error!.message, style: STextStyle.bodyMedium.copyWith(color: SColor.secondaryText)),
+                          ])),
+                          if (_error?.retryable == true || _context == null)
+                            PremiumTextButton(onPressed: _context == null ? _loadContext : _ask, child: const Text('Try again')),
+                        ]),
+                      ),
+                    ],
+                    if (_response != null) ...[
+                      const SizedBox(height: SSpace.lg),
+                      _AnswerCard(response: _response!),
+                    ],
+                    const SizedBox(height: SSpace.lg),
+                    PremiumCard(
+                      padding: const EdgeInsets.all(SSpace.md),
+                      child: Row(children: [
+                        Icon(Icons.school_outlined, color: SColor.info, size: 22),
+                        const SizedBox(width: SSpace.md),
+                        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          Text('A supplement, not a replacement for your teacher', style: STextStyle.headingSmall.copyWith(fontWeight: FontWeight.w800)),
+                          const SizedBox(height: SSpace.xs),
+                          Text('AI Ask does not provide exam answers or official school advice. If an answer is uncertain or incomplete, ask your teacher.',
+                              style: STextStyle.bodyMedium.copyWith(color: SColor.secondaryText)),
+                        ])),
+                      ]),
+                    ),
+                  ],
+                ),
+              ),
       ),
     );
   }
 }
 
 class _AnswerCard extends StatelessWidget {
-  const _AnswerCard({required this.response});
   final AiAskResponse response;
+  const _AnswerCard({required this.response});
+
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Card(
-        child: Padding(
-      padding: const EdgeInsets.all(18),
+    return PremiumCard(
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
-          Icon(response.isUncertain
-              ? Icons.help_outline
-              : Icons.verified_outlined),
-          const SizedBox(width: 8),
-          Text(response.isUncertain ? 'Needs teacher review' : 'Answer',
-              style: theme.textTheme.titleMedium),
+          Icon(response.isUncertain ? Icons.help_outline : Icons.verified_outlined, color: response.isUncertain ? SColor.warning : SColor.success),
+          const SizedBox(width: SSpace.sm),
+          Text(response.isUncertain ? 'Needs teacher review' : 'Answer', style: STextStyle.headingMedium.copyWith(fontWeight: FontWeight.w800)),
           const Spacer(),
-          if (response.cached)
-            const Tooltip(
-                message: 'Previously prepared answer',
-                child: Icon(Icons.history, size: 18))
+          if (response.cached) const Tooltip(message: 'Previously prepared answer', child: Icon(Icons.history, size: 18, color: SColor.textMuted)),
         ]),
-        const SizedBox(height: 12),
-        Text(response.answer,
-            style: theme.textTheme.bodyLarge?.copyWith(height: 1.55)),
+        const SizedBox(height: SSpace.md),
+        Text(response.answer, style: STextStyle.bodyLarge.copyWith(height: 1.6)),
         if (response.citations.isNotEmpty) ...[
-          const SizedBox(height: 18),
-          Text('Approved sources', style: theme.textTheme.titleSmall),
-          const SizedBox(height: 8),
-          for (final citation in response.citations)
-            Padding(
-                padding: const EdgeInsets.only(bottom: 6),
-                child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Icon(Icons.menu_book_outlined, size: 18),
-                      const SizedBox(width: 8),
-                      Expanded(
-                          child: Text(citation.label,
-                              style: theme.textTheme.bodySmall))
-                    ])),
+          const SizedBox(height: SSpace.md),
+          Text('Approved sources', style: STextStyle.headingSmall.copyWith(fontWeight: FontWeight.w800)),
+          const SizedBox(height: SSpace.sm),
+          ...response.citations.map((c) => Padding(
+            padding: const EdgeInsets.only(bottom: SSpace.xs),
+            child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Icon(Icons.menu_book_outlined, size: 18, color: SColor.textMuted),
+              const SizedBox(width: SSpace.sm),
+              Expanded(child: Text(c.label, style: STextStyle.bodyMedium.copyWith(color: SColor.secondaryText))),
+            ]),
+          )),
         ],
         if (response.remaining != null) ...[
-          const SizedBox(height: 12),
-          Text(
-              '${response.remaining} AI Ask request${response.remaining == 1 ? '' : 's'} remaining this ${response.resetPeriod ?? 'period'}.',
-              style: theme.textTheme.bodySmall)
+          const SizedBox(height: SSpace.md),
+          Text('${response.remaining} AI Ask request${response.remaining == 1 ? '' : 's'} remaining this ${response.resetPeriod ?? 'period'}.',
+              style: STextStyle.captionMuted),
         ],
       ]),
-    ));
+    );
   }
-}
-
-class _NoticeCard extends StatelessWidget {
-  const _NoticeCard(
-      {required this.icon,
-      required this.title,
-      required this.body,
-      this.actionLabel,
-      this.onAction});
-  final IconData icon;
-  final String title;
-  final String body;
-  final String? actionLabel;
-  final VoidCallback? onAction;
-  @override
-  Widget build(BuildContext context) => Card(
-        color: Theme.of(context).colorScheme.secondaryContainer,
-        child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Icon(icon),
-              const SizedBox(width: 12),
-              Expanded(
-                  child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                    Text(title, style: Theme.of(context).textTheme.titleSmall),
-                    const SizedBox(height: 4),
-                    Text(body),
-                    if (actionLabel != null && onAction != null)
-                      TextButton(onPressed: onAction, child: Text(actionLabel!))
-                  ])),
-            ])),
-      );
 }

@@ -1,5 +1,5 @@
 // ============================================================
-// TeachCross — test helpers: validation (mirrors edge/mobile checks)
+// SCORE+ — test helpers: validation (mirrors edge/mobile checks)
 // These mirror the validation rules enforced in:
 //  - supabase/functions/{activate-student,send-otp,verify-otp,publish-announcement}
 //  - supabase/migrations/00006_functions_triggers.sql (send_message)

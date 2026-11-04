@@ -1,5 +1,5 @@
 -- ============================================================
--- TeachCross: Migration 00005 — Row-Level Security Policies
+-- SCORE+: Migration 00005 — Row-Level Security Policies
 -- ============================================================
 -- This is the security layer. All policies enforce multi-tenant
 -- isolation and role-based access. Never trust client-supplied IDs.

@@ -1,4 +1,4 @@
-# TeachCross Architecture
+# SCORE+ Architecture
 
 ## System map
 

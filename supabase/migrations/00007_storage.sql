@@ -1,5 +1,5 @@
 -- ============================================================
--- TeachCross: Migration 00007 — Storage, helpers, realtime
+-- SCORE+: Migration 00007 — Storage, helpers, realtime
 -- ============================================================
 
 -- ── Private storage buckets (never public) ─────────────────

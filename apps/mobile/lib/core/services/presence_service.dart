@@ -102,3 +102,4 @@ class _PresenceLifecycle extends WidgetsBindingObserver {
     }
   }
 }
+

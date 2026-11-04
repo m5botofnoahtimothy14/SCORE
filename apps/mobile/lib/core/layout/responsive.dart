@@ -139,3 +139,4 @@ class AdaptiveGrid extends StatelessWidget {
     );
   }
 }
+
