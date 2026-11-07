@@ -44,7 +44,7 @@ BEGIN
   END IF;
 END $$;
 
-ALTER PUBLICATION supabase_realtime ADD TABLE IF EXISTS google_meet_config;
+DO $$ BEGIN ALTER PUBLICATION supabase_realtime ADD TABLE google_meet_config; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- ── RPC: create_google_meet — creates a Calendar event + Meet link for a booking ──
 CREATE OR REPLACE FUNCTION public.create_google_meet(p_booking_id UUID)

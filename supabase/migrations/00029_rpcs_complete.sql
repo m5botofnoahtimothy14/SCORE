@@ -100,6 +100,7 @@ DECLARE
   v_credential student_activation_credentials%ROWTYPE;
   v_school_id UUID;
   v_user_id UUID := auth.uid();
+  v_conversation_id UUID;
 BEGIN
   -- Find the student record
   SELECT * INTO v_student FROM students

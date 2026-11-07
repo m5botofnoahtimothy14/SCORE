@@ -1,0 +1,1 @@
+SELECT count(*) as cred_count FROM teacher_activation_credentials;

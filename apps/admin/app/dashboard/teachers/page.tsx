@@ -16,6 +16,7 @@ interface Teacher {
   is_active: boolean
   is_leadership: boolean
   user_id: string | null
+  app_password?: string | null
   assignments?: { class_name: string; subject: string | null }[]
 }
 
@@ -35,6 +36,9 @@ export default function TeachersPage() {
   const [importText, setImportText] = useState('')
   const [importReport, setImportReport] = useState<{ ok: number; errors: { line: number; message: string }[] } | null>(null)
   const [issuedCode, setIssuedCode] = useState<{ name: string; code: string; expires: string } | null>(null)
+  const [viewPassword, setViewPassword] = useState<{ name: string; password: string } | null>(null)
+  const [resetPasswordFor, setResetPasswordFor] = useState<Teacher | null>(null)
+  const [newPassword, setNewPassword] = useState('')
   const { show, node } = useToast()
 
   async function load() {
@@ -155,6 +159,42 @@ export default function TeachersPage() {
     }
   }
 
+  async function viewTeacherPassword(t: Teacher) {
+    try {
+      const supabase = createClient()
+      const { data, error } = await supabase.rpc('get_teacher_password', { p_teacher_id: t.id })
+      if (error) throw error
+      setViewPassword({ name: `${t.first_name} ${t.last_name}`, password: data ?? '(no password set)' })
+    } catch (e) {
+      show(false, e instanceof Error ? e.message : 'Could not fetch password.')
+    }
+  }
+
+  async function resetTeacherPassword() {
+    if (!resetPasswordFor || !newPassword.trim()) {
+      show(false, 'Enter a new password.')
+      return
+    }
+    try {
+      const supabase = createClient()
+      const { data, error } = await supabase.rpc('admin_reset_password', {
+        p_user_type: 'teacher',
+        p_user_id: resetPasswordFor.id,
+        p_new_password: newPassword.trim(),
+      })
+      if (error) throw error
+      if (!data || (data as { success?: boolean }).success !== true) {
+        throw new Error((data as { error?: string })?.error ?? 'Reset failed.')
+      }
+      show(true, 'Password reset successfully.')
+      setResetPasswordFor(null)
+      setNewPassword('')
+      load()
+    } catch (e) {
+      show(false, e instanceof Error ? e.message : 'Reset failed.')
+    }
+  }
+
   async function addAssignment() {
     if (!assigning || !assignForm.class_id) {
       show(false, 'Select a class.')
@@ -258,6 +298,8 @@ export default function TeachersPage() {
                   <td className="text-right pr-3 whitespace-nowrap">
                     <button onClick={() => setEditing(t)} className="text-brand-600 text-xs mr-2 hover:underline">Edit</button>
                     <button onClick={() => issueCode(t)} className="text-brand-600 text-xs mr-2 hover:underline">Code</button>
+                    <button onClick={() => viewTeacherPassword(t)} className="text-brand-600 text-xs mr-2 hover:underline">View pwd</button>
+                    <button onClick={() => { setResetPasswordFor(t); setNewPassword('') }} className="text-amber-600 text-xs mr-2 hover:underline">Reset pwd</button>
                     <button onClick={() => setAssigning(t)} className="text-brand-600 text-xs mr-2 hover:underline">Assign</button>
                     <button onClick={() => toggleActive(t)} className="text-xs text-ink-700 hover:underline">{t.is_active ? 'Deactivate' : 'Reactivate'}</button>
                   </td>
@@ -314,6 +356,26 @@ export default function TeachersPage() {
           <p className="text-sm text-ink-700">For <b>{issuedCode.name}</b>. Share securely; it expires {new Date(issuedCode.expires).toLocaleDateString()}.</p>
           <p className="font-mono text-2xl font-bold tracking-widest text-center my-4">{issuedCode.code}</p>
           <p className="text-xs text-red-600">This code will not be shown again. A new code can be issued if lost.</p>
+        </Modal>
+      )}
+
+      {viewPassword && (
+        <Modal title="Teacher password" onClose={() => setViewPassword(null)}>
+          <p className="text-sm text-ink-700">For <b>{viewPassword.name}</b>.</p>
+          <p className="font-mono text-2xl font-bold tracking-widest text-center my-4 bg-slate-100 p-3 rounded">{viewPassword.password}</p>
+          <p className="text-xs text-red-600">Share this password securely with the teacher. They can use it to sign in.</p>
+        </Modal>
+      )}
+
+      {resetPasswordFor && (
+        <Modal title={`Reset password for ${resetPasswordFor.first_name} ${resetPasswordFor.last_name}`} onClose={() => { setResetPasswordFor(null); setNewPassword('') }}>
+          <div className="space-y-3">
+            <input className={inputCls} type="text" placeholder="New password (min 4 chars)" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} />
+            <div className="flex justify-end gap-2 pt-2">
+              <button onClick={() => { setResetPasswordFor(null); setNewPassword('') }} className={btnSecondary}>Cancel</button>
+              <button onClick={resetTeacherPassword} className={btnPrimary}>Reset password</button>
+            </div>
+          </div>
         </Modal>
       )}
 

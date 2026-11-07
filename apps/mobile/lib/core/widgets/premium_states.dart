@@ -5,7 +5,7 @@ import '../design/design_system.dart';
 class PremiumLoading extends StatelessWidget {
   const PremiumLoading({super.key});
   @override
-  Widget build(BuildContext context) => const Center(child: CircularProgressIndicator(color: SColor.electricBlue));
+  Widget build(BuildContext context) => const Center(child: CircularProgressIndicator(color: SColor.primary));
 }
 
 /// Premium error state with retry.

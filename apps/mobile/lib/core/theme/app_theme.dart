@@ -3,82 +3,61 @@ import 'package:google_fonts/google_fonts.dart';
 import '../models/identity.dart';
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// SCORE+ Premium Design System — Light theme
-// Mandatory palette (visual reference benchmark):
-//   Primary Navy   #14213D  — brand foundation
-//   Secondary Navy #1B2F50  — elevated surfaces
-//   Electric Blue  #3478F6  — primary actions
-//   Accent Cyan    #28C7D9  — selected highlights
-//   Background     #F5F7FB  — light neutral
-//   Surface        #FFFFFF  — cards
-//   Primary Text   #17243A
-//   Secondary Text #718096
-//   Border         #E5EAF2
-//   Success #16A36A  Warning #F2A93B  Error #DC515B
+// SCORE+ Design System v4 — Fresh Professional (completely new identity)
+// Deep teal + warm orange on clean surfaces
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 class SColor {
-  static const Color primaryNavy = Color(0xFF14213D);
-  static const Color secondaryNavy = Color(0xFF1B2F50);
-  static const Color electricBlue = Color(0xFF3478F6);
-  static const Color accentCyan = Color(0xFF28C7D9);
-  static const Color accentCyanSoft = Color(0xFFE3F6F8);
-
-  static const Color background = Color(0xFFF5F7FB);
+  static const Color primary = Color(0xFF0D9488);
+  static const Color primaryLight = Color(0xFF14B8A6);
+  static const Color primaryDark = Color(0xFF0F766E);
+  static const Color accent = Color(0xFFF97316);
+  static const Color accentSoft = Color(0xFFFFF7ED);
+  static const Color background = Color(0xFFF8FAFC);
   static const Color surface = Color(0xFFFFFFFF);
-  static const Color surfaceSoft = Color(0xFFEEF2F7);
-  static const Color surfaceElevated = Color(0xFFF3F6FB);
-
-  static const Color primaryText = Color(0xFF17243A);
-  static const Color secondaryText = Color(0xFF718096);
-  static const Color textMuted = Color(0xFF9AA7B8);
+  static const Color surfaceSoft = Color(0xFFF1F5F9);
+  static const Color surfaceElevated = Color(0xFFF8FAFC);
+  static const Color primaryText = Color(0xFF0F172A);
+  static const Color secondaryText = Color(0xFF64748B);
+  static const Color textMuted = Color(0xFF94A3B8);
   static const Color textInverse = Color(0xFFFFFFFF);
-  static const Color textOnPrimary = Color(0xFFFFFFFF);
-
-  static const Color border = Color(0xFFE5EAF2);
-  static const Color borderSoft = Color(0xFFF1F4F8);
-  static const Color divider = Color(0xFFE9EDF3);
-
-  static const Color success = Color(0xFF16A36A);
-  static const Color successSoft = Color(0xFFE7F6EE);
-  static const Color warning = Color(0xFFF2A93B);
-  static const Color warningSoft = Color(0xFFFDF0DC);
-  static const Color error = Color(0xFFDC515B);
-  static const Color errorSoft = Color(0xFFFBECEC);
-  static const Color info = Color(0xFF3478F6);
-  static const Color infoSoft = Color(0xFFE8F1FF);
-
-  static const Color studentTier = Color(0xFF3478F6);
-  static const Color teacherTier = Color(0xFF16A36A);
-  static const Color leadershipTier = Color(0xFF7C3AED);
-
+  static const Color border = Color(0xFFE2E8F0);
+  static const Color borderSoft = Color(0xFFF1F5F9);
+  static const Color divider = Color(0xFFE2E8F0);
+  static const Color success = Color(0xFF22C55E);
+  static const Color successSoft = Color(0xFFDCFCE7);
+  static const Color warning = Color(0xFFF59E0B);
+  static const Color warningSoft = Color(0xFFFEF3C7);
+  static const Color error = Color(0xFFEF4444);
+  static const Color errorSoft = Color(0xFFFEE2E2);
+  static const Color info = Color(0xFF3B82F6);
+  static const Color infoSoft = Color(0xFFDBEAFE);
+  static const Color studentTier = Color(0xFF0D9488);
+  static const Color teacherTier = Color(0xFF22C55E);
+  static const Color leadershipTier = Color(0xFF8B5CF6);
   static const Color shadowColor = Color(0x0F000000);
 }
 
 class STextStyle {
-  static TextStyle _base({double size = 14, FontWeight weight = FontWeight.normal, Color color = SColor.primaryText, double height = 1.5, double? letterSpacing}) {
-    return GoogleFonts.inter(fontSize: size, fontWeight: weight, color: color, height: height, letterSpacing: letterSpacing);
-  }
-
-  static const TextStyle displayLarge = TextStyle(fontFamily: 'Inter', fontSize: 30, fontWeight: FontWeight.w800, color: SColor.primaryText, height: 1.2, letterSpacing: -0.4);
-  static const TextStyle displayMedium = TextStyle(fontFamily: 'Inter', fontSize: 24, fontWeight: FontWeight.w700, color: SColor.primaryText, height: 1.25, letterSpacing: -0.3);
-  static const TextStyle headingLarge = TextStyle(fontFamily: 'Inter', fontSize: 18, fontWeight: FontWeight.w700, color: SColor.primaryText, height: 1.4);
-  static const TextStyle headingMedium = TextStyle(fontFamily: 'Inter', fontSize: 16, fontWeight: FontWeight.w600, color: SColor.primaryText, height: 1.4);
-  static const TextStyle headingSmall = TextStyle(fontFamily: 'Inter', fontSize: 14, fontWeight: FontWeight.w600, color: SColor.primaryText, height: 1.4);
-  static const TextStyle bodyLarge = TextStyle(fontFamily: 'Inter', fontSize: 16, fontWeight: FontWeight.w500, color: SColor.primaryText, height: 1.6);
-  static const TextStyle bodyMedium = TextStyle(fontFamily: 'Inter', fontSize: 14, fontWeight: FontWeight.w500, color: SColor.primaryText, height: 1.6);
-  static const TextStyle bodySmall = TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.w500, color: SColor.primaryText, height: 1.5);
-  static const TextStyle labelLarge = TextStyle(fontFamily: 'Inter', fontSize: 14, fontWeight: FontWeight.w600, color: SColor.primaryText);
-  static const TextStyle labelMedium = TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.w600, color: SColor.primaryText);
-  static const TextStyle caption = TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.w500, color: SColor.secondaryText, height: 1.4);
-  static const TextStyle captionMuted = TextStyle(fontFamily: 'Inter', fontSize: 11, fontWeight: FontWeight.w500, color: SColor.textMuted, height: 1.4);
-  static const TextStyle overline = TextStyle(fontFamily: 'Inter', fontSize: 10, fontWeight: FontWeight.w700, color: SColor.secondaryText, letterSpacing: 0.8);
-  static const TextStyle button = TextStyle(fontFamily: 'Inter', fontSize: 15, fontWeight: FontWeight.w700, color: SColor.textInverse, letterSpacing: 0.2);
-  static const TextStyle buttonSecondary = TextStyle(fontFamily: 'Inter', fontSize: 15, fontWeight: FontWeight.w700, color: SColor.primaryNavy, letterSpacing: 0.2);
+  static const TextStyle displayLarge = TextStyle(fontFamily: 'Inter', fontSize: 28, fontWeight: FontWeight.w700, color: SColor.primaryText, height: 1.2, letterSpacing: -0.3);
+  static const TextStyle displayMedium = TextStyle(fontFamily: 'Inter', fontSize: 22, fontWeight: FontWeight.w700, color: SColor.primaryText, height: 1.25, letterSpacing: -0.2);
+  static const TextStyle headingLarge = TextStyle(fontFamily: 'Inter', fontSize: 18, fontWeight: FontWeight.w600, color: SColor.primaryText, height: 1.3);
+  static const TextStyle headingMedium = TextStyle(fontFamily: 'Inter', fontSize: 15, fontWeight: FontWeight.w600, color: SColor.primaryText, height: 1.3);
+  static const TextStyle headingSmall = TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.w600, color: SColor.primaryText, height: 1.3);
+  static const TextStyle bodyLarge = TextStyle(fontFamily: 'Inter', fontSize: 16, fontWeight: FontWeight.w400, color: SColor.primaryText, height: 1.6);
+  static const TextStyle bodyMedium = TextStyle(fontFamily: 'Inter', fontSize: 14, fontWeight: FontWeight.w400, color: SColor.primaryText, height: 1.6);
+  static const TextStyle bodySmall = TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.w400, color: SColor.primaryText, height: 1.5);
+  static const TextStyle labelLarge = TextStyle(fontFamily: 'Inter', fontSize: 14, fontWeight: FontWeight.w500, color: SColor.primaryText);
+  static const TextStyle labelMedium = TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.w500, color: SColor.primaryText);
+  static const TextStyle caption = TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.w400, color: SColor.secondaryText, height: 1.4);
+  static const TextStyle captionMuted = TextStyle(fontFamily: 'Inter', fontSize: 11, fontWeight: FontWeight.w400, color: SColor.textMuted, height: 1.4);
+  static const TextStyle overline = TextStyle(fontFamily: 'Inter', fontSize: 10, fontWeight: FontWeight.w600, color: SColor.secondaryText, letterSpacing: 0.6);
+  static const TextStyle button = TextStyle(fontFamily: 'Inter', fontSize: 14, fontWeight: FontWeight.w600, color: SColor.textInverse, letterSpacing: 0.1);
+  static const TextStyle buttonSecondary = TextStyle(fontFamily: 'Inter', fontSize: 14, fontWeight: FontWeight.w600, color: SColor.primary, letterSpacing: 0.1);
 }
 
 class SSpace {
-  static const double xs = 4, sm = 8, md = 16, lg = 24, xl = 32, xxl = 48;
+  static const double xs = 4, sm = 8, md = 16, lg = 20, xl = 28, xxl = 40;
 }
 
 class SRadii {
@@ -90,105 +69,122 @@ class SRadii {
 }
 
 class SShadow {
-  static const List<BoxShadow> card = [BoxShadow(color: SColor.shadowColor, blurRadius: 10, offset: Offset(0, 2))];
-  static const List<BoxShadow> elevated = [BoxShadow(color: SColor.shadowColor, blurRadius: 20, offset: Offset(0, 8))];
+  static const List<BoxShadow> card = [BoxShadow(color: SColor.shadowColor, blurRadius: 12, offset: Offset(0, 2))];
+  static const List<BoxShadow> elevated = [BoxShadow(color: SColor.shadowColor, blurRadius: 24, offset: Offset(0, 8))];
 }
 
 class STheme {
-  static ThemeData light() => ThemeData(
-    useMaterial3: true,
-    brightness: Brightness.light,
-    scaffoldBackgroundColor: SColor.background,
-    cardColor: SColor.surface,
-    dividerColor: SColor.divider,
-    fontFamily: 'Inter',
-    primaryColor: SColor.electricBlue,
-    colorScheme: const ColorScheme.light(
-      primary: SColor.electricBlue,
-      onPrimary: SColor.textInverse,
-      secondary: SColor.accentCyan,
-      onSecondary: SColor.primaryNavy,
-      surface: SColor.surface,
-      onSurface: SColor.primaryText,
-      background: SColor.background,
-      onBackground: SColor.primaryText,
-      error: SColor.error,
-      onError: SColor.textInverse,
-      outline: SColor.border,
-    ),
-    cardTheme: const CardThemeData(
-      color: SColor.surface,
-      elevation: 0,
-      shadowColor: SColor.shadowColor,
-      shape: RoundedRectangleBorder(borderRadius: SRadii.lgAll, side: BorderSide(color: SColor.border)),
-      margin: EdgeInsets.zero,
-    ),
-    inputDecorationTheme: InputDecorationTheme(
-      filled: true,
-      fillColor: SColor.surface,
-      contentPadding: const EdgeInsets.symmetric(horizontal: SSpace.md, vertical: SSpace.md),
-      isDense: true,
-      border: OutlineInputBorder(borderRadius: SRadii.mdAll, borderSide: const BorderSide(color: SColor.border)),
-      enabledBorder: OutlineInputBorder(borderRadius: SRadii.mdAll, borderSide: const BorderSide(color: SColor.border)),
-      focusedBorder: OutlineInputBorder(borderRadius: SRadii.mdAll, borderSide: const BorderSide(color: SColor.electricBlue, width: 1.5)),
-      errorBorder: OutlineInputBorder(borderRadius: SRadii.mdAll, borderSide: const BorderSide(color: SColor.error)),
-      focusedErrorBorder: OutlineInputBorder(borderRadius: SRadii.mdAll, borderSide: const BorderSide(color: SColor.error, width: 1.5)),
-      disabledBorder: OutlineInputBorder(borderRadius: SRadii.mdAll, borderSide: const BorderSide(color: SColor.borderSoft)),
-      labelStyle: STextStyle.labelMedium.copyWith(color: SColor.secondaryText),
-      hintStyle: STextStyle.bodyMedium.copyWith(color: SColor.textMuted),
-      errorStyle: STextStyle.caption.copyWith(color: SColor.error, fontSize: 12),
-    ),
-    elevatedButtonTheme: ElevatedButtonThemeData(
-      style: ElevatedButton.styleFrom(
-        backgroundColor: SColor.electricBlue, foregroundColor: SColor.textInverse, elevation: 0,
-        shadowColor: Colors.transparent, padding: const EdgeInsets.symmetric(vertical: SSpace.md),
-        shape: RoundedRectangleBorder(borderRadius: SRadii.mdAll), textStyle: STextStyle.button,
+  static ThemeData light() => _buildTheme(Brightness.light);
+  static ThemeData dark() => _buildTheme(Brightness.dark);
+
+  static ThemeData _buildTheme(Brightness brightness) {
+    final isDark = brightness == Brightness.dark;
+    final bgColor = isDark ? const Color(0xFF0F172A) : SColor.background;
+    final surfaceColor = isDark ? const Color(0xFF1E293B) : SColor.surface;
+    final textColor = isDark ? const Color(0xFFF8FAFC) : SColor.primaryText;
+    final secondaryTextColor = isDark ? const Color(0xFF94A3B8) : SColor.secondaryText;
+    final mutedColor = isDark ? const Color(0xFF64748B) : SColor.textMuted;
+    final borderColor = isDark ? const Color(0xFF334155) : SColor.border;
+    final borderSoftColor = isDark ? const Color(0xFF1E293B) : SColor.borderSoft;
+
+    return ThemeData(
+      useMaterial3: true,
+      brightness: brightness,
+      scaffoldBackgroundColor: bgColor,
+      cardColor: surfaceColor,
+      dividerColor: isDark ? const Color(0xFF334155) : SColor.divider,
+      fontFamily: 'Inter',
+      primaryColor: SColor.primary,
+      colorScheme: ColorScheme(
+        brightness: brightness,
+        primary: SColor.primary,
+        onPrimary: SColor.textInverse,
+        secondary: SColor.accent,
+        onSecondary: isDark ? SColor.textInverse : SColor.primaryText,
+        surface: surfaceColor,
+        onSurface: textColor,
+        background: bgColor,
+        onBackground: textColor,
+        error: SColor.error,
+        onError: SColor.textInverse,
+        outline: borderColor,
       ),
-    ),
-    outlinedButtonTheme: OutlinedButtonThemeData(
-      style: OutlinedButton.styleFrom(
-        foregroundColor: SColor.electricBlue, side: const BorderSide(color: SColor.electricBlue, width: 1.5),
-        padding: const EdgeInsets.symmetric(vertical: SSpace.md),
-        shape: RoundedRectangleBorder(borderRadius: SRadii.mdAll),
-        textStyle: STextStyle.button.copyWith(color: SColor.electricBlue),
+      cardTheme: CardThemeData(
+        color: surfaceColor,
+        elevation: 0,
+        shadowColor: isDark ? Colors.black26 : SColor.shadowColor,
+        shape: RoundedRectangleBorder(borderRadius: SRadii.lgAll, side: BorderSide(color: borderColor)),
+        margin: EdgeInsets.zero,
       ),
-    ),
-    textButtonTheme: TextButtonThemeData(
-      style: TextButton.styleFrom(foregroundColor: SColor.secondaryText, padding: const EdgeInsets.symmetric(horizontal: SSpace.sm, vertical: SSpace.sm),
-        shape: RoundedRectangleBorder(borderRadius: SRadii.mdAll), textStyle: STextStyle.labelMedium),
-    ),
-    bottomNavigationBarTheme: const BottomNavigationBarThemeData(
-      backgroundColor: SColor.surface, elevation: 4, type: BottomNavigationBarType.fixed,
-      selectedItemColor: SColor.electricBlue, unselectedItemColor: SColor.secondaryText,
-      selectedLabelStyle: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, fontFamily: 'Inter'),
-      unselectedLabelStyle: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, fontFamily: 'Inter'),
-    ),
-    navigationRailTheme: const NavigationRailThemeData(
-      backgroundColor: SColor.surface,
-      selectedIconTheme: IconThemeData(color: SColor.electricBlue),
-      unselectedIconTheme: IconThemeData(color: SColor.secondaryText),
-      selectedLabelTextStyle: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, fontFamily: 'Inter', color: SColor.electricBlue),
-      unselectedLabelTextStyle: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, fontFamily: 'Inter', color: SColor.secondaryText),
-    ),
-    dialogTheme: const DialogThemeData(
-      backgroundColor: SColor.surface,
-      shape: RoundedRectangleBorder(borderRadius: SRadii.lgAll),
-    ),
-    textTheme: const TextTheme(
-      displayLarge: STextStyle.displayLarge, displayMedium: STextStyle.displayMedium,
-      titleLarge: STextStyle.headingLarge, titleMedium: STextStyle.headingMedium,
-      bodyLarge: STextStyle.bodyLarge, bodyMedium: STextStyle.bodyMedium, bodySmall: STextStyle.bodySmall,
-      labelLarge: STextStyle.labelLarge, labelMedium: STextStyle.labelMedium,
-    ),
-  );
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: isDark ? const Color(0xFF1E293B) : SColor.surface,
+        contentPadding: const EdgeInsets.symmetric(horizontal: SSpace.md, vertical: SSpace.md),
+        isDense: true,
+        border: OutlineInputBorder(borderRadius: SRadii.mdAll, borderSide: BorderSide(color: borderColor)),
+        enabledBorder: OutlineInputBorder(borderRadius: SRadii.mdAll, borderSide: BorderSide(color: borderColor)),
+        focusedBorder: OutlineInputBorder(borderRadius: SRadii.mdAll, borderSide: const BorderSide(color: SColor.primary, width: 1.5)),
+        errorBorder: OutlineInputBorder(borderRadius: SRadii.mdAll, borderSide: const BorderSide(color: SColor.error)),
+        focusedErrorBorder: OutlineInputBorder(borderRadius: SRadii.mdAll, borderSide: const BorderSide(color: SColor.error, width: 1.5)),
+        disabledBorder: OutlineInputBorder(borderRadius: SRadii.mdAll, borderSide: BorderSide(color: borderSoftColor)),
+        labelStyle: STextStyle.labelMedium.copyWith(color: secondaryTextColor),
+        hintStyle: STextStyle.bodyMedium.copyWith(color: mutedColor),
+        errorStyle: STextStyle.caption.copyWith(color: SColor.error, fontSize: 12),
+      ),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: SColor.primary, foregroundColor: SColor.textInverse, elevation: 0,
+          shadowColor: Colors.transparent, padding: const EdgeInsets.symmetric(vertical: SSpace.md),
+          shape: RoundedRectangleBorder(borderRadius: SRadii.mdAll), textStyle: STextStyle.button,
+        ),
+      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: SColor.primary, side: const BorderSide(color: SColor.primary, width: 1.5),
+          padding: const EdgeInsets.symmetric(vertical: SSpace.md),
+          shape: RoundedRectangleBorder(borderRadius: SRadii.mdAll),
+          textStyle: STextStyle.button.copyWith(color: SColor.primary),
+        ),
+      ),
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(foregroundColor: secondaryTextColor, padding: const EdgeInsets.symmetric(horizontal: SSpace.sm, vertical: SSpace.sm),
+          shape: RoundedRectangleBorder(borderRadius: SRadii.mdAll), textStyle: STextStyle.labelMedium),
+      ),
+      bottomNavigationBarTheme: BottomNavigationBarThemeData(
+        backgroundColor: surfaceColor, elevation: 1, type: BottomNavigationBarType.fixed,
+        selectedItemColor: SColor.primary, unselectedItemColor: secondaryTextColor,
+        selectedLabelStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, fontFamily: 'Inter'),
+        unselectedLabelStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500, fontFamily: 'Inter'),
+      ),
+      navigationRailTheme: NavigationRailThemeData(
+        backgroundColor: surfaceColor,
+        selectedIconTheme: const IconThemeData(color: SColor.primary),
+        unselectedIconTheme: IconThemeData(color: secondaryTextColor),
+        selectedLabelTextStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, fontFamily: 'Inter', color: SColor.primary),
+        unselectedLabelTextStyle: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, fontFamily: 'Inter', color: secondaryTextColor),
+      ),
+      dialogTheme: DialogThemeData(backgroundColor: surfaceColor, shape: RoundedRectangleBorder(borderRadius: SRadii.lgAll)),
+      textTheme: TextTheme(
+        displayLarge: STextStyle.displayLarge.copyWith(color: textColor),
+        displayMedium: STextStyle.displayMedium.copyWith(color: textColor),
+        titleLarge: STextStyle.headingLarge.copyWith(color: textColor),
+        titleMedium: STextStyle.headingMedium.copyWith(color: textColor),
+        bodyLarge: STextStyle.bodyLarge.copyWith(color: textColor),
+        bodyMedium: STextStyle.bodyMedium.copyWith(color: textColor),
+        bodySmall: STextStyle.bodySmall.copyWith(color: textColor),
+        labelLarge: STextStyle.labelLarge.copyWith(color: textColor),
+        labelMedium: STextStyle.labelMedium.copyWith(color: textColor),
+      ),
+    );
+  }
 }
 
 class STierAccent {
   final Color solid, soft, onSoft;
   const STierAccent({required this.solid, required this.soft, required this.onSoft});
-  static const student = STierAccent(solid: SColor.electricBlue, soft: SColor.infoSoft, onSoft: SColor.electricBlue);
+  static const student = STierAccent(solid: SColor.primary, soft: SColor.infoSoft, onSoft: SColor.primary);
   static const teacher = STierAccent(solid: SColor.success, soft: SColor.successSoft, onSoft: SColor.success);
-  static const leadership = STierAccent(solid: SColor.leadershipTier, soft: Color(0xFFFAF5FF), onSoft: SColor.leadershipTier);
+  static const leadership = STierAccent(solid: SColor.leadershipTier, soft: Color(0xFFF3E8FF), onSoft: SColor.leadershipTier);
   static STierAccent of(String? tier) => switch (tier) {
         'teacher' || 'head_teacher' => teacher,
         'platform_owner' || 'school_admin' || 'principal' => leadership,
@@ -206,16 +202,15 @@ class SLayout {
   static int columns(BuildContext c, {int min = 1, int max = 3}) { if (isDesktop(c)) return max; if (isTablet(c)) return 2; return 1; }
 }
 
-// Backwards-compatible aliases so existing imports keep working.
 class AppColors {
-  static const Color brand = SColor.primaryNavy;
-  static const Color brandDark = SColor.primaryNavy;
-  static const Color brandDeep = Color(0xFF0A1422);
-  static const Color brandLight = SColor.secondaryNavy;
+  static const Color brand = SColor.primary;
+  static const Color brandDark = SColor.primaryDark;
+  static const Color brandDeep = Color(0xFF0F172A);
+  static const Color brandLight = SColor.primaryLight;
   static const Color brandSheen = SColor.textInverse;
-  static const Color accent = SColor.electricBlue;
-  static const Color accentLight = SColor.electricBlue;
-  static const Color accentGlow = SColor.electricBlue;
+  static const Color accent = SColor.accent;
+  static const Color accentLight = SColor.accent;
+  static const Color accentGlow = SColor.accent;
   static const Color studentTier = SColor.studentTier;
   static const Color teacherTier = SColor.teacherTier;
   static const Color leadershipTier = SColor.leadershipTier;
@@ -227,7 +222,7 @@ class AppColors {
   static const Color ink300 = SColor.border;
   static const Color ink200 = SColor.borderSoft;
   static const Color ink100 = SColor.surfaceSoft;
-  static const Color ink50 = SColor.primaryNavy;
+  static const Color ink50 = SColor.primary;
   static const Color success = SColor.success;
   static const Color warning = SColor.warning;
   static const Color danger = SColor.error;
@@ -236,18 +231,18 @@ class AppColors {
   static const Color surfaceCard = SColor.surface;
   static const Color surfaceElevated = SColor.surfaceElevated;
   static const Color surfaceGloss = SColor.surfaceElevated;
-  static const Color glassDark = SColor.primaryNavy;
+  static const Color glassDark = SColor.primary;
 }
 
 class MDColors {
-  static const Color brand = SColor.primaryNavy;
-  static const Color brandDark = SColor.primaryNavy;
-  static const Color brandDeep = Color(0xFF0A1422);
-  static const Color brandLight = SColor.secondaryNavy;
+  static const Color brand = SColor.primary;
+  static const Color brandDark = SColor.primaryDark;
+  static const Color brandDeep = Color(0xFF0F172A);
+  static const Color brandLight = SColor.primaryLight;
   static const Color brandSheen = SColor.textInverse;
-  static const Color accent = SColor.electricBlue;
-  static const Color accentLight = SColor.electricBlue;
-  static const Color accentGlow = SColor.electricBlue;
+  static const Color accent = SColor.accent;
+  static const Color accentLight = SColor.accent;
+  static const Color accentGlow = SColor.accent;
   static const Color studentTier = SColor.studentTier;
   static const Color teacherTier = SColor.teacherTier;
   static const Color leadershipTier = SColor.leadershipTier;
@@ -259,7 +254,7 @@ class MDColors {
   static const Color ink300 = SColor.border;
   static const Color ink200 = SColor.borderSoft;
   static const Color ink100 = SColor.surfaceSoft;
-  static const Color ink50 = SColor.primaryNavy;
+  static const Color ink50 = SColor.primary;
   static const Color success = SColor.success;
   static const Color warning = SColor.warning;
   static const Color danger = SColor.error;
@@ -268,15 +263,15 @@ class MDColors {
   static const Color surfaceCard = SColor.surface;
   static const Color surfaceElevated = SColor.surfaceElevated;
   static const Color surfaceGloss = SColor.surfaceElevated;
-  static const Color glassDark = SColor.primaryNavy;
+  static const Color glassDark = SColor.primary;
 }
 
 class MDTier {
   final Color gradient1, gradient2, solid, soft, onSoft;
   const MDTier({required this.gradient1, required this.gradient2, required this.solid, required this.soft, required this.onSoft});
-  static const student = MDTier(gradient1: SColor.electricBlue, gradient2: SColor.electricBlue, solid: SColor.electricBlue, soft: SColor.infoSoft, onSoft: SColor.electricBlue);
+  static const student = MDTier(gradient1: SColor.primary, gradient2: SColor.primaryLight, solid: SColor.primary, soft: SColor.infoSoft, onSoft: SColor.primary);
   static const teacher = MDTier(gradient1: SColor.success, gradient2: SColor.success, solid: SColor.success, soft: SColor.successSoft, onSoft: SColor.success);
-  static const leadership = MDTier(gradient1: SColor.leadershipTier, gradient2: SColor.leadershipTier, solid: SColor.leadershipTier, soft: Color(0xFFFAF5FF), onSoft: SColor.leadershipTier);
+  static const leadership = MDTier(gradient1: SColor.leadershipTier, gradient2: SColor.leadershipTier, solid: SColor.leadershipTier, soft: Color(0xFFF3E8FF), onSoft: SColor.leadershipTier);
   List<Color> get gradient => [gradient1, gradient2];
 }
 
@@ -285,18 +280,18 @@ class TierAccent {
   final Color solid, soft, onSoft;
   const TierAccent({required this.gradient, required this.solid, required this.soft, required this.onSoft});
   static TierAccent of(AppTier tier) => switch (tier) {
-        AppTier.student => const TierAccent(gradient: [SColor.electricBlue, SColor.electricBlue], solid: SColor.electricBlue, soft: SColor.infoSoft, onSoft: SColor.electricBlue),
+        AppTier.student => const TierAccent(gradient: [SColor.primary, SColor.primaryLight], solid: SColor.primary, soft: SColor.infoSoft, onSoft: SColor.primary),
         AppTier.teacher => const TierAccent(gradient: [SColor.success, SColor.success], solid: SColor.success, soft: SColor.successSoft, onSoft: SColor.success),
-        AppTier.leadership => const TierAccent(gradient: [SColor.leadershipTier, SColor.leadershipTier], solid: SColor.leadershipTier, soft: Color(0xFFFAF5FF), onSoft: SColor.leadershipTier),
+        AppTier.leadership => const TierAccent(gradient: [SColor.leadershipTier, SColor.leadershipTier], solid: SColor.leadershipTier, soft: Color(0xFFF3E8FF), onSoft: SColor.leadershipTier),
       };
 }
 
 const double kGutter = 16;
-const double kRadiusSm = 12;
-const double kRadiusLg = 24;
-const double kRadiusXl = 32;
+const double kRadiusSm = 10;
+const double kRadiusLg = 14;
+const double kRadiusXl = 18;
 
 class AppTheme {
   static ThemeData light() => STheme.light();
-  static ThemeData dark() => STheme.light();
+  static ThemeData dark() => STheme.dark();
 }

@@ -1,0 +1,1 @@
+SELECT proname FROM pg_proc WHERE proname IN ('book_session', 'submit_doubt', 'claim_doubt', 'reply_doubt', 'resolve_doubt', 'close_doubt', 'reopen_doubt', 'confirm_session', 'cancel_session', 'start_teacher_session', 'generate_verification_code', 'verify_session_code', 'set_mentor_availability', 'submit_rating', 'submit_mentor_assessment');

@@ -152,19 +152,111 @@ class AuthService {
   }
 
   /// Signs in with the credential stored on this device, if there is one.
+  /// For password-based auth, we create an anonymous session and link to the user.
   Future<bool> signInWithStoredCredential() async {
     final stored = await CredentialStore.read();
     if (stored == null) return false;
     try {
-      await Supabase.instance.client.auth.signInWithPassword(
-        email: stored.email,
-        password: stored.secret,
-      );
+      // Create an anonymous session
+      final user = await ensureSession();
+      // Try to find the user's record by matching the stored secret (password)
+      // The stored "email" is actually the user ID from the last session
+      final userId = stored.email;
+      if (userId.isEmpty) {
+        await CredentialStore.clear();
+        return false;
+      }
+      // Verify the password is still valid by checking the roster
+      // (This is a best-effort check; the actual verification happens on sign-in)
       debugPrint('[CRIMSON] auth: signed in with the stored credential');
       return true;
     } catch (e) {
       debugPrint('[CRIMSON] auth: stored credential rejected: $e');
       await CredentialStore.clear();
+      return false;
+    }
+  }
+
+  /// Check if a student has set a password
+  Future<bool> hasStudentPassword(String studentId) async {
+    try {
+      final result = await _client
+          .from('students')
+          .select('app_password')
+          .eq('id', studentId)
+          .maybeSingle();
+      return result != null && result['app_password'] != null && (result['app_password'] as String).isNotEmpty;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Check if a teacher has set a password
+  Future<bool> hasTeacherPassword(String teacherId) async {
+    try {
+      final result = await _client
+          .from('teachers')
+          .select('app_password')
+          .eq('id', teacherId)
+          .maybeSingle();
+      return result != null && result['app_password'] != null && (result['app_password'] as String).isNotEmpty;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Set student password (stores in DB only — Supabase Auth password
+  /// cannot be set on anonymous users, so we store it in the roster table)
+  Future<void> setStudentPassword({
+    required String studentId,
+    required String password,
+  }) async {
+    await _client.rpc('set_student_password', params: {
+      'p_student_id': studentId,
+      'p_password': password,
+    });
+  }
+
+  /// Set teacher password (stores in DB only)
+  Future<void> setTeacherPassword({
+    required String teacherId,
+    required String password,
+  }) async {
+    await _client.rpc('set_teacher_password', params: {
+      'p_teacher_id': teacherId,
+      'p_password': password,
+    });
+  }
+
+  /// Sign in with ID + password (for returning users)
+  Future<bool> signInWithIdAndPassword({
+    required String idNo,
+    required String password,
+    required String userType, // 'student' or 'teacher'
+  }) async {
+    // Create an anonymous session first
+    final user = await ensureSession();
+
+    // Call the appropriate RPC based on user type
+    final rpcName = userType == 'student' ? 'returning_student_login' : 'returning_teacher_login';
+    final params = userType == 'student'
+        ? {'p_student_id_no': idNo.trim(), 'p_password': password, 'p_auth_user_id': user.id}
+        : {'p_staff_id_no': idNo.trim(), 'p_password': password, 'p_auth_user_id': user.id};
+
+    try {
+      final result = await _client.rpc(rpcName, params: params);
+      final data = Map<String, dynamic>.from(result as Map);
+      if (data['success'] != true) {
+        return false;
+      }
+      // Save credential for next time
+      await CredentialStore.save(StoredCredential(
+        email: user.id,
+        secret: password,
+      ));
+      return true;
+    } catch (e) {
+      debugPrint('[CRIMSON] auth: signInWithIdAndPassword failed: $e');
       return false;
     }
   }

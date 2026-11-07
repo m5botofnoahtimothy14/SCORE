@@ -20,7 +20,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   bool _loading = true;
   String? _error;
   String _displayName = 'User';
-  String? _tier;
+  AppTier? _tier;
   String? _schoolId;
   String? _role;
   int _openDoubts = 0;
@@ -42,14 +42,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
       _schoolId = identity.schoolId;
       _role = identity.role;
-      _tier = identity.tier.toString();
+      _tier = identity.tier;
 
       final name = identity.displayName.isNotEmpty ? identity.displayName : 'User';
       if (!mounted) return;
       setState(() { _displayName = name; _loading = false; });
 
-      // Load student allowances if student
-      if (identity.tier.toString() == 'student') {
+      if (identity.tier == AppTier.student) {
         final doubts = await supabase
             .from('doubt_requests')
             .select('id, status')
@@ -86,7 +85,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final accent = STierAccent.of(_tier);
+    final accent = STierAccent.of(_tier?.name);
     return Scaffold(
       backgroundColor: SColor.background,
       body: _loading
@@ -107,26 +106,26 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                 children: [
                                   Text(
                                     'Welcome back, $_displayName',
-                                    style: STextStyle.displayLarge.copyWith(fontSize: 26),
+                                    style: STextStyle.displayLarge,
                                   ),
                                   const SizedBox(height: 4),
                                   Text(
                                     _role != null ? _role!.replaceAll('_', ' ').toUpperCase() : '',
-                                    style: STextStyle.overline.copyWith(color: SColor.accentCyan),
+                                    style: STextStyle.overline.copyWith(color: SColor.accent),
                                   ),
                                 ],
                               ),
                             ),
                             Container(
                               decoration: BoxDecoration(color: SColor.surface, borderRadius: SRadii.mdAll, border: Border.all(color: SColor.border)),
-                              child: IconButton(icon: const Icon(Icons.refresh, color: SColor.electricBlue, size: 20), onPressed: _load, tooltip: 'Refresh'),
+                              child: IconButton(icon: const Icon(Icons.refresh, color: SColor.primary, size: 20), onPressed: _load, tooltip: 'Refresh'),
                             ),
                           ],
                         ),
                         const SizedBox(height: SSpace.lg),
                         _SectionHeader(title: 'Quick Actions'),
                         const SizedBox(height: SSpace.sm),
-                        _QuickActionGrid(tier: _tier ?? 'student', context: context),
+                        _QuickActionGrid(tier: _tier?.name ?? 'student', context: context),
                         const SizedBox(height: SSpace.lg),
                         _SectionHeader(title: 'Your weekly allowance'),
                         const SizedBox(height: SSpace.sm),
@@ -143,24 +142,24 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         _SectionHeader(title: 'Mentor Desk'),
                         const SizedBox(height: SSpace.sm),
                         PremiumCard(
-                          onTap: () => context.go(_tier == 'student' ? '/mentor-desk' : _tier == 'teacher' ? '/mentor-desk/queue' : '/mentor-desk/slt'),
+                          onTap: () => context.go(_tier == AppTier.student ? '/mentor-desk' : _tier == AppTier.teacher ? '/mentor-desk/queue' : '/mentor-desk/slt'),
                           child: Row(
                             children: [
                               Expanded(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text(_tier == 'student' ? 'Need help with a doubt?' : _tier == 'teacher' ? 'Check your queue' : 'View oversight dashboard',
+                                    Text(_tier == AppTier.student ? 'Need help with a doubt?' : _tier == AppTier.teacher ? 'Check your queue' : 'View oversight dashboard',
                                         style: STextStyle.headingMedium.copyWith(color: SColor.primaryText)),
                                     const SizedBox(height: SSpace.xs),
-                                    Text(_tier == 'student' ? 'Ask a doubt or book a session with a mentor.' : _tier == 'teacher' ? 'Review and resolve pending student requests.' : 'Monitor program metrics and escalations.',
+                                    Text(_tier == AppTier.student ? 'Ask a doubt or book a session with a mentor.' : _tier == AppTier.teacher ? 'Review and resolve pending student requests.' : 'Monitor program metrics and escalations.',
                                         style: STextStyle.bodySmall.copyWith(color: SColor.secondaryText)),
                                     const SizedBox(height: SSpace.md),
                                     SizedBox(
                                       width: double.infinity,
                                       child: ElevatedButton(
-                                        onPressed: () => context.go(_tier == 'student' ? '/mentor-desk' : _tier == 'teacher' ? '/mentor-desk/queue' : '/mentor-desk/slt'),
-                                        child: const Text('Open Mentor Desk', style: TextStyle(fontWeight: FontWeight.w800)),
+                                        onPressed: () => context.go(_tier == AppTier.student ? '/mentor-desk' : _tier == AppTier.teacher ? '/mentor-desk/queue' : '/mentor-desk/slt'),
+                                        child: const Text('Open Mentor Desk', style: TextStyle(fontWeight: FontWeight.w600)),
                                       ),
                                     ),
                                   ],
@@ -170,7 +169,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               Container(
                                 width: 64, height: 64,
                                 decoration: BoxDecoration(color: accent.soft, borderRadius: SRadii.lgAll),
-                                child: Icon(_tier == 'student' ? Icons.support_agent : _tier == 'teacher' ? Icons.list : Icons.insights, color: accent.solid, size: 32),
+                                child: Icon(_tier == AppTier.student ? Icons.support_agent : _tier == AppTier.teacher ? Icons.list : Icons.insights, color: accent.solid, size: 32),
                               ),
                             ],
                           ),
@@ -184,7 +183,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               Container(width: 44, height: 44, decoration: BoxDecoration(color: SColor.infoSoft, borderRadius: SRadii.mdAll), child: const Icon(Icons.campaign, color: SColor.info, size: 22)),
                               const SizedBox(width: SSpace.md),
                               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                                Text('No new notices', style: STextStyle.headingSmall.copyWith(fontWeight: FontWeight.w800)),
+                                Text('No new notices', style: STextStyle.headingSmall.copyWith(fontWeight: FontWeight.w600)),
                                 SizedBox(height: 2),
                                 Text('Check back later for school announcements.', style: STextStyle.captionMuted),
                               ])),
@@ -205,7 +204,7 @@ class _SectionHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Row(children: [
-      Text(title, style: STextStyle.headingSmall.copyWith(fontWeight: FontWeight.w800, color: SColor.primaryText)),
+      Text(title, style: STextStyle.headingSmall.copyWith(fontWeight: FontWeight.w600, color: SColor.primaryText)),
       const Spacer(),
     ]);
   }
@@ -235,8 +234,7 @@ class _QuickActionGrid extends StatelessWidget {
         ];
       default:
         return [
-          _QuickAction(icon: Icons.support_agent, label: 'Mentor Desk', route: '/mentor-desk', color: SColor.electricBlue),
-          _QuickAction(icon: Icons.auto_awesome, label: 'AI Ask', route: '/ai-ask', color: SColor.accentCyan),
+          _QuickAction(icon: Icons.support_agent, label: 'Mentor Desk', route: '/mentor-desk', color: SColor.primary),
           _QuickAction(icon: Icons.campaign, label: 'Notices', route: '/announcements', color: SColor.info),
           _QuickAction(icon: Icons.person, label: 'Profile', route: '/profile', color: SColor.teacherTier),
         ];
@@ -277,7 +275,7 @@ class _ActionTile extends StatelessWidget {
           Container(width: 48, height: 48, decoration: BoxDecoration(color: action.color.withValues(alpha: 0.12), borderRadius: SRadii.mdAll),
             child: Icon(action.icon, color: action.color, size: 24)),
           const SizedBox(height: SSpace.sm),
-          Text(action.label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: SColor.primaryText)),
+          Text(action.label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: SColor.primaryText)),
         ]),
       ),
     ));
@@ -298,7 +296,7 @@ class _MetricTile extends StatelessWidget {
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(label, style: STextStyle.caption.copyWith(color: SColor.secondaryText, fontSize: 11)),
           const SizedBox(height: 2),
-          Text(value, style: STextStyle.headingMedium.copyWith(fontWeight: FontWeight.w800, color: SColor.primaryText)),
+          Text(value, style: STextStyle.headingMedium.copyWith(fontWeight: FontWeight.w700, color: SColor.primaryText)),
         ])),
         Icon(Icons.chevron_right, color: SColor.textMuted, size: 20),
       ]),

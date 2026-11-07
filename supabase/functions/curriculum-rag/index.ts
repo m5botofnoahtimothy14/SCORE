@@ -67,25 +67,126 @@ Deno.serve(async (req) => {
       await finish(client, key, false, null, startedAt);
       return json({ success: false, error: 'ai_provider_unavailable', retryable: true }, 503);
     }
-    const embedding = await embedQuery(question);
-    const { data: hits, error: retrievalError } = await client.rpc('match_curriculum_chunks', {
-      p_class_grade: grade,
-      p_subject: subject,
-      p_query: `[${embedding.join(',')}]`,
-      p_limit: 6,
-    });
-    if (retrievalError || !Array.isArray(hits)) {
-      await finish(client, key, false, null, startedAt);
-      return json({ success: false, error: 'retrieval_unavailable', retryable: true }, 503);
+
+    // Try RAG retrieval first
+    let evidence: Array<Record<string, unknown>> = [];
+    let bestScore = 0;
+    try {
+      const embedding = await embedQuery(question);
+      const { data: hits, error: retrievalError } = await client.rpc('match_curriculum_chunks', {
+        p_class_grade: grade,
+        p_subject: subject,
+        p_query: `[${embedding.join(',')}]`,
+        p_limit: 6,
+      });
+      if (!retrievalError && Array.isArray(hits)) {
+        evidence = (hits as Array<Record<string, unknown>>)
+          .filter((h) => typeof h.content === 'string' && h.content.trim().length > 0)
+          .slice(0, 6);
+        bestScore = evidence.reduce((score, hit) => Math.max(score, Number(hit.similarity) || 0), 0);
+      }
+    } catch (retrievalErr) {
+      console.log('RAG retrieval unavailable, falling back to general knowledge');
     }
 
-    const evidence = (hits as Array<Record<string, unknown>>)
-      .filter((h) => typeof h.content === 'string' && h.content.trim().length > 0)
-      .slice(0, 6);
-    const bestScore = evidence.reduce((score, hit) => Math.max(score, Number(hit.similarity) || 0), 0);
-    if (evidence.length === 0 || bestScore < 0.55) {
+    // If we have good evidence, use grounded answer
+    if (evidence.length > 0 && bestScore >= 0.55) {
+      let raw: string;
+      try {
+        raw = await generateGroundedAnswer({
+          grade,
+          subject,
+          question,
+          passages: evidence.map((h) => ({
+            content: String(h.content).slice(0, 6000),
+            source_title: String(h.source_title ?? ''),
+            document_identifier: String(h.document_identifier ?? ''),
+            chapter: typeof h.chapter === 'string' ? h.chapter : null,
+            topic: typeof h.topic === 'string' ? h.topic : null,
+            page_number: typeof h.page_number === 'number' ? h.page_number : null,
+            section: typeof h.section === 'string' ? h.section : null,
+          })),
+          maxTokens: 800,
+        });
+      } catch (error) {
+        await finish(client, key, false, null, startedAt);
+        if (error instanceof LearningProviderError && error.code === 'not_configured') return json({ success: false, error: 'ai_provider_unavailable', retryable: true }, 503);
+        return json({ success: false, error: 'ai_provider_error', retryable: true }, 502);
+      }
+
+      let parsed: { answer?: unknown; citations?: unknown; uncertain?: unknown };
+      try { parsed = JSON.parse(raw); } catch {
+        await finish(client, key, false, null, startedAt);
+        return json({ success: false, error: 'invalid_ai_response', retryable: true }, 502);
+      }
+      if (typeof parsed.answer !== 'string' || parsed.answer.length > 6000 || !Array.isArray(parsed.citations)) {
+        await finish(client, key, false, null, startedAt);
+        return json({ success: false, error: 'invalid_ai_response', retryable: true }, 502);
+      }
+      const citedIndexes = [...new Set(parsed.citations.filter((n): n is number => Number.isInteger(n) && n >= 1 && n <= evidence.length))];
+      const uncertain = parsed.uncertain === true || parsed.answer.trim() === 'INSUFFICIENT_EVIDENCE' || citedIndexes.length === 0;
+      const citations = uncertain ? [] : citedIndexes.map((n) => {
+        const h = evidence[n - 1];
+        return {
+          source_title: h.source_title,
+          document_identifier: h.document_identifier,
+          chapter: h.chapter,
+          topic: h.topic,
+          page_number: h.page_number,
+          section: h.section,
+        };
+      });
+      const answer = uncertain
+        ? { answer: 'I can\u2019t verify this from the approved learning materials available for your class and subject. Please retry or ask your teacher.', uncertain: true, citations: [], teacher_help_available: true }
+        : { answer: parsed.answer.trim(), uncertain: false, citations, teacher_help_available: true };
+      await finish(client, key, true, answer, startedAt);
+      successDelivered = true;
+      return json({ success: true, ...answer, remaining: reservation.remaining, reset_period: reservation.reset_period });
+    }
+
+    // Fallback: General LLM knowledge (no curriculum chunks available)
+    // Use the AI provider to answer from general knowledge with a disclaimer
+    try {
+      const config = providerConfig();
+      if (!config) {
+        await finish(client, key, false, null, startedAt);
+        return json({ success: false, error: 'ai_provider_unavailable', retryable: true }, 503);
+      }
+
+      const payload = await fetch(`${config.baseUrl}/v1/chat/completions`, {
+        method: 'POST',
+        headers: { authorization: `Bearer ${config.apiKey}`, 'content-type': 'application/json' },
+        body: JSON.stringify({
+          model: config.chatModel,
+          temperature: 0.3,
+          max_tokens: 800,
+          messages: [
+            {
+              role: 'system',
+              content: `You are an AI tutor for Class ${grade} ${subject}. Answer the student's question helpfully and accurately. Since no specific approved curriculum material is available, provide a clear educational explanation. Be honest about uncertainty. Do not claim to be citing specific sources.`,
+            },
+            {
+              role: 'user',
+              content: `STUDENT QUESTION:\n${question}\n\nProvide a helpful educational answer.`,
+            },
+          ],
+        }),
+      });
+
+      if (!payload.ok) {
+        await finish(client, key, false, null, startedAt);
+        return json({ success: false, error: 'ai_provider_error', retryable: true }, 502);
+      }
+
+      const data = await payload.json();
+      const answerText = data?.choices?.[0]?.message?.content;
+      if (typeof answerText !== 'string' || answerText.length === 0) {
+        await finish(client, key, false, null, startedAt);
+        return json({ success: false, error: 'invalid_ai_response', retryable: true }, 502);
+      }
+
       const answer = {
-        answer: 'I can’t verify this from the approved learning materials currently available for your class and subject. You can retry later or send this question to your teacher.',
+        answer: answerText.trim(),
         uncertain: true,
         citations: [],
         teacher_help_available: true,
@@ -93,59 +194,10 @@ Deno.serve(async (req) => {
       await finish(client, key, true, answer, startedAt);
       successDelivered = true;
       return json({ success: true, ...answer, remaining: reservation.remaining, reset_period: reservation.reset_period });
-    }
-
-    let raw: string;
-    try {
-      raw = await generateGroundedAnswer({
-        grade,
-        subject,
-        question,
-        passages: evidence.map((h) => ({
-          content: String(h.content).slice(0, 6000),
-          source_title: String(h.source_title ?? ''),
-          document_identifier: String(h.document_identifier ?? ''),
-          chapter: typeof h.chapter === 'string' ? h.chapter : null,
-          topic: typeof h.topic === 'string' ? h.topic : null,
-          page_number: typeof h.page_number === 'number' ? h.page_number : null,
-          section: typeof h.section === 'string' ? h.section : null,
-        })),
-        maxTokens: 800,
-      });
-    } catch (error) {
+    } catch (fallbackErr) {
       await finish(client, key, false, null, startedAt);
-      if (error instanceof LearningProviderError && error.code === 'not_configured') return json({ success: false, error: 'ai_provider_unavailable', retryable: true }, 503);
-      return json({ success: false, error: 'ai_provider_error', retryable: true }, 502);
+      return json({ success: false, error: 'learning_assistant_unavailable', retryable: true }, 503);
     }
-
-    let parsed: { answer?: unknown; citations?: unknown; uncertain?: unknown };
-    try { parsed = JSON.parse(raw); } catch {
-      await finish(client, key, false, null, startedAt);
-      return json({ success: false, error: 'invalid_ai_response', retryable: true }, 502);
-    }
-    if (typeof parsed.answer !== 'string' || parsed.answer.length > 6000 || !Array.isArray(parsed.citations)) {
-      await finish(client, key, false, null, startedAt);
-      return json({ success: false, error: 'invalid_ai_response', retryable: true }, 502);
-    }
-    const citedIndexes = [...new Set(parsed.citations.filter((n): n is number => Number.isInteger(n) && n >= 1 && n <= evidence.length))];
-    const uncertain = parsed.uncertain === true || parsed.answer.trim() === 'INSUFFICIENT_EVIDENCE' || citedIndexes.length === 0;
-    const citations = uncertain ? [] : citedIndexes.map((n) => {
-      const h = evidence[n - 1];
-      return {
-        source_title: h.source_title,
-        document_identifier: h.document_identifier,
-        chapter: h.chapter,
-        topic: h.topic,
-        page_number: h.page_number,
-        section: h.section,
-      };
-    });
-    const answer = uncertain
-      ? { answer: 'I can’t verify this from the approved learning materials available for your class and subject. Please retry or ask your teacher.', uncertain: true, citations: [], teacher_help_available: true }
-      : { answer: parsed.answer.trim(), uncertain: false, citations, teacher_help_available: true };
-    await finish(client, key, true, answer, startedAt);
-    successDelivered = true;
-    return json({ success: true, ...answer, remaining: reservation.remaining, reset_period: reservation.reset_period });
   } catch (error) {
     console.error('curriculum-rag failed:', error instanceof LearningProviderError ? error.code : 'internal_error');
     if (!successDelivered) await finish(client, key, false, null, startedAt);

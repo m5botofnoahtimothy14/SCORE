@@ -1,37 +1,58 @@
-# SCORE+ Implementation Checklist — PRODUCTION DEPLOYED
+# SCORE+ Production Todo List
 
-## BUILD ARTIFACTS (VERIFIED)
-- [x] Flutter debug APK: build/app/outputs/flutter-apk/app-debug.apk
-- [x] Flutter release APK: build/app/outputs/flutter-apk/app-release.apk (59.0 MB)
-- [x] flutter analyze: 0 hard errors
+## ✅ COMPLETED
+- [x] Fix send-otp UUID type mismatch
+- [x] Fix verify-otp UUID type mismatch + RPC params
+- [x] Fix activate-student dual-code + return email
+- [x] Fix activate-teacher dual-code + return email
+- [x] Create migration 00034 (schema repair)
+- [x] Create migration 00035 (enable extensions)
+- [x] Create migration 00036 (SLT read access)
+- [x] Create migration 00037 (auto-enroll subjects)
+- [x] Create migration 00038 (create student_subject_enrollments)
+- [x] Create migration 00039 (create curriculum tables)
+- [x] Create migration 00040 (create RAG RPCs)
+- [x] Create migration 00041 (password system)
+- [x] Fix doubt_conversation_screen (messages table)
+- [x] Fix SLT dashboard (independent error handling)
+- [x] Fix subject picker (default Chemistry/Physics/Biology)
+- [x] Fix AI Ask (fallback to general knowledge)
+- [x] Fix back arrow (canPop check)
+- [x] Fix crash prevention (global error handler)
+- [x] Fix home screen (tier enum vs string)
+- [x] Fix book_session mentor loading (try/catch)
+- [x] Fix doubt submission (attachment support)
+- [x] Fix identity provider (read from user_profiles)
+- [x] Apply all migrations to production DB
+- [x] Set all Edge Function secrets
+- [x] Enable extensions (pg_net, pg_cron, vector)
+- [x] Deploy all edge functions
+- [x] Build release APK
+- [x] Install APK on phone
+- [x] Website deployed to teachcross-admin.vercel.app
+- [x] GitHub pushed
+- [x] Admin app builds successfully
+- [x] Premium UI redesign (navy/electric blue/cyan)
+- [x] Light/dark mode support (ThemeMode.system)
+- [x] Remove AI Ask from app (moved to website)
+- [x] Add AI Manager to website
+- [x] Add chat history section to website
+- [x] Add meeting history section to website
 
-## CREDENTIALS CONFIGURED (.env.local)
-- [x] Supabase URL + Anon Key
-- [x] Supabase Service Role Key
-- [x] GOOGLE_CLIENT_ID (from client_secret JSON)
-- [x] GOOGLE_CLIENT_SECRET (from client_secret JSON)
-- [x] GOOGLE_API_KEY (master key)
-- [x] LEARNING_AI_API_KEY
-- [x] LEARNING_AI_BASE_URL = https://api.openai.com/v1
-- [x] LEARNING_AI_CHAT_MODEL = gpt-4o-mini
-- [x] LEARNING_AI_EMBEDDING_MODEL = text-embedding-3-large
-- [x] TextBee SMS API Key + Device ID
-- [x] Firebase/FCM credentials
-- [x] GOOGLE_CALENDAR_ID = primary
+## 🔄 IN PROGRESS
+- [ ] Password system (migration applied, need mobile + admin implementation)
 
-## REMAINING DEPLOYMENT STEPS (require your action)
-- [ ] supabase login + supabase link --project-ref pdnrloftybrhuwefmrhp
-- [ ] supabase db push --file supabase/migrations/00034_production_repair.sql
-- [ ] Enable extensions: pg_net, pg_cron, vector (via Supabase dashboard SQL)
-- [ ] supabase secrets set GOOGLE_REFRESH_TOKEN=<from OAuth2 flow>
-- [ ] supabase secrets set all Edge Function secrets (see deploy-production.ps1)
-- [ ] Ingest curriculum grades 6-12 (scripts/ingest_curriculum.py)
-- [ ] Approve curriculum documents via approve_curriculum_document RPC
+## ❌ NOT STARTED
+- [ ] Google refresh token (needs OAuth flow - user said "figure out later")
+- [ ] Curriculum ingestion (needs source URLs)
+- [ ] Password creation screen after activation
+- [ ] Password-based login screen
+- [ ] Admin website password view/reset UI
+- [ ] Push notifications end-to-end test
+- [ ] Full workflow validation on device
 
-## ALL CODE FIXES APPLIED
-- [x] send-otp / verify-otp: UUID teacher_id type mismatch fixed
-- [x] activate-student / activate-teacher: dual-code (bcrypt + SHA-256), return email
-- [x] Migration 00034: schema drift reconciled, activate_teacher signature restored
-- [x] doubt_conversation_screen: reads from correct messages table
-- [x] Premium UI redesign: navy/electric blue/cyan palette across all screens
-- [x] Flutter release build: SUCCESSFUL (59.0 MB)
+## 📋 PRIORITY ORDER
+1. Password system (mobile app) - HIGH
+2. Password system (admin website) - HIGH
+3. Google refresh token - MEDIUM (user said "later")
+4. Curriculum ingestion - LOW (AI works without it)

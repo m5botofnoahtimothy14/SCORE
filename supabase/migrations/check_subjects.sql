@@ -1,0 +1,1 @@
+SELECT id, name, school_id FROM subjects WHERE lower(name) IN ('chemistry', 'physics', 'biology');

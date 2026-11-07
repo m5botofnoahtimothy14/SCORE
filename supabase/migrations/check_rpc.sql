@@ -1,0 +1,1 @@
+SELECT proname FROM pg_proc WHERE proname = 'match_curriculum_chunks';

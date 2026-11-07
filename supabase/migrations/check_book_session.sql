@@ -1,0 +1,1 @@
+SELECT pg_get_function_arguments(p.oid) as args FROM pg_proc p WHERE p.proname = 'book_session';

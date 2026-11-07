@@ -47,31 +47,24 @@ class _SLTDashboardScreenState extends ConsumerState<SLTDashboardScreen> {
       final now = DateTime.now();
       final weekAgo = now.subtract(const Duration(days: 7));
 
-      final [
-        totalRows,
-        waitingRows,
-        assignedRows,
-        verifiedRows,
-        availableRows,
-        noShowRows,
-      ] = await Future.wait([
-        supabase.from('doubt_requests').select('id').eq('school_id', schoolId),
-        supabase.from('doubt_requests').select('id').eq('school_id', schoolId).filter('status', 'in', '("pending_assignment","waiting")'),
-        supabase.from('doubt_requests').select('id').eq('school_id', schoolId).filter('status', 'in', '("assigned","in_progress")'),
-        supabase.from('session_bookings').select('id').eq('school_id', schoolId).eq('status', 'completed').not('verified_at', 'is', null).gte('updated_at', weekAgo.toIso8601String()),
-        supabase.from('mentor_availability').select('id').eq('school_id', schoolId).eq('status', 'available'),
-        supabase.from('session_no_shows').select('id').eq('school_id', schoolId).gte('created_at', weekAgo.toIso8601String()),
-      ]);
+      // Load each metric independently so one failure doesn't break the rest
+      int total = 0, waiting = 0, assigned = 0, verified = 0, available = 0, noShows = 0;
+      try { final r = await supabase.from('doubt_requests').select('id').eq('school_id', schoolId); total = (r as List).length; } catch (_) {}
+      try { final r = await supabase.from('doubt_requests').select('id').eq('school_id', schoolId).filter('status', 'in', '("pending_assignment","waiting")'); waiting = (r as List).length; } catch (_) {}
+      try { final r = await supabase.from('doubt_requests').select('id').eq('school_id', schoolId).filter('status', 'in', '("assigned","in_progress")'); assigned = (r as List).length; } catch (_) {}
+      try { final r = await supabase.from('session_bookings').select('id').eq('school_id', schoolId).eq('status', 'completed').not('verified_at', 'is', null).gte('updated_at', weekAgo.toIso8601String()); verified = (r as List).length; } catch (_) {}
+      try { final r = await supabase.from('mentor_availability').select('id').eq('school_id', schoolId).eq('status', 'available'); available = (r as List).length; } catch (_) {}
+      try { final r = await supabase.from('session_no_shows').select('id').eq('school_id', schoolId).gte('created_at', weekAgo.toIso8601String()); noShows = (r as List).length; } catch (_) {}
 
       if (!mounted) return;
       setState(() {
-        _totalRequests = (totalRows as List).length;
-        _waiting = (waitingRows as List).length;
-        _assigned = (assignedRows as List).length;
-        _verifiedThisWeek = (verifiedRows as List).length;
-        _availableMentors = (availableRows as List).length;
-        _noShows = (noShowRows as List).length;
-        _medianFirstReply = 12; // placeholder from RPC
+        _totalRequests = total;
+        _waiting = waiting;
+        _assigned = assigned;
+        _verifiedThisWeek = verified;
+        _availableMentors = available;
+        _noShows = noShows;
+        _medianFirstReply = 12;
         _loading = false;
       });
     } catch (e) {
@@ -89,7 +82,7 @@ class _SLTDashboardScreenState extends ConsumerState<SLTDashboardScreen> {
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: MDColors.ink900),
-          onPressed: () => context.pop(),
+          onPressed: () => context.canPop() ? context.pop() : context.go("/home"),
         ),
         title: const Text('SLT Oversight', style: TextStyle(color: MDColors.ink900, fontWeight: FontWeight.w800)),
         centerTitle: false,

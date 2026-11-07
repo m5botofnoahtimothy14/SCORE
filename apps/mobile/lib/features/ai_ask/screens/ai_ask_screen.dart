@@ -41,9 +41,13 @@ class _AiAskScreenState extends State<AiAskScreen> {
     try {
       final context = await _service.loadContext();
       if (!mounted) return;
+      // Ensure default subjects are available if context has none
+      final subjects = context.subjects.isNotEmpty
+          ? context.subjects
+          : ['Mathematics', 'Physics', 'Chemistry', 'Biology'];
       setState(() {
-        _context = context;
-        _subject = context.subjects.isNotEmpty ? context.subjects.first : null;
+        _context = AiAskContext(grade: context.grade, subjects: subjects);
+        _subject = subjects.isNotEmpty ? subjects.first : null;
       });
     } on AiAskException catch (error) {
       if (mounted) setState(() => _error = error);

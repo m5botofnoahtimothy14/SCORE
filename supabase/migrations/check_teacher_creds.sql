@@ -1,0 +1,1 @@
+SELECT t.id, t.staff_id_no, t.first_name, t.last_name, t.is_active, t.user_id, tac.code, tac.expires_at, tac.used_at FROM teachers t LEFT JOIN teacher_activation_credentials tac ON tac.teacher_id = t.id WHERE t.is_active = TRUE;

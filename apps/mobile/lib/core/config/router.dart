@@ -5,11 +5,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../../features/ai_ask/screens/ai_ask_screen.dart';
 import '../../features/auth/screens/auth_gate_screen.dart';
 import '../../features/auth/screens/role_select_screen.dart';
 import '../../features/auth/screens/student_signin_screen.dart';
 import '../../features/auth/screens/teacher_signin_screen.dart';
+import '../../features/auth/screens/create_password_screen.dart';
 import '../../features/home/screens/home_screen.dart';
 import '../../features/announcements/screens/announcements_screen.dart' show AnnouncementsScreen;
 import '../../features/announcements/screens/announcement_detail_screen.dart' show AnnouncementDetailScreen;
@@ -178,13 +178,19 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/auth/role-select', builder: (_, __) => const RoleSelectScreen()),
       GoRoute(path: '/auth/student-signin', builder: (_, __) => const StudentSignInScreen()),
       GoRoute(path: '/auth/teacher-signin', builder: (_, __) => const TeacherSignInScreen()),
+      GoRoute(
+        path: '/auth/create-password',
+        builder: (_, state) => CreatePasswordScreen(
+          userId: state.uri.queryParameters['userId'] ?? '',
+          userType: state.uri.queryParameters['type'] ?? 'student',
+        ),
+      ),
       ShellRoute(
         builder: (context, state, child) => AppShell(child: child),
         routes: [
           GoRoute(path: '/home', builder: (_, __) => const HomeScreen()),
           GoRoute(path: '/announcements', builder: (_, __) => const AnnouncementsScreen()),
           GoRoute(path: '/announcements/compose', builder: (_, __) => const ComposeAnnouncementScreen()),
-          GoRoute(path: '/ai-ask', builder: (_, __) => const AiAskScreen()),
           GoRoute(
             path: '/announcements/:id',
             builder: (_, state) => AnnouncementDetailScreen(
@@ -287,7 +293,6 @@ class NavDest {
 List<NavDest> destinationsFor(AppTier tier) => switch (tier) {
   AppTier.student => const [
     NavDest('/mentor-desk', Icons.support_agent_outlined, Icons.support_agent, 'Mentor Desk'),
-    NavDest('/ai-ask', Icons.auto_awesome_outlined, Icons.auto_awesome, 'AI Ask'),
     NavDest('/announcements', Icons.campaign_outlined, Icons.campaign, 'Notices'),
     NavDest('/profile', Icons.person_outline, Icons.person, 'Profile'),
   ],

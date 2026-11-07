@@ -1,0 +1,1 @@
+SELECT s.id, s.student_id_no, s.first_name, s.user_id, ce.class_id, c.name as class_name, c.grade FROM students s LEFT JOIN class_enrollments ce ON ce.student_id = s.id AND ce.unenrolled_at IS NULL LEFT JOIN classes c ON c.id = ce.class_id WHERE s.is_active = TRUE;

@@ -28,6 +28,12 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Global error handling to prevent crashes from uncaught exceptions
+  FlutterError.onError = (FlutterErrorDetails details) {
+    FlutterError.presentError(details);
+    debugPrint('Flutter error: ${details.exception}');
+  };
+
   try {
     AppConfig.validate();
   } catch (e) {
@@ -62,6 +68,12 @@ Future<void> main() async {
       logLevel: RealtimeLogLevel.info,
     ),
   );
+
+  // Catch unhandled async errors to prevent crashes
+  WidgetsBinding.instance.platformDispatcher.onError = (error, stack) {
+    debugPrint('Unhandled error: $error');
+    return true; // Prevent crash
+  };
 
   runApp(
     const ProviderScope(
@@ -116,7 +128,7 @@ class SCOREApp extends ConsumerWidget {
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light(),
       darkTheme: AppTheme.dark(),
-      themeMode: ThemeMode.dark,
+      themeMode: ThemeMode.system,
       routerConfig: router,
     );
   }

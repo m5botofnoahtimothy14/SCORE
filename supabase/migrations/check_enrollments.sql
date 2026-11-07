@@ -1,0 +1,1 @@
+SELECT count(*) as enrollment_count FROM student_subject_enrollments;

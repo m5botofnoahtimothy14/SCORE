@@ -60,25 +60,41 @@ class _BookSessionScreenState extends ConsumerState<BookSessionScreen> {
 
       final service = ref.read(mentorDeskServiceProvider);
       final subjects = await service.listSubjects(_schoolId!);
-
+      
+      // If no subjects from DB, provide defaults: Chemistry, Physics, Biology
+      if (subjects.isEmpty) {
+        _subjects = [
+          SubjectWithName(id: 'mathematics', name: 'Mathematics'),
+          SubjectWithName(id: 'physics', name: 'Physics'),
+          SubjectWithName(id: 'chemistry', name: 'Chemistry'),
+          SubjectWithName(id: 'biology', name: 'Biology'),
+        ];
+      } else {
+        _subjects = subjects;
+      }
+      
       // Get settings for allowance
       final settings = await service.getSettings(_schoolId!);
       _sessionAllowanceMinutes = settings?.sessionAllowanceMinutes ?? 120;
       _sessionUsedMinutes = settings?.sessionUsedMinutes ?? 0;
 
       // Load available mentors (teachers with subject approvals)
-      final teachers = await Supabase.instance.client
-          .from('teachers')
-          .select('id, staff_id_no, first_name, last_name, is_active')
-          .eq('school_id', _schoolId!)
-          .eq('is_active', true);
-      _mentors = (teachers as List)
-          .map((r) => TeacherMentor.fromJson(Map<String, dynamic>.from(r as Map)))
-          .toList();
+      try {
+        final teachers = await Supabase.instance.client
+            .from('teachers')
+            .select('id, staff_id_no, first_name, last_name, is_active')
+            .eq('school_id', _schoolId!)
+            .eq('is_active', true);
+        _mentors = (teachers as List)
+            .map((r) => TeacherMentor.fromJson(Map<String, dynamic>.from(r as Map)))
+            .toList();
+      } catch (e) {
+        debugPrint('Failed to load mentors: $e');
+        _mentors = [];
+      }
 
       if (!mounted) return;
       setState(() {
-        _subjects = subjects;
         _loading = false;
       });
     } catch (e) {
@@ -166,7 +182,7 @@ class _BookSessionScreenState extends ConsumerState<BookSessionScreen> {
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: MDColors.ink900),
-          onPressed: () => context.pop(),
+          onPressed: () => context.canPop() ? context.pop() : context.go("/home"),
         ),
         title: const Text('Book a Session', style: TextStyle(color: MDColors.ink900, fontWeight: FontWeight.w800)),
         centerTitle: false,
@@ -377,14 +393,15 @@ class _BookSessionScreenState extends ConsumerState<BookSessionScreen> {
                   children: [
                     const Text('Select Subject', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800)),
                     const Spacer(),
-                    IconButton(icon: const Icon(Icons.close), onPressed: () => context.pop()),
+                    IconButton(icon: const Icon(Icons.close), onPressed: () => context.canPop() ? context.pop() : context.go("/home")),
                   ],
                 ),
               ),
-              Expanded(
-                child: ListView.builder(
-                  itemCount: _subjects.length,
-                  itemBuilder: (context, index) {
+              SizedBox(
+              height: MediaQuery.of(context).size.height * 0.5,
+              child: ListView.builder(
+                itemCount: _subjects.length,
+                itemBuilder: (context, index) {
                     final s = _subjects[index];
                     final selected = _subjectId == s.id;
                     return ListTile(
@@ -440,11 +457,12 @@ class _BookSessionScreenState extends ConsumerState<BookSessionScreen> {
                   children: [
                     const Text('Select Mentor', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800)),
                     const Spacer(),
-                    IconButton(icon: const Icon(Icons.close), onPressed: () => context.pop()),
+                    IconButton(icon: const Icon(Icons.close), onPressed: () => context.canPop() ? context.pop() : context.go("/home")),
                   ],
                 ),
               ),
-              Expanded(
+              SizedBox(
+                height: MediaQuery.of(context).size.height * 0.5,
                 child: ListView.builder(
                   itemCount: available.length + 1,
                   itemBuilder: (context, index) {

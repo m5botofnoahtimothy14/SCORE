@@ -61,7 +61,7 @@ class _AnnouncementsScreenState extends ConsumerState<AnnouncementsScreen> {
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: MDColors.ink900),
-          onPressed: () => context.pop(),
+          onPressed: () => context.canPop() ? context.pop() : context.go("/home"),
         ),
         title: const Text('Notices', style: TextStyle(color: MDColors.ink900, fontWeight: FontWeight.w800)),
         centerTitle: false,

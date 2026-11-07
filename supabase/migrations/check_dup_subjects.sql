@@ -1,0 +1,1 @@
+SELECT name, school_id, count(*) as cnt FROM subjects WHERE lower(name) IN ('chemistry', 'physics', 'biology', 'mathematics') GROUP BY name, school_id HAVING count(*) > 1;

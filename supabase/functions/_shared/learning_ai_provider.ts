@@ -18,7 +18,9 @@ export function providerConfig(): ProviderConfig | null {
   const chatModel = Deno.env.get('LEARNING_AI_CHAT_MODEL');
   const embeddingModel = Deno.env.get('LEARNING_AI_EMBEDDING_MODEL');
   if (!apiKey || !baseUrl || !chatModel || !embeddingModel) return null;
-  return { apiKey, baseUrl: baseUrl.replace(/\/$/, ''), chatModel, embeddingModel };
+  let base = baseUrl.replace(/\/$/, '');
+  if (base.endsWith('/v1')) base = base.slice(0, -3);
+  return { apiKey, baseUrl: base, chatModel, embeddingModel };
 }
 
 async function post(path: string, body: unknown, timeoutMs = 20_000): Promise<any> {

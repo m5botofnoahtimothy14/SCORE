@@ -145,19 +145,39 @@ ALTER TABLE public.doubt_requests
   ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
 
--- Ensure the status CHECK constraint covers all values used by the app.
+-- Ensure the status column covers all values used by the app.
+-- If status is an enum type, add missing values.
+-- If status is TEXT, add a CHECK constraint.
 DO $$
+DECLARE
+  v_col_type TEXT;
 BEGIN
-  -- Drop and recreate is NOT safe on existing data; instead, add a
-  -- constraint only if one doesn't already cover our values.
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_constraint
-    WHERE conrelid = 'public.doubt_requests'::regclass
-      AND conname = 'doubt_requests_status_check'
-  ) THEN
-    ALTER TABLE public.doubt_requests
-      ADD CONSTRAINT doubt_requests_status_check
-      CHECK (status IN ('submitted','pending_assignment','assigned','in_progress','answered','closed','reopened'));
+  SELECT data_type INTO v_col_type
+  FROM information_schema.columns
+  WHERE table_schema = 'public'
+    AND table_name = 'doubt_requests'
+    AND column_name = 'status';
+
+  IF v_col_type = 'USER-DEFINED' THEN
+    -- It's an enum type; add missing values.
+    BEGIN ALTER TYPE public.doubt_status ADD VALUE IF NOT EXISTS 'submitted'; EXCEPTION WHEN OTHERS THEN NULL; END;
+    BEGIN ALTER TYPE public.doubt_status ADD VALUE IF NOT EXISTS 'pending_assignment'; EXCEPTION WHEN OTHERS THEN NULL; END;
+    BEGIN ALTER TYPE public.doubt_status ADD VALUE IF NOT EXISTS 'assigned'; EXCEPTION WHEN OTHERS THEN NULL; END;
+    BEGIN ALTER TYPE public.doubt_status ADD VALUE IF NOT EXISTS 'in_progress'; EXCEPTION WHEN OTHERS THEN NULL; END;
+    BEGIN ALTER TYPE public.doubt_status ADD VALUE IF NOT EXISTS 'answered'; EXCEPTION WHEN OTHERS THEN NULL; END;
+    BEGIN ALTER TYPE public.doubt_status ADD VALUE IF NOT EXISTS 'closed'; EXCEPTION WHEN OTHERS THEN NULL; END;
+    BEGIN ALTER TYPE public.doubt_status ADD VALUE IF NOT EXISTS 'reopened'; EXCEPTION WHEN OTHERS THEN NULL; END;
+  ELSIF v_col_type = 'text' THEN
+    -- It's TEXT; add CHECK constraint if missing.
+    IF NOT EXISTS (
+      SELECT 1 FROM pg_constraint
+      WHERE conrelid = 'public.doubt_requests'::regclass
+        AND conname = 'doubt_requests_status_check'
+    ) THEN
+      ALTER TABLE public.doubt_requests
+        ADD CONSTRAINT doubt_requests_status_check
+        CHECK (status IN ('submitted','pending_assignment','assigned','in_progress','answered','closed','reopened'));
+    END IF;
   END IF;
 END $$;
 

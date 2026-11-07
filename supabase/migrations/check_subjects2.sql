@@ -1,0 +1,1 @@
+SELECT count(*) as subject_count FROM subjects WHERE lower(name) IN ('chemistry', 'physics', 'biology');

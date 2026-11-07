@@ -163,7 +163,7 @@ class _MentorSessionDetailScreenState extends ConsumerState<MentorSessionDetailS
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: MDColors.ink900),
-          onPressed: () => context.pop(),
+          onPressed: () => context.canPop() ? context.pop() : context.go("/home"),
         ),
         title: const Text('Session Detail', style: TextStyle(color: MDColors.ink900, fontWeight: FontWeight.w800)),
         centerTitle: false,

@@ -1,0 +1,1 @@
+SELECT s.id, s.student_id_no, s.first_name, s.last_name, s.is_active, s.user_id, sac.code, sac.expires_at, sac.used_at FROM students s LEFT JOIN student_activation_credentials sac ON sac.student_id = s.id WHERE s.is_active = TRUE;

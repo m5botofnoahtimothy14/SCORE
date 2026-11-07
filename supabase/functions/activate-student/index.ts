@@ -74,16 +74,19 @@ serve(async (req: Request) => {
     .maybeSingle();
 
   if (cErr || !cred) return jsonError("no_activation_code", 404);
-  if (cred.used_at) return jsonError("code_already_used", 400);
-  if (new Date(cred.expires_at) <= new Date()) return jsonError("code_expired", 400);
 
-  const inputCode = (body.activation_code ?? "").trim();
+  const inputCode = (body.activation_code ?? "").trim().toUpperCase();
   const stored = cred.code_hash ?? cred.code;
   if (!stored || !(await verifyCode(inputCode, stored))) return jsonError("invalid_credentials", 400);
 
-  await supabase.from("student_activation_credentials").update({ used_at: new Date().toISOString() }).eq("id", cred.id);
+  // Support returning students: mark code as used (idempotent)
+  if (!cred.used_at) {
+    // Check expiry only for first-time activation
+    if (new Date(cred.expires_at) <= new Date()) return jsonError("code_expired", 400);
+    await supabase.from("student_activation_credentials").update({ used_at: new Date().toISOString() }).eq("id", cred.id);
+  }
 
-  await supabase.from("students").update({ user_id: user.id, updated_at: new Date().toISOString() }).eq("id", student.id).is("user_id", null);
+  await supabase.from("students").update({ user_id: user.id, updated_at: new Date().toISOString() }).eq("id", student.id);
 
   await supabase.from("user_profiles").upsert({
     id: user.id,

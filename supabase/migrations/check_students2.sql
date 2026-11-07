@@ -1,0 +1,1 @@
+SELECT id, student_id_no, first_name, last_name, is_active, user_id FROM students LIMIT 10;

@@ -177,7 +177,7 @@ class _MentorQueueScreenState extends ConsumerState<MentorQueueScreen>
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: MDColors.ink900),
-          onPressed: () => context.pop(),
+          onPressed: () => context.canPop() ? context.pop() : context.go("/home"),
         ),
         title: const Text('Mentor Queue', style: TextStyle(color: MDColors.ink900, fontWeight: FontWeight.w800)),
         centerTitle: false,

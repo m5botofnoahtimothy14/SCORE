@@ -20,8 +20,8 @@
       "type": "dart",
       "program": "lib/main.dart",
       "toolArgs": [
-        "--dart-define=SUPABASE_URL=${input:supabaseUrl}",
-        "--dart-define=SUPABASE_ANON_KEY=${input:supabaseAnonKey}"
+        "--dart-define=SUPABASE_URL=https://pdnrloftybrhuwefmrhp.supabase.co",
+        "--dart-define=SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBkbnJsb2Z0eWJyaHV3ZWZtcmhwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTIxNTU4NjAsImV4cCI6MjEwNzczMTg2MH0.nOggil9woLHuDbiLyk_HPXH1BF-CuDR2EL1pjtgU-S8"
       ]
     }
   ],

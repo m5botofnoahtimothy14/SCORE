@@ -552,7 +552,7 @@ class DoubtMessage {
 
   factory DoubtMessage.fromJson(Map<String, dynamic> j) => DoubtMessage(
         id: j['id'] as String,
-        requestId: j['request_id'] as String,
+        requestId: (j['request_id'] ?? j['conversation_id']) as String? ?? '',
         senderId: j['sender_id'] as String,
         body: j['body'] as String? ?? '',
         attachmentUrl: j['attachment_url'] as String?,

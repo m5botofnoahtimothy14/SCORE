@@ -10,27 +10,28 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   <style>
     body { font-family: 'Inter', system-ui, sans-serif; }
-    .hero-grad { background: linear-gradient(135deg, #0F1E33 0%, #1E3A5F 50%, #2563EB 100%); }
+    .hero-grad { background: linear-gradient(135deg, #14213D 0%, #1B2F50 50%, #3478F6 100%); }
     .card { transition: transform .2s ease, box-shadow .2s ease; }
-    .card:hover { transform: translateY(-4px); box-shadow: 0 20px 40px -12px rgba(15,30,51,.18); }
+    .card:hover { transform: translateY(-4px); box-shadow: 0 20px 40px -12px rgba(20,33,61,.18); }
+    html { scroll-behavior: smooth; }
   </style>
 </head>
-<body class="bg-slate-50 text-slate-800 antialiased">
-  <header class="sticky top-0 z-40 backdrop-blur bg-white/80 border-b border-slate-200">
+<body class="bg-[#F5F7FB] text-[#17243A] antialiased">
+  <header class="sticky top-0 z-40 backdrop-blur bg-white/80 border-b border-[#E5EAF2]">
     <div class="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
       <div class="flex items-center gap-2">
-        <div class="h-9 w-9 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-700 flex items-center justify-center text-white font-bold">T</div>
-        <span class="font-bold text-lg text-slate-900">SCORE+</span>
+        <div class="h-9 w-9 rounded-xl bg-gradient-to-br from-[#14213D] to-[#3478F6] flex items-center justify-center text-white font-bold">S</div>
+        <span class="font-bold text-lg text-[#17243A]">SCORE+</span>
       </div>
-      <nav class="hidden md:flex gap-8 text-sm font-medium text-slate-600">
-        <a href="#features" class="hover:text-blue-600">Features</a>
-        <a href="#chat-history" class="hover:text-blue-600">Chat History</a>
-        <a href="#meeting-history" class="hover:text-blue-600">Meeting History</a>
-        <a href="#ai-manager" class="hover:text-blue-600">AI Manager</a>
-        <a href="#security" class="hover:text-blue-600">Security</a>
-        <a href="#contact" class="hover:text-blue-600">Contact</a>
+      <nav class="hidden md:flex gap-8 text-sm font-medium text-[#718096]">
+        <a href="#features" class="hover:text-[#3478F6]">Features</a>
+        <a href="#chat-history" class="hover:text-[#3478F6]">Chat History</a>
+        <a href="#meeting-history" class="hover:text-[#3478F6]">Meeting History</a>
+        <a href="#ai-manager" class="hover:text-[#3478F6]">AI Manager</a>
+        <a href="#security" class="hover:text-[#3478F6]">Security</a>
+        <a href="#download" class="hover:text-[#3478F6]">Get the app</a>
       </nav>
-      <a href="#download" class="px-4 py-2 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700">Get the app</a>
+      <a href="#download" class="px-4 py-2 rounded-xl bg-[#3478F6] text-white text-sm font-semibold hover:bg-[#28C7D9]">Get the app</a>
     </div>
   </header>
 
@@ -41,7 +42,7 @@
         <h1 class="text-4xl md:text-6xl font-extrabold leading-tight tracking-tight">One platform for students, teachers and school leaders.</h1>
         <p class="mt-6 text-lg text-slate-200 max-w-2xl">SCORE+ brings announcements, Mentor Desk doubt-solving, sessions, and safeguarded messaging into a single, school-managed experience — on mobile and web.</p>
         <div class="mt-10 flex flex-wrap gap-4">
-          <a href="#download" class="px-6 py-3 rounded-xl bg-white text-blue-700 font-semibold hover:bg-slate-100">Download for Android</a>
+          <a href="#download" class="px-6 py-3 rounded-xl bg-white text-[#14213D] font-semibold hover:bg-[#E5EAF2]">Download for Android</a>
           <a href="#features" class="px-6 py-3 rounded-xl border border-white/40 text-white font-semibold hover:bg-white/10">Explore features</a>
         </div>
       </div>
@@ -50,65 +51,59 @@
 
   <section id="features" class="max-w-6xl mx-auto px-6 py-20">
     <div class="text-center mb-12">
-      <h2 class="text-3xl md:text-4xl font-bold text-slate-900">Built for how schools actually work</h2>
-      <p class="mt-3 text-slate-500">Everything a school needs to communicate safely and effectively.</p>
+      <h2 class="text-3xl md:text-4xl font-bold text-[#17243A]">Built for how schools actually work</h2>
+      <p class="mt-3 text-[#718096]">Everything a school needs to communicate safely and effectively.</p>
     </div>
     <div class="grid md:grid-cols-3 gap-6">
-      <div class="card bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
-        <div class="h-12 w-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center mb-4">
+      <div class="card bg-white rounded-2xl p-6 border border-[#E5EAF2] shadow-sm">
+        <div class="h-12 w-12 rounded-xl bg-[#E8F1FF] text-[#3478F6] flex items-center justify-center mb-4">
           <svg class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
         </div>
         <h3 class="font-bold text-lg">Mentor Desk</h3>
-        <p class="mt-2 text-sm text-slate-500">Students submit doubts, teachers claim and resolve them, with weekly quotas and urgent passes.</p>
+        <p class="mt-2 text-sm text-[#718096]">Students submit doubts, teachers claim and resolve them, with weekly quotas and urgent passes.</p>
       </div>
-      <div class="card bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
-        <div class="h-12 w-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center mb-4">
+      <div class="card bg-white rounded-2xl p-6 border border-[#E5EAF2] shadow-sm">
+        <div class="h-12 w-12 rounded-xl bg-[#E7F6EE] text-[#16A36A] flex items-center justify-center mb-4">
           <svg class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
         </div>
         <h3 class="font-bold text-lg">Announcements</h3>
-        <p class="mt-2 text-sm text-slate-500">School-wide or class-targeted notices with attachments and read tracking.</p>
+        <p class="mt-2 text-sm text-[#718096]">School-wide or class-targeted notices with attachments and read tracking.</p>
       </div>
-      <div class="card bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
-        <div class="h-12 w-12 rounded-xl bg-violet-50 text-violet-600 flex items-center justify-center mb-4">
+      <div class="card bg-white rounded-2xl p-6 border border-[#E5EAF2] shadow-sm">
+        <div class="h-12 w-12 rounded-xl bg-[#E8F1FF] text-[#3478F6] flex items-center justify-center mb-4">
           <svg class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M15 10l4.553-2.276A1 1 0 0 1 21 8.618v6.764a1 1 0 0 1-1.447.894L15 14M5 18h8a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2z"/></svg>
         </div>
         <h3 class="font-bold text-lg">Live Sessions</h3>
-        <p class="mt-2 text-sm text-slate-500">Book 15/30-minute sessions with Google Meet links and OTP-verified closure.</p>
+        <p class="mt-2 text-sm text-[#718096]">Book 15/30-minute sessions with Google Meet links and OTP-verified closure.</p>
       </div>
     </div>
   </section>
 
-  <section id="chat-history" class="bg-white border-y border-slate-200">
+  <section id="chat-history" class="bg-white border-y border-[#E5EAF2]">
     <div class="max-w-6xl mx-auto px-6 py-20">
       <div class="text-center mb-12">
-        <h2 class="text-3xl md:text-4xl font-bold text-slate-900">Chat History</h2>
-        <p class="mt-3 text-slate-500">Every student-teacher conversation is stored, tracked, and auditable.</p>
+        <h2 class="text-3xl md:text-4xl font-bold text-[#17243A]">Chat History</h2>
+        <p class="mt-3 text-[#718096]">Every student-teacher conversation is stored, tracked, and auditable.</p>
       </div>
       <div class="grid md:grid-cols-2 gap-8">
-        <div class="card bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
-          <div class="h-12 w-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center mb-4">
-            <svg class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
-          </div>
+        <div class="card bg-white rounded-2xl p-6 border border-[#E5EAF2] shadow-sm">
           <h3 class="font-bold text-lg">Student-Teacher Chat</h3>
-          <p class="mt-2 text-sm text-slate-500">Each doubt becomes a conversation thread. Students and teachers exchange messages, attachments, and resolutions in real time.</p>
-          <ul class="mt-4 space-y-2 text-sm text-slate-600">
-            <li class="flex gap-2"><span class="text-emerald-500">✓</span> Full message history with timestamps</li>
-            <li class="flex gap-2"><span class="text-emerald-500">✓</span> Read/unread tracking per user</li>
-            <li class="flex gap-2"><span class="text-emerald-500">✓</span> Attachment support (images, documents)</li>
-            <li class="flex gap-2"><span class="text-emerald-500">✓</span> Moderated and safeguarded</li>
+          <p class="mt-2 text-sm text-[#718096]">Each doubt becomes a conversation thread. Students and teachers exchange messages, attachments, and resolutions in real time.</p>
+          <ul class="mt-4 space-y-2 text-sm text-[#718096]">
+            <li class="flex gap-2"><span class="text-[#16A36A]">✓</span> Full message history with timestamps</li>
+            <li class="flex gap-2"><span class="text-[#16A36A]">✓</span> Read/unread tracking per user</li>
+            <li class="flex gap-2"><span class="text-[#16A36A]">✓</span> Attachment support (images, documents)</li>
+            <li class="flex gap-2"><span class="text-[#16A36A]">✓</span> Moderated and safeguarded</li>
           </ul>
         </div>
-        <div class="card bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
-          <div class="h-12 w-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center mb-4">
-            <svg class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
-          </div>
+        <div class="card bg-white rounded-2xl p-6 border border-[#E5EAF2] shadow-sm">
           <h3 class="font-bold text-lg">Doubt Lifecycle</h3>
-          <p class="mt-2 text-sm text-slate-500">Each doubt is a tracked token — submitted, assigned, in-progress, answered, closed. Teachers resolve; students rate.</p>
-          <ul class="mt-4 space-y-2 text-sm text-slate-600">
-            <li class="flex gap-2"><span class="text-emerald-500">✓</span> Status tracking (pending → answered → closed)</li>
-            <li class="flex gap-2"><span class="text-emerald-500">✓</span> Reopen and follow-up support</li>
-            <li class="flex gap-2"><span class="text-emerald-500">✓</span> Teacher assessments and student ratings</li>
-            <li class="flex gap-2"><span class="text-emerald-500">✓</span> Full audit trail in database</li>
+          <p class="mt-2 text-sm text-[#718096]">Each doubt is a tracked token — submitted, assigned, in-progress, answered, closed. Teachers resolve; students rate.</p>
+          <ul class="mt-4 space-y-2 text-sm text-[#718096]">
+            <li class="flex gap-2"><span class="text-[#16A36A]">✓</span> Status tracking (pending → answered → closed)</li>
+            <li class="flex gap-2"><span class="text-[#16A36A]">✓</span> Reopen and follow-up support</li>
+            <li class="flex gap-2"><span class="text-[#16A36A]">✓</span> Teacher assessments and student ratings</li>
+            <li class="flex gap-2"><span class="text-[#16A36A]">✓</span> Full audit trail in database</li>
           </ul>
         </div>
       </div>
@@ -117,80 +112,62 @@
 
   <section id="meeting-history" class="max-w-6xl mx-auto px-6 py-20">
     <div class="text-center mb-12">
-      <h2 class="text-3xl md:text-4xl font-bold text-slate-900">Meeting History</h2>
-      <p class="mt-3 text-slate-500">Every session is tracked — from booking to OTP-verified closure.</p>
+      <h2 class="text-3xl md:text-4xl font-bold text-[#17243A]">Meeting History</h2>
+      <p class="mt-3 text-[#718096]">Every session is tracked — from booking to OTP-verified closure.</p>
     </div>
     <div class="grid md:grid-cols-3 gap-6">
-      <div class="card bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
-        <div class="h-12 w-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center mb-4">
-          <svg class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-        </div>
+      <div class="card bg-white rounded-2xl p-6 border border-[#E5EAF2] shadow-sm">
         <h3 class="font-bold text-lg">Session Booking</h3>
-        <p class="mt-2 text-sm text-slate-500">Students book 15 or 30-minute sessions. Teachers confirm with scheduling. Google Meet links auto-generated.</p>
-        <ul class="mt-4 space-y-2 text-sm text-slate-600">
-          <li class="flex gap-2"><span class="text-emerald-500">✓</span> 15 &amp; 30-minute durations</li>
-          <li class="flex gap-2"><span class="text-emerald-500">✓</span> Weekly allowance tracking</li>
-          <li class="flex gap-2"><span class="text-emerald-500">✓</span> Google Meet calendar events</li>
+        <p class="mt-2 text-sm text-[#718096]">Students book 15 or 30-minute sessions. Teachers confirm with scheduling. Google Meet links auto-generated.</p>
+        <ul class="mt-4 space-y-2 text-sm text-[#718096]">
+          <li class="flex gap-2"><span class="text-[#16A36A]">✓</span> 15 &amp; 30-minute durations</li>
+          <li class="flex gap-2"><span class="text-[#16A36A]">✓</span> Weekly allowance tracking</li>
+          <li class="flex gap-2"><span class="text-[#16A36A]">✓</span> Google Meet calendar events</li>
         </ul>
       </div>
-      <div class="card bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
-        <div class="h-12 w-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center mb-4">
-          <svg class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-        </div>
+      <div class="card bg-white rounded-2xl p-6 border border-[#E5EAF2] shadow-sm">
         <h3 class="font-bold text-lg">OTP Closure</h3>
-        <p class="mt-2 text-sm text-slate-500">At session end, student gets an OTP. Teacher enters it to verify and close the session. 30-min expiry, 5-attempt lock.</p>
-        <ul class="mt-4 space-y-2 text-sm text-slate-600">
-          <li class="flex gap-2"><span class="text-emerald-500">✓</span> Student receives 6-digit OTP</li>
-          <li class="flex gap-2"><span class="text-emerald-500">✓</span> Teacher verifies to close session</li>
-          <li class="flex gap-2"><span class="text-emerald-500">✓</span> No-show reporting &amp; refunds</li>
+        <p class="mt-2 text-sm text-[#718096]">At session end, student gets an OTP. Teacher enters it to verify and close the session. 30-min expiry, 5-attempt lock.</p>
+        <ul class="mt-4 space-y-2 text-sm text-[#718096]">
+          <li class="flex gap-2"><span class="text-[#16A36A]">✓</span> Student receives 6-digit OTP</li>
+          <li class="flex gap-2"><span class="text-[#16A36A]">✓</span> Teacher verifies to close session</li>
+          <li class="flex gap-2"><span class="text-[#16A36A]">✓</span> No-show reporting &amp; refunds</li>
         </ul>
       </div>
-      <div class="card bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
-        <div class="h-12 w-12 rounded-xl bg-violet-50 text-violet-600 flex items-center justify-center mb-4">
-          <svg class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
-        </div>
+      <div class="card bg-white rounded-2xl p-6 border border-[#E5EAF2] shadow-sm">
         <h3 class="font-bold text-lg">Meeting History</h3>
-        <p class="mt-2 text-sm text-slate-500">All sessions logged with status, duration, actual minutes used, and verification timestamps.</p>
-        <ul class="mt-4 space-y-2 text-sm text-slate-600">
-          <li class="flex gap-2"><span class="text-emerald-500">✓</span> Status tracking (booked → completed)</li>
-          <li class="flex gap-2"><span class="text-emerald-500">✓</span> Actual vs reserved minutes</li>
-          <li class="flex gap-2"><span class="text-emerald-500">✓</span> Allowance refund on cancellation</li>
+        <p class="mt-2 text-sm text-[#718096]">All sessions logged with status, duration, actual minutes used, and verification timestamps.</p>
+        <ul class="mt-4 space-y-2 text-sm text-[#718096]">
+          <li class="flex gap-2"><span class="text-[#16A36A]">✓</span> Status tracking (booked → completed)</li>
+          <li class="flex gap-2"><span class="text-[#16A36A]">✓</span> Actual vs reserved minutes</li>
+          <li class="flex gap-2"><span class="text-[#16A36A]">✓</span> Allowance refund on cancellation</li>
         </ul>
       </div>
     </div>
   </section>
 
-  <section id="ai-manager" class="bg-white border-y border-slate-200">
+  <section id="ai-manager" class="bg-white border-y border-[#E5EAF2]">
     <div class="max-w-6xl mx-auto px-6 py-20">
       <div class="text-center mb-12">
-        <h2 class="text-3xl md:text-4xl font-bold text-slate-900">AI Manager</h2>
-        <p class="mt-3 text-slate-500">Control app UI, styling, text visibility, database, and app management — all from the web.</p>
+        <h2 class="text-3xl md:text-4xl font-bold text-[#17243A]">AI Manager</h2>
+        <p class="mt-3 text-[#718096]">Control app UI, styling, text visibility, database, and app management — all from the web.</p>
       </div>
       <div class="grid md:grid-cols-3 gap-6">
-        <div class="card bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
-          <div class="h-12 w-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center mb-4">
-            <svg class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
-          </div>
+        <div class="card bg-white rounded-2xl p-6 border border-[#E5EAF2] shadow-sm">
           <h3 class="font-bold text-lg">UI &amp; Styling</h3>
-          <p class="mt-2 text-sm text-slate-500">Adjust colors, text sizes, card radius, dark/light mode, and visual themes across the app.</p>
+          <p class="mt-2 text-sm text-[#718096]">Adjust colors, text sizes, card radius, dark/light mode, and visual themes across the app.</p>
         </div>
-        <div class="card bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
-          <div class="h-12 w-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center mb-4">
-            <svg class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"/></svg>
-          </div>
+        <div class="card bg-white rounded-2xl p-6 border border-[#E5EAF2] shadow-sm">
           <h3 class="font-bold text-lg">Database Management</h3>
-          <p class="mt-2 text-sm text-slate-500">Manage subjects, students, teachers, sessions, and curriculum data from the web dashboard.</p>
+          <p class="mt-2 text-sm text-[#718096]">Manage subjects, students, teachers, sessions, and curriculum data from the web dashboard.</p>
         </div>
-        <div class="card bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
-          <div class="h-12 w-12 rounded-xl bg-violet-50 text-violet-600 flex items-center justify-center mb-4">
-            <svg class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-          </div>
+        <div class="card bg-white rounded-2xl p-6 border border-[#E5EAF2] shadow-sm">
           <h3 class="font-bold text-lg">App Management</h3>
-          <p class="mt-2 text-sm text-slate-500">Configure school settings, mentor desk policies, session allowances, and notification rules.</p>
+          <p class="mt-2 text-sm text-[#718096]">Configure school settings, mentor desk policies, session allowances, and notification rules.</p>
         </div>
       </div>
       <div class="mt-8 text-center">
-        <a href="https://github.com/m5botofnoahtimothy14/SCORE" class="px-6 py-3 rounded-xl bg-blue-600 text-white font-semibold hover:bg-blue-700">Open Admin Portal</a>
+        <a href="https://github.com/m5botofnoahtimothy14/SCORE" class="px-6 py-3 rounded-xl bg-[#3478F6] text-white font-semibold hover:bg-[#28C7D9]">Open Admin Portal</a>
       </div>
     </div>
   </section>
@@ -198,16 +175,16 @@
   <section id="security" class="max-w-6xl mx-auto px-6 py-20">
     <div class="grid md:grid-cols-2 gap-10 items-center">
       <div>
-        <h2 class="text-3xl md:text-4xl font-bold text-slate-900">Security first, by design</h2>
-        <p class="mt-4 text-slate-500">Row-level security, server-side activation, fail-closed moderation, and school-level isolation protect every interaction.</p>
-        <ul class="mt-6 space-y-3 text-sm text-slate-700">
-          <li class="flex gap-2"><span class="text-emerald-500">✓</span> Supabase RLS on every table</li>
-          <li class="flex gap-2"><span class="text-emerald-500">✓</span> SHA-256 hashed activation codes</li>
-          <li class="flex gap-2"><span class="text-emerald-500">✓</span> Fail-closed content moderation</li>
-          <li class="flex gap-2"><span class="text-emerald-500">✓</span> School-level data isolation</li>
+        <h2 class="text-3xl md:text-4xl font-bold text-[#17243A]">Security first, by design</h2>
+        <p class="mt-4 text-[#718096]">Row-level security, server-side activation, fail-closed moderation, and school-level isolation protect every interaction.</p>
+        <ul class="mt-6 space-y-3 text-sm text-[#718096]">
+          <li class="flex gap-2"><span class="text-[#16A36A]">✓</span> Supabase RLS on every table</li>
+          <li class="flex gap-2"><span class="text-[#16A36A]">✓</span> SHA-256 hashed activation codes</li>
+          <li class="flex gap-2"><span class="text-[#16A36A]">✓</span> Fail-closed content moderation</li>
+          <li class="flex gap-2"><span class="text-[#16A36A]">✓</span> School-level data isolation</li>
         </ul>
       </div>
-      <div class="bg-slate-900 text-slate-200 rounded-2xl p-8 shadow-xl">
+      <div class="bg-[#14213D] text-[#E5EAF2] rounded-2xl p-8 shadow-xl">
         <pre class="text-xs leading-relaxed overflow-x-auto"><code>SCORE+
 ├─ apps/mobile   (Flutter)
 ├─ apps/admin    (Next.js DMS)
@@ -220,15 +197,15 @@
   <section id="download" class="hero-grad text-white">
     <div class="max-w-6xl mx-auto px-6 py-16 text-center">
       <h2 class="text-3xl md:text-4xl font-bold">Ready to bring SCORE+ to your school?</h2>
-      <p class="mt-3 text-slate-200">Contact us to provision your school and issue activation codes.</p>
+      <p class="mt-3 text-[#E5EAF2]">Contact us to provision your school and issue activation codes.</p>
       <div class="mt-8 flex justify-center gap-4 flex-wrap">
-        <a href="#contact" class="px-6 py-3 rounded-xl bg-white text-blue-700 font-semibold">Contact sales</a>
+        <a href="#contact" class="px-6 py-3 rounded-xl bg-white text-[#14213D] font-semibold">Contact sales</a>
         <a href="https://github.com" class="px-6 py-3 rounded-xl border border-white/40 text-white font-semibold">Admin portal</a>
       </div>
     </div>
   </section>
 
-  <footer id="contact" class="bg-slate-900 text-slate-400">
+  <footer id="contact" class="bg-[#14213D] text-[#E5EAF2]">
     <div class="max-w-6xl mx-auto px-6 py-12 grid md:grid-cols-3 gap-8 text-sm">
       <div>
         <div class="font-bold text-white text-lg">SCORE+</div>
@@ -237,11 +214,11 @@
       <div>
         <div class="font-semibold text-white mb-2">Product</div>
         <ul class="space-y-1">
-          <li><a href="#features" class="hover:text-white">Features</a></li>
-          <li><a href="#chat-history" class="hover:text-white">Chat History</a></li>
-          <li><a href="#meeting-history" class="hover:text-white">Meeting History</a></li>
-          <li><a href="#ai-manager" class="hover:text-white">AI Manager</a></li>
-          <li><a href="#security" class="hover:text-white">Security</a></li>
+          <li><a href="#features" class="hover:text-[#3478F6]">Features</a></li>
+          <li><a href="#chat-history" class="hover:text-[#3478F6]">Chat History</a></li>
+          <li><a href="#meeting-history" class="hover:text-[#3478F6]">Meeting History</a></li>
+          <li><a href="#ai-manager" class="hover:text-[#3478F6]">AI Manager</a></li>
+          <li><a href="#security" class="hover:text-[#3478F6]">Security</a></li>
         </ul>
       </div>
       <div>
@@ -250,7 +227,7 @@
         <p>+91 90000 00000</p>
       </div>
     </div>
-    <div class="border-t border-slate-800 py-4 text-center text-xs">© 2026 SCORE+. All rights reserved.</div>
+    <div class="border-t border-[#1B2F50] py-4 text-center text-xs">© 2026 SCORE+. All rights reserved.</div>
   </footer>
 </body>
 </html>

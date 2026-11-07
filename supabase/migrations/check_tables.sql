@@ -1,0 +1,1 @@
+SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name IN ('student_subject_enrollments', 'subjects', 'students', 'class_enrollments');

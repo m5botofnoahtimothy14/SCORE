@@ -31,6 +31,7 @@ const operationsNav: NavEntry[] = [
 const mentorDeskNav: NavEntry[] = [
   { href: '/dashboard/mentor-desk', icon: 'HelpCircle', label: 'Overview' },
   { href: '/dashboard/mentor-desk/doubts', icon: 'HelpCircle', label: 'Doubt Requests' },
+  { href: '/dashboard/conversations', icon: 'MessageCircle', label: 'Chat History' },
   { href: '/dashboard/mentor-desk/sessions', icon: 'Clock', label: 'Session Bookings' },
   { href: '/dashboard/mentor-desk/mentors', icon: 'Users', label: 'Mentors' },
   { href: '/dashboard/mentor-desk/ratings', icon: 'CheckCircle', label: 'Feedback & Ratings' },

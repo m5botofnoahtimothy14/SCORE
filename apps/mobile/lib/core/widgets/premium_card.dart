@@ -32,7 +32,7 @@ class PremiumPrimaryButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final button = ElevatedButton(
       onPressed: onPressed,
-      style: ElevatedButton.styleFrom(backgroundColor: SColor.electricBlue, foregroundColor: SColor.textInverse, elevation: 0,
+      style: ElevatedButton.styleFrom(backgroundColor: SColor.primary, foregroundColor: SColor.textInverse, elevation: 0,
         shadowColor: Colors.transparent, padding: EdgeInsets.symmetric(vertical: height ?? SSpace.md),
         shape: RoundedRectangleBorder(borderRadius: SRadii.mdAll)),
       child: loading ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: SColor.textInverse)) : child,
@@ -49,7 +49,7 @@ class PremiumSecondaryButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) => OutlinedButton(
     onPressed: onPressed,
-    style: OutlinedButton.styleFrom(foregroundColor: SColor.electricBlue, side: const BorderSide(color: SColor.electricBlue, width: 1.5),
+    style: OutlinedButton.styleFrom(foregroundColor: SColor.primary, side: const BorderSide(color: SColor.primary, width: 1.5),
       padding: const EdgeInsets.symmetric(vertical: SSpace.md), shape: RoundedRectangleBorder(borderRadius: SRadii.mdAll)),
     child: child,
   );
@@ -86,7 +86,7 @@ class PremiumInput extends StatelessWidget {
           isDense: true, errorText: errorText,
           border: OutlineInputBorder(borderRadius: SRadii.mdAll, borderSide: const BorderSide(color: SColor.border)),
           enabledBorder: OutlineInputBorder(borderRadius: SRadii.mdAll, borderSide: const BorderSide(color: SColor.border)),
-          focusedBorder: OutlineInputBorder(borderRadius: SRadii.mdAll, borderSide: const BorderSide(color: SColor.electricBlue, width: 1.5)),
+          focusedBorder: OutlineInputBorder(borderRadius: SRadii.mdAll, borderSide: const BorderSide(color: SColor.primary, width: 1.5)),
           errorBorder: OutlineInputBorder(borderRadius: SRadii.mdAll, borderSide: const BorderSide(color: SColor.error)),
           focusedErrorBorder: OutlineInputBorder(borderRadius: SRadii.mdAll, borderSide: const BorderSide(color: SColor.error, width: 1.5)),
           hintStyle: const TextStyle(color: SColor.textMuted, fontSize: 14),
@@ -112,7 +112,7 @@ class PremiumDropdown<T> extends StatelessWidget {
           isDense: true, errorText: errorText,
           border: OutlineInputBorder(borderRadius: SRadii.mdAll, borderSide: const BorderSide(color: SColor.border)),
           enabledBorder: OutlineInputBorder(borderRadius: SRadii.mdAll, borderSide: const BorderSide(color: SColor.border)),
-          focusedBorder: OutlineInputBorder(borderRadius: SRadii.mdAll, borderSide: const BorderSide(color: SColor.electricBlue, width: 1.5)),
+          focusedBorder: OutlineInputBorder(borderRadius: SRadii.mdAll, borderSide: const BorderSide(color: SColor.primary, width: 1.5)),
           errorBorder: OutlineInputBorder(borderRadius: SRadii.mdAll, borderSide: const BorderSide(color: SColor.error)),
           hintStyle: const TextStyle(color: SColor.textMuted, fontSize: 14),
         ),
@@ -146,7 +146,7 @@ class PremiumSectionHeader extends StatelessWidget {
   Widget build(BuildContext context) => Row(children: [
     Text(title, style: STextStyle.headingSmall.copyWith(fontWeight: FontWeight.w800, color: SColor.primaryText)),
     const Spacer(),
-    if (actionLabel != null && onAction != null) TextButton(onPressed: onAction, child: Text(actionLabel!, style: const TextStyle(color: SColor.electricBlue, fontWeight: FontWeight.w700, fontSize: 12))),
+    if (actionLabel != null && onAction != null) TextButton(onPressed: onAction, child: Text(actionLabel!, style: const TextStyle(color: SColor.primary, fontWeight: FontWeight.w700, fontSize: 12))),
   ]);
 }
 
@@ -158,7 +158,7 @@ class PremiumMessageBubble extends StatelessWidget {
     final alignment = isMine ? CrossAxisAlignment.end : CrossAxisAlignment.start;
     return Padding(padding: const EdgeInsets.symmetric(vertical: 6), child: Column(crossAxisAlignment: alignment, children: [
       Container(constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.82), decoration: BoxDecoration(
-        color: isMine ? SColor.electricBlue : SColor.surface,
+        color: isMine ? SColor.primary : SColor.surface,
         borderRadius: BorderRadius.only(topLeft: const Radius.circular(16), topRight: const Radius.circular(16),
           bottomLeft: isMine ? const Radius.circular(16) : Radius.zero, bottomRight: isMine ? Radius.zero : const Radius.circular(16)),
         border: isMine ? null : Border.all(color: SColor.border)),
